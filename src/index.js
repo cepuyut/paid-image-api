@@ -109,7 +109,7 @@ app.post("/v1/images/generate", async (req, res) => {
       timings: result.data?.timings,
     });
   } catch (err) {
-    console.error("fal.ai error:", err);
+    console.error("fal.ai error:", err.message, err.body || err);
     res.status(502).json({
       type: "https://paymentauth.org/problems/upstream-error",
       title: "Upstream Error",
