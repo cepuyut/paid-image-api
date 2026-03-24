@@ -8,14 +8,14 @@
   "x-service-info": {
     "categories": ["media", "compute"],
     "docs": {
-      "homepage": "https://paid-image-api.example.com",
-      "llms": "https://paid-image-api.example.com/llms.txt",
-      "apiReference": "https://paid-image-api.example.com/openapi.json"
+      "homepage": "https://paid-image-api-production.up.railway.app",
+      "llms": "https://paid-image-api-production.up.railway.app/llms.txt",
+      "apiReference": "https://paid-image-api-production.up.railway.app/openapi.json"
     }
   },
   "servers": [
     {
-      "url": "https://paid-image-api.example.com"
+      "url": "https://paid-image-api-production.up.railway.app"
     }
   ],
   "paths": {

@@ -1,10 +1,10 @@
 # Paid Image API
 
-> AI image generation API powered by fal.ai, monetized via MPP (Machine Payments Protocol).
+> AI image generation API monetized via MPP (Machine Payments Protocol).
 
 ## Overview
 
-Paid Image API lets you generate images from text prompts using state-of-the-art AI models (Flux, Stable Diffusion) via fal.ai. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with pathUSD stablecoins.
+Paid Image API lets you generate images from text prompts using AI models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with pathUSD stablecoins.
 
 No API keys needed. Just pay per request.
 
@@ -33,8 +33,8 @@ Generate an image from a text prompt.
 
 **Request body** (JSON):
 - `prompt` (string, required): Text describing the image to generate
-- `model` (string, optional): fal.ai model ID. Default: `fal-ai/flux/schnell`. Options: `fal-ai/flux/dev`, `fal-ai/flux-pro/v1.1`, `fal-ai/stable-diffusion-v35-large`
-- `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`
+- `model` (string, optional): Model ID. Default: `gemini-3-pro-image-preview`
+- `image_size` (string, optional): Output size. Default: `1024x1024`. Options: `512x512`, `1024x1024`, `1792x1024`
 - `num_images` (integer, optional): Number of images, 1-4. Default: 1
 
 **Success response** (200):
@@ -49,7 +49,7 @@ Generate an image from a text prompt.
     }
   ],
   "prompt": "...",
-  "model": "fal-ai/flux/schnell",
+  "model": "gemini-3-pro-image-preview",
   "timings": {}
 }
 ```
@@ -74,5 +74,5 @@ Generate an image from a text prompt.
 ## Links
 
 - MPP spec: https://mpp.dev
-- fal.ai docs: https://fal.ai/docs
+- Bluesminds: https://api.bluesminds.com
 - Tempo docs: https://docs.tempo.xyz
