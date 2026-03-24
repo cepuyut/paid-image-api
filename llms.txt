@@ -1,0 +1,78 @@
+# Paid Image API
+
+> AI image generation API powered by fal.ai, monetized via MPP (Machine Payments Protocol).
+
+## Overview
+
+Paid Image API lets you generate images from text prompts using state-of-the-art AI models (Flux, Stable Diffusion) via fal.ai. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with pathUSD stablecoins.
+
+No API keys needed. Just pay per request.
+
+## Payment
+
+- Protocol: MPP (Machine Payments Protocol)
+- Method: `tempo` (Tempo blockchain)
+- Intent: `charge` (one-time per-request payment)
+- Amount: `500000` base units (0.50 pathUSD)
+- Currency: `0x20c000000000000000000000b9537d11c60e8b50` (pathUSD on Tempo)
+- Recipient: `0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb`
+
+## Payment Flow
+
+1. `POST /v1/images/generate` with your prompt (no auth header)
+2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge
+3. Sign a Tempo transaction transferring 0.50 pathUSD to the recipient
+4. Retry the same request with `Authorization: Payment <base64url-credential>`
+5. Receive `200 OK` with generated images and a `Payment-Receipt` header
+
+## Endpoint
+
+### POST /v1/images/generate
+
+Generate an image from a text prompt.
+
+**Request body** (JSON):
+- `prompt` (string, required): Text describing the image to generate
+- `model` (string, optional): fal.ai model ID. Default: `fal-ai/flux/schnell`. Options: `fal-ai/flux/dev`, `fal-ai/flux-pro/v1.1`, `fal-ai/stable-diffusion-v35-large`
+- `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`
+- `num_images` (integer, optional): Number of images, 1-4. Default: 1
+
+**Success response** (200):
+```json
+{
+  "images": [
+    {
+      "url": "https://...",
+      "width": 1024,
+      "height": 768,
+      "content_type": "image/jpeg"
+    }
+  ],
+  "prompt": "...",
+  "model": "fal-ai/flux/schnell",
+  "timings": {}
+}
+```
+
+**Payment challenge** (402):
+```json
+{
+  "type": "https://paymentauth.org/problems/payment-required",
+  "title": "Payment Required",
+  "status": 402,
+  "detail": "Generate an image for 500000 base-unit pathUSD",
+  "challengeId": "..."
+}
+```
+
+## Discovery
+
+- OpenAPI spec: `GET /openapi.json`
+- LLM docs: `GET /llms.txt`
+- Health check: `GET /health`
+
+## Links
+
+- MPP spec: https://mpp.dev
+- fal.ai docs: https://fal.ai/docs
+- Tempo docs: https://docs.tempo.xyz

@@ -1,0 +1,17 @@
+{
+  "name": "paid-image-api",
+  "version": "1.0.0",
+  "description": "Paid image generation API via fal.ai, monetized with MPP (Machine Payments Protocol)",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "dev": "node --env-file=.env --watch src/index.js"
+  },
+  "keywords": ["mpp", "paid-api", "image-generation", "fal-ai", "402"],
+  "license": "MIT",
+  "dependencies": {
+    "@fal-ai/client": "^1.0.0",
+    "express": "^5.1.0"
+  }
+}
