@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paid Image API — AI Image Generation via MPP</title>
+  <meta name="description" content="Generate AI images via API. Pay per request with pathUSD. No API keys needed.">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --border: #262626;
+      --text: #e5e5e5;
+      --muted: #737373;
+      --accent: #22c55e;
+      --accent2: #3b82f6;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+    /* Header */
+    header {
+      padding: 60px 0 40px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-block;
+      background: #22c55e15;
+      color: var(--accent);
+      border: 1px solid #22c55e30;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    h1 span { color: var(--accent); }
+    .subtitle {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* Pricing */
+    .pricing {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 40px 0;
+    }
+    .tier {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .tier:hover { border-color: var(--accent); }
+    .tier .name { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .tier .price { font-size: 32px; font-weight: 700; margin: 8px 0 4px; }
+    .tier .price span { font-size: 16px; color: var(--muted); }
+    .tier .desc { font-size: 13px; color: var(--muted); }
+
+    /* Demo */
+    .demo {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin: 40px 0;
+    }
+    .demo h2 { font-size: 20px; margin-bottom: 4px; }
+    .demo .hint { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    input[type="text"], select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--accent); }
+    input[type="text"] { flex: 1; }
+    select { min-width: 130px; cursor: pointer; }
+    button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .result {
+      margin-top: 20px;
+      min-height: 60px;
+    }
+    .result img {
+      max-width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .result .status {
+      font-size: 14px;
+      color: var(--muted);
+      padding: 20px;
+      text-align: center;
+    }
+    .result .error {
+      color: #ef4444;
+      font-size: 14px;
+      padding: 12px;
+      background: #ef444415;
+      border-radius: 8px;
+    }
+
+    /* How it works */
+    .flow {
+      margin: 40px 0;
+    }
+    .flow h2 { font-size: 20px; margin-bottom: 20px; }
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .step {
+      display: flex;
+      gap: 16px;
+      padding: 16px 0;
+    }
+    .step-num {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .step-content .step-title { font-weight: 600; font-size: 15px; }
+    .step-content .step-desc { font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+    /* Code */
+    .code-section { margin: 40px 0; }
+    .code-section h2 { font-size: 20px; margin-bottom: 16px; }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0;
+    }
+    .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      cursor: pointer;
+      font-weight: 500;
+      border-radius: 8px 8px 0 0;
+    }
+    .tab.active { background: var(--surface); color: var(--text); }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 8px 8px 8px;
+      padding: 20px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+    .kw { color: #c084fc; }
+    .str { color: #22c55e; }
+    .cm { color: #525252; }
+    .fn { color: #60a5fa; }
+
+    /* Links */
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 40px 0;
+      justify-content: center;
+    }
+    .links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    .links a:hover { border-color: var(--accent); }
+
+    footer {
+      text-align: center;
+      padding: 40px 0;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 28px; }
+      .pricing { grid-template-columns: 1fr; }
+      .input-row { flex-direction: column; }
+      .tier .price { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="badge">Live on Tempo Mainnet</div>
+    <h1>AI Images. <span>Pay per pixel.</span></h1>
+    <p class="subtitle">Generate images from text prompts. No API keys, no signup. Just pay with pathUSD via MPP.</p>
+  </header>
+
+  <!-- Pricing -->
+  <div class="pricing">
+    <div class="tier">
+      <div class="name">Schnell</div>
+      <div class="price">$0.03<span>/img</span></div>
+      <div class="desc">Fast generation</div>
+    </div>
+    <div class="tier">
+      <div class="name">Dev</div>
+      <div class="price">$0.05<span>/img</span></div>
+      <div class="desc">Balanced quality</div>
+    </div>
+    <div class="tier">
+      <div class="name">Pro</div>
+      <div class="price">$0.10<span>/img</span></div>
+      <div class="desc">High quality</div>
+    </div>
+  </div>
+
+  <!-- Demo -->
+  <div class="demo">
+    <h2>Try it</h2>
+    <p class="hint">Free demo — 3 generations per day. No wallet needed.</p>
+    <div class="input-row">
+      <input type="text" id="prompt" placeholder="a cat wearing sunglasses on a beach" />
+      <select id="model">
+        <option value="gemini-3-pro-image-preview">Dev ($0.05)</option>
+      </select>
+    </div>
+    <button id="generate" onclick="generateImage()">Generate</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <!-- How it works -->
+  <div class="flow">
+    <h2>How it works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">POST your prompt</div>
+          <div class="step-desc">Send a request to /v1/images/generate with your text prompt</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Receive payment challenge</div>
+          <div class="step-desc">Server responds 402 with a WWW-Authenticate challenge containing the price</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Pay with pathUSD</div>
+          <div class="step-desc">Transfer pathUSD on Tempo blockchain. Gas fees covered by the server.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Get your image</div>
+          <div class="step-desc">Retry with the payment credential. Receive your image + receipt.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Code examples -->
+  <div class="code-section">
+    <h2>Quick start</h2>
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('curl')">curl</div>
+      <div class="tab" onclick="showTab('node')">Node.js</div>
+      <div class="tab" onclick="showTab('python')">Python</div>
+    </div>
+    <pre id="code-curl"><code><span class="cm"># Step 1: Get payment challenge</span>
+curl -X POST https://paid-image-api-production.up.railway.app/v1/images/generate \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "gemini-3-pro-image-preview"}'</span>
+
+<span class="cm"># Step 2: Pay via Tempo, then retry with credential</span>
+curl -X POST https://paid-image-api-production.up.railway.app/v1/images/generate \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"Authorization: Payment &lt;base64url-credential&gt;"</span> \
+  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "gemini-3-pro-image-preview"}'</span></code></pre>
+    <pre id="code-node" style="display:none"><code><span class="cm">// Get payment challenge</span>
+<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://paid-image-api-production.up.railway.app/v1/images/generate"</span>, {
+  method: <span class="str">"POST"</span>,
+  headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
+  body: JSON.<span class="fn">stringify</span>({
+    prompt: <span class="str">"a sunset over mountains"</span>,
+    model: <span class="str">"gemini-3-pro-image-preview"</span>
+  })
+});
+
+<span class="cm">// Parse 402 challenge from WWW-Authenticate header</span>
+<span class="kw">const</span> challenge = res.headers.<span class="fn">get</span>(<span class="str">"WWW-Authenticate"</span>);
+
+<span class="cm">// ... sign Tempo tx, build credential, retry with Authorization header</span></code></pre>
+    <pre id="code-python" style="display:none"><code><span class="kw">import</span> requests
+
+<span class="cm"># Get payment challenge</span>
+res = requests.<span class="fn">post</span>(
+    <span class="str">"https://paid-image-api-production.up.railway.app/v1/images/generate"</span>,
+    json={<span class="str">"prompt"</span>: <span class="str">"a sunset over mountains"</span>, <span class="str">"model"</span>: <span class="str">"gemini-3-pro-image-preview"</span>}
+)
+
+<span class="cm"># Parse 402 challenge</span>
+challenge = res.headers[<span class="str">"WWW-Authenticate"</span>]
+
+<span class="cm"># ... sign Tempo tx, build credential, retry with Authorization header</span></code></pre>
+  </div>
+
+  <!-- Links -->
+  <div class="links">
+    <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
+    <a href="/openapi.json">OpenAPI Spec</a>
+    <a href="/llms.txt">llms.txt</a>
+    <a href="/v1/prices">Pricing API</a>
+    <a href="https://www.mppscan.com/server/cf369327194725b2d722e8d37faf10702abbbb3b8a8d06695eba321c606b5973">MPPscan</a>
+  </div>
+
+  <footer>
+    Built with MPP (Machine Payments Protocol) on Tempo blockchain.
+  </footer>
+</div>
+
+<script>
+const DEMO_LIMIT = 3;
+const STORAGE_KEY = "demo_count";
+
+function getDemoCount() {
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  const today = new Date().toISOString().slice(0, 10);
+  return data.date === today ? data.count : 0;
+}
+
+function incrementDemo() {
+  const today = new Date().toISOString().slice(0, 10);
+  const count = getDemoCount() + 1;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: today, count }));
+  return count;
+}
+
+async function generateImage() {
+  const count = getDemoCount();
+  if (count >= DEMO_LIMIT) {
+    document.getElementById("result").innerHTML = '<div class="error">Daily demo limit reached (3/day). Use the API with a Tempo wallet for unlimited access.</div>';
+    return;
+  }
+
+  const prompt = document.getElementById("prompt").value.trim();
+  if (!prompt) return;
+
+  const btn = document.getElementById("generate");
+  const result = document.getElementById("result");
+  btn.disabled = true;
+  btn.textContent = "Generating...";
+  result.innerHTML = '<div class="status">Generating your image...</div>';
+
+  try {
+    const res = await fetch("/api/demo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      result.innerHTML = `<div class="error">${err.detail || "Generation failed. Try again."}</div>`;
+      return;
+    }
+
+    const data = await res.json();
+    incrementDemo();
+    const remaining = DEMO_LIMIT - getDemoCount();
+
+    if (data.images?.[0]?.b64_json) {
+      result.innerHTML = `<img src="data:image/png;base64,${data.images[0].b64_json}" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
+    } else if (data.images?.[0]?.url) {
+      result.innerHTML = `<img src="${data.images[0].url}" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
+    }
+  } catch (e) {
+    result.innerHTML = '<div class="error">Network error. Try again.</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Generate";
+  }
+}
+
+function showTab(lang) {
+  document.querySelectorAll("pre[id^='code-']").forEach(el => el.style.display = "none");
+  document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
+  document.getElementById("code-" + lang).style.display = "block";
+  event.target.classList.add("active");
+}
+</script>
+</body>
+</html>

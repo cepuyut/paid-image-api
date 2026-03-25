@@ -47,6 +47,9 @@ if (IMAGE_BACKEND === "fal") {
 const app = express();
 app.use(express.json());
 
+// Serve landing page
+app.use(express.static(join(ROOT, "public")));
+
 // ---------------------------------------------------------------------------
 // MPP Discovery: GET /openapi.json
 // ---------------------------------------------------------------------------
@@ -186,6 +189,70 @@ app.get("/v1/prices", (_req, res) => {
   }));
   res.set("Cache-Control", "max-age=300");
   res.json({ currency: "pathUSD", decimals: 6, tiers });
+});
+
+// ---------------------------------------------------------------------------
+// Demo endpoint: POST /api/demo (free, rate-limited by IP)
+// ---------------------------------------------------------------------------
+
+const DEMO_LIMIT = 3; // per IP per day
+const demoUsage = new Map(); // ip -> { date, count }
+
+app.post("/api/demo", async (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Rate limit
+  const usage = demoUsage.get(ip);
+  if (usage && usage.date === today && usage.count >= DEMO_LIMIT) {
+    return res.status(429).json({
+      detail: `Demo limit reached (${DEMO_LIMIT}/day). Use the API with a Tempo wallet for unlimited access.`,
+    });
+  }
+
+  const { prompt } = req.body || {};
+  if (!prompt || typeof prompt !== "string") {
+    return res.status(400).json({ detail: "A 'prompt' string is required." });
+  }
+
+  try {
+    const usedModel = "gemini-3-pro-image-preview";
+    const resp = await fetch(`${BLUESMINDS_BASE}/images/generations`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${BLUESMINDS_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: usedModel,
+        prompt,
+        n: 1,
+        size: "1024x1024",
+      }),
+    });
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      throw new Error(`Bluesminds ${resp.status}: ${errBody}`);
+    }
+    const data = await resp.json();
+    const images = (data.data || []).map((d) => ({
+      url: d.url || undefined,
+      content_type: "image/png",
+      ...(d.b64_json ? { b64_json: d.b64_json } : {}),
+    }));
+
+    // Track usage
+    if (usage && usage.date === today) {
+      usage.count++;
+    } else {
+      demoUsage.set(ip, { date: today, count: 1 });
+    }
+
+    res.json({ images, prompt, model: usedModel });
+  } catch (err) {
+    console.error("Demo error:", err.message);
+    res.status(502).json({ detail: "Image generation failed. Please retry." });
+  }
 });
 
 // ---------------------------------------------------------------------------
