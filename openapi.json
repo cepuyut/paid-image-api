@@ -4,7 +4,7 @@
     "title": "Paid Image API",
     "version": "1.0.0",
     "description": "AI image generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
-    "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay 0.08 pathUSD via Tempo blockchain, then retry with the payment credential to receive your generated image."
+    "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.03, Dev $0.05, Pro $0.10 pathUSD via Tempo blockchain, then retry with the payment credential to receive your generated image. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
     "ownershipProofs": ["dns:paid-image-api-production.up.railway.app"]
@@ -30,8 +30,14 @@
         "description": "Generates images from text prompts using AI models. Each request costs 0.08 pathUSD, paid via MPP Tempo charge.",
         "x-payment-info": {
           "protocols": ["mpp"],
-          "pricingMode": "fixed",
-          "price": "0.080000"
+          "pricingMode": "tiered",
+          "priceRange": { "min": "0.030000", "max": "0.100000" },
+          "tiers": [
+            { "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "0.030000" },
+            { "model": "fal-ai/flux/dev", "tier": "dev", "price": "0.050000" },
+            { "model": "gemini-3-pro-image-preview", "tier": "dev", "price": "0.050000" },
+            { "model": "fal-ai/flux-pro/v1.1", "tier": "pro", "price": "0.100000" }
+          ]
         },
         "requestBody": {
           "required": true,
@@ -47,8 +53,9 @@
                   },
                   "model": {
                     "type": "string",
-                    "description": "Model identifier",
-                    "default": "gemini-3-pro-image-preview"
+                    "description": "Model identifier. Pricing varies by model: fal-ai/flux/schnell ($0.03), fal-ai/flux/dev ($0.05), gemini-3-pro-image-preview ($0.05), fal-ai/flux-pro/v1.1 ($0.10)",
+                    "default": "gemini-3-pro-image-preview",
+                    "enum": ["fal-ai/flux/schnell", "fal-ai/flux/dev", "fal-ai/flux-pro/v1.1", "gemini-3-pro-image-preview"]
                   },
                   "image_size": {
                     "type": "string",

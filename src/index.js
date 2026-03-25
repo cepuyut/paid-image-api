@@ -14,8 +14,22 @@ const ROOT = join(__dirname, "..");
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || `http://localhost:${PORT}`;
 
-// Price per image in base units (1 USDC = 1_000_000 base units with 6 decimals)
-const IMAGE_PRICE = process.env.IMAGE_PRICE || "80000"; // 0.08 USD default
+// ---------------------------------------------------------------------------
+// Tiered pricing per model (base units, 6 decimals: 1 pathUSD = 1_000_000)
+// ---------------------------------------------------------------------------
+const PRICING_TIERS = {
+  // fal.ai models
+  "fal-ai/flux/schnell":       { price: "30000",  usd: "0.03", tier: "schnell" },
+  "fal-ai/flux/dev":           { price: "50000",  usd: "0.05", tier: "dev" },
+  "fal-ai/flux-pro/v1.1":     { price: "100000", usd: "0.10", tier: "pro" },
+  // Bluesminds models
+  "gemini-3-pro-image-preview":{ price: "50000",  usd: "0.05", tier: "dev" },
+};
+const DEFAULT_PRICE = { price: "50000", usd: "0.05", tier: "dev" };
+
+function getPricing(model) {
+  return PRICING_TIERS[model] || DEFAULT_PRICE;
+}
 
 // Image backend: "bluesminds" (default) or "fal"
 const IMAGE_BACKEND = process.env.IMAGE_BACKEND || "bluesminds";
@@ -60,23 +74,27 @@ app.get("/llms.txt", (_req, res) => {
 
 app.post("/v1/images/generate", async (req, res) => {
   const authHeader = req.get("Authorization");
+  const { prompt, model, image_size, num_images } = req.body || {};
+
+  // Determine price from requested model
+  const pricing = getPricing(model);
 
   // --- No credential → 402 challenge ---
   if (!authHeader || !authHeader.startsWith("Payment ")) {
     const { statusCode, headers, body } = createChallenge({
-      amount: IMAGE_PRICE,
-      description: `Generate an image for 0.08 pathUSD`,
+      amount: pricing.price,
+      description: `Generate an image for ${pricing.usd} pathUSD (${pricing.tier} tier)`,
     });
     for (const [k, v] of Object.entries(headers)) res.set(k, v);
     return res.status(statusCode).json(body);
   }
 
   // --- Verify credential ---
-  const { ok, error, credential } = verifyCredential(authHeader, IMAGE_PRICE);
+  const { ok, error, credential } = verifyCredential(authHeader, pricing.price);
   if (!ok) {
     const { statusCode, headers, body } = createChallenge({
-      amount: IMAGE_PRICE,
-      description: `Generate an image for 0.08 pathUSD`,
+      amount: pricing.price,
+      description: `Generate an image for ${pricing.usd} pathUSD (${pricing.tier} tier)`,
     });
     body.type = `https://paymentauth.org/problems/${error}`;
     body.title = error.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -86,7 +104,6 @@ app.post("/v1/images/generate", async (req, res) => {
   }
 
   // --- Validate request body ---
-  const { prompt, model, image_size, num_images } = req.body || {};
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({
       type: "https://paymentauth.org/problems/bad-request",
@@ -157,6 +174,21 @@ app.post("/v1/images/generate", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Pricing endpoint: GET /v1/prices
+// ---------------------------------------------------------------------------
+
+app.get("/v1/prices", (_req, res) => {
+  const tiers = Object.entries(PRICING_TIERS).map(([model, info]) => ({
+    model,
+    tier: info.tier,
+    price_base_units: info.price,
+    price_usd: info.usd,
+  }));
+  res.set("Cache-Control", "max-age=300");
+  res.json({ currency: "pathUSD", decimals: 6, tiers });
+});
+
+// ---------------------------------------------------------------------------
 // Health check
 // ---------------------------------------------------------------------------
 
@@ -168,7 +200,8 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 app.listen(PORT, () => {
   console.log(`paid-image-api listening on ${HOST}`);
-  console.log(`  POST ${HOST}/v1/images/generate  (MPP-protected)`);
+  console.log(`  POST ${HOST}/v1/images/generate  (MPP-protected, tiered pricing)`);
+  console.log(`  GET  ${HOST}/v1/prices`);
   console.log(`  GET  ${HOST}/openapi.json`);
   console.log(`  GET  ${HOST}/llms.txt`);
 });

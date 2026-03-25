@@ -13,15 +13,25 @@ No API keys needed. Just pay per request.
 - Protocol: MPP (Machine Payments Protocol)
 - Method: `tempo` (Tempo blockchain)
 - Intent: `charge` (one-time per-request payment)
-- Amount: `80000` base units (0.08 pathUSD)
 - Currency: `0x20c000000000000000000000b9537d11c60e8b50` (pathUSD on Tempo)
 - Recipient: `0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb`
 
+### Tiered Pricing (per image)
+
+| Model | Tier | Price (pathUSD) | Base Units |
+|---|---|---|---|
+| `fal-ai/flux/schnell` | schnell (fast) | $0.03 | 30000 |
+| `fal-ai/flux/dev` | dev (balanced) | $0.05 | 50000 |
+| `gemini-3-pro-image-preview` | dev (balanced) | $0.05 | 50000 |
+| `fal-ai/flux-pro/v1.1` | pro (high quality) | $0.10 | 100000 |
+
+Default model: `gemini-3-pro-image-preview` ($0.05). Price is determined by the `model` field in your request.
+
 ## Payment Flow
 
-1. `POST /v1/images/generate` with your prompt (no auth header)
-2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge
-3. Sign a Tempo transaction transferring 0.08 pathUSD to the recipient
+1. `POST /v1/images/generate` with your prompt and model (no auth header)
+2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge (amount varies by model)
+3. Sign a Tempo transaction transferring the required pathUSD to the recipient
 4. Retry the same request with `Authorization: Payment <base64url-credential>`
 5. Receive `200 OK` with generated images and a `Payment-Receipt` header
 
@@ -33,7 +43,7 @@ Generate an image from a text prompt.
 
 **Request body** (JSON):
 - `prompt` (string, required): Text describing the image to generate
-- `model` (string, optional): Model ID. Default: `gemini-3-pro-image-preview`
+- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03), `fal-ai/flux/dev` ($0.05), `gemini-3-pro-image-preview` ($0.05, default), `fal-ai/flux-pro/v1.1` ($0.10)
 - `image_size` (string, optional): Output size. Default: `1024x1024`. Options: `512x512`, `1024x1024`, `1792x1024`
 - `num_images` (integer, optional): Number of images, 1-4. Default: 1
 
@@ -69,6 +79,7 @@ Generate an image from a text prompt.
 
 - OpenAPI spec: `GET /openapi.json`
 - LLM docs: `GET /llms.txt`
+- Pricing: `GET /v1/prices`
 - Health check: `GET /health`
 
 ## Links
