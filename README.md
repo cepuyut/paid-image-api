@@ -1,51 +1,59 @@
 # Paid Image API
 
-AI image generation API powered by [fal.ai](https://fal.ai), monetized via [MPP](https://mpp.dev) (Machine Payments Protocol).
+AI image generation API monetized via [MPP](https://mpp.dev) (Machine Payments Protocol). No API keys — just pay per request with pathUSD on Tempo blockchain.
 
-No API keys needed — agents pay per request using the Tempo blockchain.
+**Live:** https://paid-image-api-production.up.railway.app
 
-## Quick Start
+## Pricing
 
-```bash
-cp .env.example .env
-# Edit .env and add your FAL_KEY and MPP_CHALLENGE_SECRET
-
-npm install
-npm start
-```
+| Model | Tier | Price |
+|-------|------|-------|
+| `fal-ai/flux/schnell` | Schnell (fast) | $0.03 |
+| `fal-ai/flux/dev` | Dev (balanced) | $0.05 |
+| `gemini-3-pro-image-preview` | Dev (balanced) | $0.05 |
+| `fal-ai/flux-pro/v1.1` | Pro (high quality) | $0.10 |
 
 ## How It Works
 
-1. An agent sends `POST /v1/images/generate` with a prompt
-2. The server responds with `402 Payment Required` and a `WWW-Authenticate: Payment` challenge
-3. The agent signs a Tempo transaction for 0.50 pathUSD and retries with `Authorization: Payment <credential>`
-4. The server verifies the payment, calls fal.ai, and returns the generated image(s) with a `Payment-Receipt`
+```
+POST /v1/images/generate  →  402 "pay first"  →  transfer pathUSD  →  200 + image
+```
+
+1. Send `POST /v1/images/generate` with a prompt and model
+2. Receive `402 Payment Required` with payment challenge (amount varies by model)
+3. Sign a Tempo transaction for the required pathUSD
+4. Retry with `Authorization: Payment <credential>`
+5. Get your generated image(s) + `Payment-Receipt` header
 
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/v1/images/generate` | Generate image (MPP-protected) |
-| GET | `/openapi.json` | MPP service discovery |
-| GET | `/llms.txt` | LLM-friendly documentation |
-| GET | `/health` | Health check |
+| `POST` | `/v1/images/generate` | Generate image (MPP-protected) |
+| `GET` | `/v1/prices` | Current pricing tiers |
+| `GET` | `/openapi.json` | MPP service discovery |
+| `GET` | `/llms.txt` | LLM-friendly docs |
+| `GET` | `/health` | Health check |
 
-## MPP Configuration
+## Quick Start
 
-| Parameter | Value |
-|-----------|-------|
-| Payment method | `tempo` |
-| Intent | `charge` |
-| Price | 500,000 base units (0.50 pathUSD) |
-| Currency | `0x20c000000000000000000000b9537d11c60e8b50` |
-| Wallet | `0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb` |
-| Chain ID | 42431 (Tempo mainnet) |
+```bash
+cp .env.example .env
+# Edit .env with your keys
+npm install
+npm start
+```
+
+## Tech Stack
+
+- **Server:** Express.js
+- **Image backends:** Bluesminds (OpenAI-compatible) + fal.ai
+- **Payments:** MPP via Tempo blockchain (pathUSD)
+- **Deploy:** Railway
 
 ## MPP Directory
 
-This service is ready for the [MPP Payments Directory](https://mpp.dev/services). The `/openapi.json` endpoint includes `x-service-info` and `x-payment-info` extensions per the MPP discovery spec.
-
-To register, submit your deployed domain to the MPP directory — the crawler will pick up `GET /openapi.json` automatically.
+Listed on [MPPscan](https://www.mppscan.com). The `/openapi.json` includes `x-payment-info` and `x-discovery` extensions per the MPP spec.
 
 ## License
 
