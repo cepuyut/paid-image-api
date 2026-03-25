@@ -90,7 +90,7 @@ app.post("/v1/images/generate", async (req, res) => {
   }
 
   // --- Verify credential ---
-  const { ok, error, credential } = verifyCredential(authHeader, pricing.price);
+  const { ok, error, credential } = await verifyCredential(authHeader, pricing.price);
   if (!ok) {
     const { statusCode, headers, body } = createChallenge({
       amount: pricing.price,

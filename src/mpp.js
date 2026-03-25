@@ -17,6 +17,13 @@ const CHALLENGE_TTL_SECONDS = Number(process.env.MPP_CHALLENGE_TTL || 300); // 5
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
 const CURRENCY_TOKEN = process.env.CURRENCY_TOKEN;
 const CHAIN_ID = Number(process.env.TEMPO_CHAIN_ID || 42431);
+const TEMPO_RPC = process.env.TEMPO_RPC || "https://rpc.tempo.xyz";
+
+// ERC-20 Transfer event topic
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+// Track used tx hashes to prevent replay attacks
+const usedTxHashes = new Set();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,22 +122,71 @@ export function createChallenge({ amount, description }) {
 }
 
 // ---------------------------------------------------------------------------
+// On-chain verification via Tempo RPC
+// ---------------------------------------------------------------------------
+
+/**
+ * Verify a transaction on Tempo blockchain via JSON-RPC.
+ * Checks that the tx is confirmed and contains a Transfer event
+ * sending the correct amount of pathUSD to our wallet.
+ */
+async function verifyOnChain(txHash, expectedAmount) {
+  const res = await fetch(TEMPO_RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_getTransactionReceipt",
+      params: [txHash],
+    }),
+  });
+
+  const { result: receipt } = await res.json();
+  if (!receipt || receipt.status !== "0x1") {
+    return { ok: false, error: "tx-not-confirmed" };
+  }
+
+  // Find Transfer event from the pathUSD token contract
+  const transferLog = receipt.logs.find(
+    (log) =>
+      log.address.toLowerCase() === CURRENCY_TOKEN.toLowerCase() &&
+      log.topics[0] === TRANSFER_TOPIC
+  );
+
+  if (!transferLog) {
+    return { ok: false, error: "no-transfer-found" };
+  }
+
+  // Verify recipient (topics[2] = to address, zero-padded)
+  const to = "0x" + transferLog.topics[2].slice(26);
+  if (to.toLowerCase() !== WALLET_ADDRESS.toLowerCase()) {
+    return { ok: false, error: "wrong-recipient" };
+  }
+
+  // Verify amount (data = uint256 value)
+  const value = BigInt(transferLog.data);
+  if (value < BigInt(expectedAmount)) {
+    return { ok: false, error: "payment-insufficient" };
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
 // Credential verification
 // ---------------------------------------------------------------------------
 
 /**
  * Parse and verify an `Authorization: Payment <credential>` header.
- *
- * In a production deployment this would verify the Tempo transaction
- * signature and broadcast the tx to the Tempo network. For MPP directory
- * listing purposes we validate the challenge binding, expiry, and amount
- * so the 402 flow is fully exercisable.
+ * Validates challenge binding, expiry, amount, AND verifies the
+ * transaction on-chain via Tempo RPC.
  *
  * @param {string} authHeader – full Authorization header value
  * @param {string} expectedAmount – the amount we expect
- * @returns {{ ok: boolean, error?: string, credential?: object }}
+ * @returns {Promise<{ ok: boolean, error?: string, credential?: object }>}
  */
-export function verifyCredential(authHeader, expectedAmount) {
+export async function verifyCredential(authHeader, expectedAmount) {
   if (!authHeader || !authHeader.startsWith("Payment ")) {
     return { ok: false, error: "missing-credential" };
   }
@@ -180,8 +236,28 @@ export function verifyCredential(authHeader, expectedAmount) {
   }
 
   // Verify payload has proof (transaction signature or hash)
-  if (!payload.signature && !payload.hash) {
+  const txHash = payload.hash;
+  if (!txHash && !payload.signature) {
     return { ok: false, error: "verification-failed" };
+  }
+
+  // Prevent replay attacks — each tx hash can only be used once
+  if (txHash && usedTxHashes.has(txHash)) {
+    return { ok: false, error: "payment-already-used" };
+  }
+
+  // On-chain verification
+  if (txHash) {
+    try {
+      const onChain = await verifyOnChain(txHash, expectedAmount);
+      if (!onChain.ok) {
+        return { ok: false, error: onChain.error };
+      }
+      usedTxHashes.add(txHash);
+    } catch (err) {
+      console.error("On-chain verification error:", err.message);
+      return { ok: false, error: "verification-failed" };
+    }
   }
 
   return { ok: true, credential };
