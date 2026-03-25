@@ -3,7 +3,11 @@
   "info": {
     "title": "Paid Image API",
     "version": "1.0.0",
-    "description": "AI image generation API powered by fal.ai, monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain."
+    "description": "AI image generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
+    "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay 0.50 pathUSD via Tempo blockchain, then retry with the payment credential to receive your generated image."
+  },
+  "x-discovery": {
+    "ownershipProofs": ["dns:paid-image-api-production.up.railway.app"]
   },
   "x-service-info": {
     "categories": ["media", "compute"],
@@ -23,13 +27,11 @@
       "post": {
         "operationId": "generateImage",
         "summary": "Generate an image from a text prompt",
-        "description": "Uses fal.ai models (default: flux/schnell) to generate images from text prompts. Each request costs 0.50 pathUSD, paid via MPP Tempo charge.",
+        "description": "Generates images from text prompts using AI models. Each request costs 0.50 pathUSD, paid via MPP Tempo charge.",
         "x-payment-info": {
-          "intent": "charge",
-          "method": "tempo",
-          "amount": "500000",
-          "currency": "0x20c000000000000000000000b9537d11c60e8b50",
-          "description": "0.50 pathUSD per image generation request"
+          "protocols": ["mpp"],
+          "pricingMode": "fixed",
+          "price": "0.500000"
         },
         "requestBody": {
           "required": true,
@@ -45,27 +47,14 @@
                   },
                   "model": {
                     "type": "string",
-                    "description": "fal.ai model identifier",
-                    "default": "fal-ai/flux/schnell",
-                    "enum": [
-                      "fal-ai/flux/schnell",
-                      "fal-ai/flux/dev",
-                      "fal-ai/flux-pro/v1.1",
-                      "fal-ai/stable-diffusion-v35-large"
-                    ]
+                    "description": "Model identifier",
+                    "default": "gemini-3-pro-image-preview"
                   },
                   "image_size": {
                     "type": "string",
                     "description": "Output image size",
-                    "default": "landscape_4_3",
-                    "enum": [
-                      "square_hd",
-                      "square",
-                      "portrait_4_3",
-                      "portrait_16_9",
-                      "landscape_4_3",
-                      "landscape_16_9"
-                    ]
+                    "default": "1024x1024",
+                    "enum": ["512x512", "1024x1024", "1792x1024"]
                   },
                   "num_images": {
                     "type": "integer",
@@ -115,7 +104,13 @@
             }
           },
           "402": {
-            "description": "Payment Required – respond with Authorization: Payment credential"
+            "description": "Payment Required – respond with Authorization: Payment credential",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "MPP payment challenge",
+                "schema": { "type": "string" }
+              }
+            }
           }
         }
       }
