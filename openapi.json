@@ -4,7 +4,7 @@
     "title": "Paid Image API",
     "version": "1.0.0",
     "description": "AI image generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
-    "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay 0.50 pathUSD via Tempo blockchain, then retry with the payment credential to receive your generated image."
+    "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay 0.08 pathUSD via Tempo blockchain, then retry with the payment credential to receive your generated image."
   },
   "x-discovery": {
     "ownershipProofs": ["dns:paid-image-api-production.up.railway.app"]
@@ -27,11 +27,11 @@
       "post": {
         "operationId": "generateImage",
         "summary": "Generate an image from a text prompt",
-        "description": "Generates images from text prompts using AI models. Each request costs 0.50 pathUSD, paid via MPP Tempo charge.",
+        "description": "Generates images from text prompts using AI models. Each request costs 0.08 pathUSD, paid via MPP Tempo charge.",
         "x-payment-info": {
           "protocols": ["mpp"],
           "pricingMode": "fixed",
-          "price": "0.500000"
+          "price": "0.080000"
         },
         "requestBody": {
           "required": true,

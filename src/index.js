@@ -15,7 +15,7 @@ const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || `http://localhost:${PORT}`;
 
 // Price per image in base units (1 USDC = 1_000_000 base units with 6 decimals)
-const IMAGE_PRICE = process.env.IMAGE_PRICE || "500000"; // 0.50 USD default
+const IMAGE_PRICE = process.env.IMAGE_PRICE || "80000"; // 0.08 USD default
 
 // Image backend: "bluesminds" (default) or "fal"
 const IMAGE_BACKEND = process.env.IMAGE_BACKEND || "bluesminds";
@@ -65,7 +65,7 @@ app.post("/v1/images/generate", async (req, res) => {
   if (!authHeader || !authHeader.startsWith("Payment ")) {
     const { statusCode, headers, body } = createChallenge({
       amount: IMAGE_PRICE,
-      description: `Generate an image for ${IMAGE_PRICE} base-unit pathUSD`,
+      description: `Generate an image for 0.08 pathUSD`,
     });
     for (const [k, v] of Object.entries(headers)) res.set(k, v);
     return res.status(statusCode).json(body);
@@ -76,7 +76,7 @@ app.post("/v1/images/generate", async (req, res) => {
   if (!ok) {
     const { statusCode, headers, body } = createChallenge({
       amount: IMAGE_PRICE,
-      description: `Generate an image for ${IMAGE_PRICE} base-unit pathUSD`,
+      description: `Generate an image for 0.08 pathUSD`,
     });
     body.type = `https://paymentauth.org/problems/${error}`;
     body.title = error.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

@@ -13,7 +13,7 @@ No API keys needed. Just pay per request.
 - Protocol: MPP (Machine Payments Protocol)
 - Method: `tempo` (Tempo blockchain)
 - Intent: `charge` (one-time per-request payment)
-- Amount: `500000` base units (0.50 pathUSD)
+- Amount: `80000` base units (0.08 pathUSD)
 - Currency: `0x20c000000000000000000000b9537d11c60e8b50` (pathUSD on Tempo)
 - Recipient: `0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb`
 
@@ -21,7 +21,7 @@ No API keys needed. Just pay per request.
 
 1. `POST /v1/images/generate` with your prompt (no auth header)
 2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge
-3. Sign a Tempo transaction transferring 0.50 pathUSD to the recipient
+3. Sign a Tempo transaction transferring 0.08 pathUSD to the recipient
 4. Retry the same request with `Authorization: Payment <base64url-credential>`
 5. Receive `200 OK` with generated images and a `Payment-Receipt` header
 
@@ -60,7 +60,7 @@ Generate an image from a text prompt.
   "type": "https://paymentauth.org/problems/payment-required",
   "title": "Payment Required",
   "status": 402,
-  "detail": "Generate an image for 500000 base-unit pathUSD",
+  "detail": "Generate an image for 80000 base-unit pathUSD",
   "challengeId": "..."
 }
 ```
