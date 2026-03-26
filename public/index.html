@@ -892,26 +892,33 @@ function b64urlDecode(str) {
 }
 
 // ── Wallet Connect ──
-async function handleWallet() {
-  if (walletConnected) {
-    // Disconnect
-    walletConnected = false;
-    walletAddress = null;
-    walletSigner = null;
-    usdcBalance = null;
-    document.getElementById("walletBtn").innerHTML = "Connect Wallet";
-    document.getElementById("walletBtn").className = "btn-wallet";
-    document.getElementById("walletBanner").style.display = "none";
-    document.getElementById("modeHint").innerHTML = 'Free demo &middot; 1 per day';
-    return;
-  }
+const WALLET_KEY = "pixelpay_wallet";
 
+function disconnectWallet() {
+  walletConnected = false;
+  walletAddress = null;
+  walletSigner = null;
+  usdcBalance = null;
+  localStorage.removeItem(WALLET_KEY);
+  document.getElementById("walletBtn").innerHTML = "Connect Wallet";
+  document.getElementById("walletBtn").className = "btn-wallet";
+  document.getElementById("walletBanner").style.display = "none";
+  document.getElementById("modeHint").innerHTML = 'Free demo &middot; 1 per day';
+}
+
+async function connectWallet(silent) {
   if (!window.ethereum) {
-    alert("No wallet found. Please install MetaMask or another Web3 wallet.");
-    return;
+    if (!silent) alert("No wallet found. Please install MetaMask or another Web3 wallet.");
+    return false;
   }
 
   try {
+    // For silent reconnect, check if already authorized
+    if (silent) {
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      if (!accounts || accounts.length === 0) return false;
+    }
+
     const provider = new ethers.BrowserProvider(window.ethereum);
 
     // Switch to Tempo network
@@ -921,7 +928,6 @@ async function handleWallet() {
         params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16) }]
       });
     } catch (switchErr) {
-      // Chain not added, add it
       if (switchErr.code === 4902) {
         await window.ethereum.request({
           method: "wallet_addEthereumChain",
@@ -944,6 +950,7 @@ async function handleWallet() {
     walletConnected = true;
     walletAddress = address;
     walletSigner = signer;
+    localStorage.setItem(WALLET_KEY, address);
 
     // Update UI
     const shortAddr = address.slice(0, 6) + "..." + address.slice(-4);
@@ -951,17 +958,33 @@ async function handleWallet() {
     document.getElementById("walletBtn").className = "btn-wallet connected";
     document.getElementById("modeHint").innerHTML = '<span class="wallet-mode">Wallet connected</span> &middot; Unlimited';
 
-    // Get USDC balance
     await refreshBalance(provider, address);
 
-    // Show banner
     document.getElementById("walletBanner").style.display = "flex";
     document.getElementById("bannerAddr").textContent = shortAddr;
 
+    return true;
   } catch (err) {
-    console.error("Wallet connection error:", err);
-    alert("Failed to connect wallet: " + (err.message || err));
+    if (!silent) {
+      console.error("Wallet connection error:", err);
+      alert("Failed to connect wallet: " + (err.message || err));
+    }
+    localStorage.removeItem(WALLET_KEY);
+    return false;
   }
+}
+
+function handleWallet() {
+  if (walletConnected) {
+    disconnectWallet();
+  } else {
+    connectWallet(false);
+  }
+}
+
+// Auto-reconnect on page load
+if (localStorage.getItem(WALLET_KEY) && window.ethereum) {
+  connectWallet(true);
 }
 
 async function refreshBalance(provider, address) {
@@ -1288,10 +1311,12 @@ function showTab(lang) {
 
 // ── Listen for account/chain changes ──
 if (window.ethereum) {
-  window.ethereum.on("accountsChanged", () => {
-    if (walletConnected) {
-      walletConnected = false;
-      handleWallet();
+  window.ethereum.on("accountsChanged", (accounts) => {
+    if (accounts.length === 0) {
+      disconnectWallet();
+    } else if (walletConnected) {
+      // Account switched, reconnect
+      connectWallet(true);
     }
   });
   window.ethereum.on("chainChanged", () => {
