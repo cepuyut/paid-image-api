@@ -1,4 +1,5 @@
 import express from "express";
+import { createHmac } from "node:crypto";
 import { createChallenge, verifyCredential, createReceipt } from "./mpp.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -65,11 +66,82 @@ function trackRequest() {
   requestTimestamps.push(Date.now());
 }
 
+// ---------------------------------------------------------------------------
+// Response Cache — same prompt+model → cached result (zero cost, instant)
+// ---------------------------------------------------------------------------
+const imageCache = new Map(); // cacheKey → { images, timestamp }
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_CACHE_SIZE = 500;
+
+function getCacheKey(prompt, model, imageSize) {
+  const normalized = prompt.toLowerCase().trim().replace(/\s+/g, " ");
+  return createHmac("sha256", "cache").update(`${normalized}|${model}|${imageSize}`).digest("hex").slice(0, 16);
+}
+
+function getCached(key) {
+  const entry = imageCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    imageCache.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function setCache(key, images, model) {
+  // Evict oldest if full
+  if (imageCache.size >= MAX_CACHE_SIZE) {
+    const oldest = imageCache.keys().next().value;
+    imageCache.delete(oldest);
+  }
+  imageCache.set(key, { images, model, timestamp: Date.now() });
+}
+
+// ---------------------------------------------------------------------------
+// Prompt Enhancement — auto-improve short/vague prompts
+// ---------------------------------------------------------------------------
+const STYLE_SUFFIXES = [
+  "highly detailed, professional photography, 8k resolution",
+  "cinematic lighting, sharp focus, vibrant colors",
+  "masterful composition, stunning detail, award-winning",
+];
+
+function enhancePrompt(prompt, model) {
+  const trimmed = prompt.trim();
+  // Don't enhance if already detailed (>80 chars) or user explicitly opts out
+  if (trimmed.length > 80 || trimmed.startsWith("raw:")) {
+    return trimmed.replace(/^raw:/, "").trim();
+  }
+  // Pick consistent suffix based on prompt hash
+  const hash = createHmac("sha256", "enhance").update(trimmed).digest();
+  const idx = hash[0] % STYLE_SUFFIXES.length;
+  return `${trimmed}, ${STYLE_SUFFIXES[idx]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Smart Model Routing — auto-pick best model based on prompt + budget
+// ---------------------------------------------------------------------------
+function autoSelectModel(prompt, maxBudget) {
+  const len = prompt.trim().length;
+  const hasDetail = /\b(detailed|realistic|photorealistic|cinematic|8k|4k|hdr|professional)\b/i.test(prompt);
+  const hasText = /\b(text|word|letter|sign|logo|typography|write|font)\b/i.test(prompt);
+
+  // Text-in-image → Ideogram V3 (specialized for text rendering)
+  if (hasText && (!maxBudget || maxBudget >= 80000)) return "fal-ai/ideogram/v3";
+  // Detailed/complex prompt → Pro or HiDream
+  if (hasDetail && (!maxBudget || maxBudget >= 100000)) return "fal-ai/flux-pro/v1.1";
+  if (hasDetail && (!maxBudget || maxBudget >= 80000)) return "fal-ai/hidream-i1-full";
+  // Medium-length prompt → Dev
+  if (len > 30 && (!maxBudget || maxBudget >= 50000)) return "fal-ai/flux/dev";
+  // Short/simple → Schnell
+  return "fal-ai/flux/schnell";
+}
+
 // fal.ai image backend
 const falClient = await import("@fal-ai/client");
 const fal = falClient.fal;
 fal.config({ credentials: process.env.FAL_KEY });
-console.log("fal.ai backend loaded");
+console.log("fal.ai backend loaded (cache + prompt enhancement + smart routing)");
 
 const app = express();
 app.use(express.json());
@@ -150,34 +222,54 @@ app.post("/v1/images/generate", async (req, res) => {
     });
   }
 
-  // --- Call fal.ai ---
+  // --- Call fal.ai (with cache, enhancement, smart routing) ---
   try {
-    const usedModel = model || DEFAULT_MODEL;
+    // Smart model routing: "auto" or missing → auto-select based on prompt
+    const usedModel = (!model || model === "auto") ? autoSelectModel(prompt) : model;
     if (!BASE_PRICING[usedModel]) {
       return res.status(400).json({
         type: "https://paymentauth.org/problems/bad-request",
         title: "Unsupported Model",
         status: 400,
-        detail: `Model '${usedModel}' is not supported. Use: ${Object.keys(BASE_PRICING).join(", ")}`,
+        detail: `Model '${usedModel}' is not supported. Use: auto, ${Object.keys(BASE_PRICING).join(", ")}`,
       });
     }
 
-    const result = await fal.subscribe(usedModel, {
-      input: {
-        prompt,
-        image_size: image_size || "landscape_4_3",
-        num_images: Math.min(num_images || 1, 4),
-      },
-    });
-    const images = result.data?.images || [];
-    const timings = result.data?.timings;
+    const size = image_size || "landscape_4_3";
+    const enhanced = enhancePrompt(prompt, usedModel);
+
+    // Check cache first (only for single image requests)
+    const cacheKey = getCacheKey(enhanced, usedModel, size);
+    const cached = count === 1 ? getCached(cacheKey) : null;
+
+    let images, timings;
+    if (cached) {
+      images = cached.images;
+      timings = { cached: true };
+      console.log(`Cache hit: ${cacheKey}`);
+    } else {
+      const result = await fal.subscribe(usedModel, {
+        input: {
+          prompt: enhanced,
+          image_size: size,
+          num_images: count,
+        },
+      });
+      images = result.data?.images || [];
+      timings = result.data?.timings;
+      // Cache single-image results
+      if (count === 1 && images.length > 0) setCache(cacheKey, images, usedModel);
+    }
 
     trackRequest();
     const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
 
     res.set("Payment-Receipt", receipt);
     res.set("Cache-Control", "private");
-    res.json({ images, prompt, model: usedModel, timings });
+    res.json({
+      images, prompt, enhanced_prompt: enhanced, model: usedModel, timings,
+      ...(cached ? { cached: true } : {}),
+    });
   } catch (err) {
     console.error("Image backend error:", err.message);
     res.status(502).json({
@@ -240,31 +332,44 @@ app.post("/api/demo", async (req, res) => {
   }
 
   try {
-    const usedModel = model || DEFAULT_MODEL;
-    const result = await fal.subscribe(usedModel, {
-      input: { prompt, image_size: "landscape_4_3", num_images: 1 },
-    });
-    // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
-    const falImages = result.data?.images || [];
-    const images = [];
-    for (const img of falImages) {
-      if (img.url) {
-        try {
-          const imgResp = await fetch(img.url);
-          const buf = Buffer.from(await imgResp.arrayBuffer());
-          images.push({ b64_json: buf.toString("base64"), content_type: img.content_type || "image/jpeg" });
-        } catch { images.push(img); }
-      } else { images.push(img); }
-    }
+    const usedModel = (!model || model === "auto") ? autoSelectModel(prompt) : (model || DEFAULT_MODEL);
+    const enhanced = enhancePrompt(prompt, usedModel);
+    const cacheKey = getCacheKey(enhanced, usedModel, "landscape_4_3");
+    const cached = getCached(cacheKey);
 
-    // Track usage
-    if (usage && usage.date === today) {
-      usage.count++;
+    let images;
+    if (cached) {
+      images = cached.images;
+      console.log(`Demo cache hit: ${cacheKey}`);
     } else {
-      demoUsage.set(ip, { date: today, count: 1 });
+      const result = await fal.subscribe(usedModel, {
+        input: { prompt: enhanced, image_size: "landscape_4_3", num_images: 1 },
+      });
+      // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
+      const falImages = result.data?.images || [];
+      images = [];
+      for (const img of falImages) {
+        if (img.url) {
+          try {
+            const imgResp = await fetch(img.url);
+            const buf = Buffer.from(await imgResp.arrayBuffer());
+            images.push({ b64_json: buf.toString("base64"), content_type: img.content_type || "image/jpeg" });
+          } catch { images.push(img); }
+        } else { images.push(img); }
+      }
+      if (images.length > 0) setCache(cacheKey, images, usedModel);
     }
 
-    res.json({ images, prompt, model: usedModel });
+    // Only count non-cached as demo usage (cached = free)
+    if (!cached) {
+      if (usage && usage.date === today) {
+        usage.count++;
+      } else {
+        demoUsage.set(ip, { date: today, count: 1 });
+      }
+    }
+
+    res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, cached: !!cached });
   } catch (err) {
     console.error("Demo error:", err.message);
     res.status(502).json({ detail: "Image generation failed. Please retry." });
@@ -276,6 +381,19 @@ app.post("/api/demo", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// Cache stats
+app.get("/v1/stats", (_req, res) => {
+  res.json({
+    cache_size: imageCache.size,
+    cache_max: MAX_CACHE_SIZE,
+    cache_ttl_hours: CACHE_TTL_MS / 3600000,
+    requests_5min: requestTimestamps.length,
+    demand_multiplier: getDemandMultiplier(),
+    models: Object.keys(BASE_PRICING).length,
+    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification"],
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Start
