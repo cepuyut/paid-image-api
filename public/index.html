@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23fff'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='%23000'>P</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -69,7 +70,7 @@
       color: #000;
     }
     .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
-    .nav-links { display: flex; gap: 4px; }
+    .nav-right { display: flex; align-items: center; gap: 4px; }
     .nav-links a {
       color: var(--muted);
       text-decoration: none;
@@ -80,6 +81,34 @@
       transition: color 0.15s;
     }
     .nav-links a:hover { color: var(--white); }
+
+    /* Wallet button in nav */
+    .btn-wallet {
+      background: var(--white);
+      color: #000;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-wallet:hover { opacity: 0.85; }
+    .btn-wallet.connected {
+      background: var(--surface2);
+      color: var(--white);
+      border: 1px solid var(--border2);
+    }
+    .wallet-dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+    }
 
     /* ── Hero ── */
     .hero { padding: 72px 0 56px; text-align: center; }
@@ -140,7 +169,7 @@
     .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--white); }
     .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-top: 4px; }
 
-    /* ── Pricing ── */
+    /* ── Pricing Table ── */
     .section-title { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; color: var(--white); margin-bottom: 6px; }
     .section-desc { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
 
@@ -188,7 +217,7 @@
     .model-price { font-weight: 600; font-variant-numeric: tabular-nums; }
     .model-speed { color: var(--muted); font-variant-numeric: tabular-nums; }
 
-    /* ── Demo ── */
+    /* ── Generate Section ── */
     .demo {
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -204,6 +233,23 @@
     }
     .demo h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
     .demo .hint { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .demo .hint .wallet-mode { color: var(--green); }
+
+    /* Wallet banner inside demo */
+    .wallet-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .wallet-banner .wb-left { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .wallet-banner .wb-left .addr { color: var(--white); font-weight: 500; font-family: 'SF Mono', monospace; }
+    .wallet-banner .wb-balance { color: var(--green); font-weight: 600; }
 
     .field { margin-bottom: 14px; }
     .field label {
@@ -230,10 +276,7 @@
     .text-input::placeholder { color: var(--muted2); }
 
     /* ── Custom Dropdown ── */
-    .dropdown {
-      position: relative;
-      width: 100%;
-    }
+    .dropdown { position: relative; width: 100%; }
     .dropdown-trigger {
       width: 100%;
       background: var(--bg);
@@ -254,7 +297,6 @@
     .dropdown.open .dropdown-trigger { border-color: var(--muted); border-radius: var(--radius) var(--radius) 0 0; }
     .dropdown-trigger .arrow {
       width: 16px; height: 16px;
-      fill: var(--muted);
       transition: transform 0.15s;
     }
     .dropdown.open .dropdown-trigger .arrow { transform: rotate(180deg); }
@@ -296,7 +338,6 @@
     .dropdown-item.active .item-price { color: var(--white); }
     .dropdown-item .check-icon {
       width: 14px; height: 14px;
-      fill: var(--white);
       opacity: 0;
     }
     .dropdown-item.active .check-icon { opacity: 1; }
@@ -322,6 +363,24 @@
     .btn-generate:hover { opacity: 0.85; }
     .btn-generate:disabled { opacity: 0.3; cursor: not-allowed; }
 
+    /* Progress steps for paid flow */
+    .progress-steps {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .progress-steps .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .progress-steps .step-indicator.active { color: var(--white); }
+    .progress-steps .step-indicator.done { color: var(--green); }
+    .progress-steps .step-sep { color: var(--muted2); }
+
     .result { margin-top: 20px; }
     .result img {
       max-width: 100%;
@@ -338,6 +397,7 @@
       color: var(--muted);
     }
     .result .meta .cached { color: var(--green); font-weight: 600; }
+    .result .meta .paid { color: var(--green); font-weight: 600; }
     .result .error {
       color: var(--red);
       font-size: 13px;
@@ -469,10 +529,13 @@
       <div class="logo-icon">P</div>
       <div class="logo-text">PixelPay</div>
     </a>
-    <div class="nav-links">
-      <a href="/v1/prices">Pricing</a>
-      <a href="/llms.txt">Docs</a>
-      <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/v1/prices">Pricing</a>
+        <a href="/llms.txt">Docs</a>
+        <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
+      </div>
+      <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>
     </div>
   </nav>
 
@@ -556,11 +619,20 @@
     </div>
   </div>
 
-  <!-- Demo -->
+  <!-- Generate -->
   <div class="demo">
     <div class="demo-header">
-      <h2>Try it</h2>
-      <span class="hint">Free &middot; 3 per day</span>
+      <h2>Generate</h2>
+      <span class="hint" id="modeHint">Free demo &middot; 3 per day</span>
+    </div>
+
+    <!-- Wallet banner (shown when connected) -->
+    <div class="wallet-banner" id="walletBanner" style="display:none">
+      <div class="wb-left">
+        <span class="wallet-dot"></span>
+        <span class="addr" id="bannerAddr"></span>
+      </div>
+      <div class="wb-balance" id="bannerBalance"></div>
     </div>
 
     <div class="field">
@@ -577,7 +649,7 @@
               <span id="selectedLabel">Dev</span>
               <span class="selected-price" id="selectedPrice">$0.05</span>
             </span>
-            <svg class="arrow" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="arrow" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#737373" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div class="dropdown-menu" id="dropdownMenu">
             <div class="dropdown-item" data-value="auto" data-label="Auto" data-price="Smart pick" onclick="selectModel(this)">
@@ -585,56 +657,35 @@
                 <span class="item-name">Auto</span>
                 <span class="item-tier">Smart pick</span>
               </div>
-              <svg class="check-icon" viewBox="0 0 16 16"><path d="M3 8l4 4 6-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg class="check-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" data-value="fal-ai/flux/schnell" data-label="Schnell" data-price="$0.03" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">Schnell</span>
-                <span class="item-tier">Fast</span>
-              </div>
+              <div class="item-left"><span class="item-name">Schnell</span><span class="item-tier">Fast</span></div>
               <span class="item-price">$0.03</span>
             </div>
             <div class="dropdown-item" data-value="fal-ai/stable-diffusion-v35-large" data-label="SD 3.5" data-price="$0.04" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">SD 3.5</span>
-                <span class="item-tier">Balanced</span>
-              </div>
+              <div class="item-left"><span class="item-name">SD 3.5</span><span class="item-tier">Balanced</span></div>
               <span class="item-price">$0.04</span>
             </div>
             <div class="dropdown-item active" data-value="fal-ai/flux/dev" data-label="Dev" data-price="$0.05" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">Dev</span>
-                <span class="item-tier">Popular</span>
-              </div>
+              <div class="item-left"><span class="item-name">Dev</span><span class="item-tier">Popular</span></div>
               <span class="item-price">$0.05</span>
             </div>
             <div class="dropdown-item" data-value="fal-ai/recraft-v3" data-label="Recraft V3" data-price="$0.06" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">Recraft V3</span>
-                <span class="item-tier">Creative</span>
-              </div>
+              <div class="item-left"><span class="item-name">Recraft V3</span><span class="item-tier">Creative</span></div>
               <span class="item-price">$0.06</span>
             </div>
             <div class="dropdown-item" data-value="fal-ai/hidream-i1-full" data-label="HiDream" data-price="$0.08" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">HiDream</span>
-                <span class="item-tier">Quality</span>
-              </div>
+              <div class="item-left"><span class="item-name">HiDream</span><span class="item-tier">Quality</span></div>
               <span class="item-price">$0.08</span>
             </div>
             <div class="dropdown-item" data-value="fal-ai/ideogram/v3" data-label="Ideogram V3" data-price="$0.08" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">Ideogram V3</span>
-                <span class="item-tier">Text</span>
-              </div>
+              <div class="item-left"><span class="item-name">Ideogram V3</span><span class="item-tier">Text</span></div>
               <span class="item-price">$0.08</span>
             </div>
             <div class="dropdown-item" data-value="fal-ai/flux-pro/v1.1" data-label="Pro" data-price="$0.10" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">Pro</span>
-                <span class="item-tier">Premium</span>
-              </div>
+              <div class="item-left"><span class="item-name">Pro</span><span class="item-tier">Premium</span></div>
               <span class="item-price">$0.10</span>
             </div>
           </div>
@@ -644,40 +695,47 @@
     </div>
 
     <button class="btn-generate" id="generate" onclick="generateImage()">Generate</button>
+    <div class="progress-steps" id="progressSteps" style="display:none">
+      <span class="step-indicator" id="ps1">1. Challenge</span>
+      <span class="step-sep">&rarr;</span>
+      <span class="step-indicator" id="ps2">2. Pay USDC</span>
+      <span class="step-sep">&rarr;</span>
+      <span class="step-indicator" id="ps3">3. Generate</span>
+    </div>
     <div class="result" id="result"></div>
   </div>
 
   <!-- How it works -->
   <div class="flow">
     <h2 class="section-title">How it works</h2>
-    <p class="section-desc">Built for AI agents. No signup, no API keys.</p>
+    <p class="section-desc">Built for AI agents and humans. No signup, no API keys.</p>
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
         <div>
-          <div class="step-title">POST your prompt</div>
-          <div class="step-desc">Send to /v1/images/generate with model "auto" for smart routing.</div>
+          <div class="step-title">Connect wallet or use free demo</div>
+          <div class="step-desc">Connect MetaMask with Tempo network for unlimited, or try 3 free per day.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <div>
-          <div class="step-title">Receive 402 challenge</div>
-          <div class="step-desc">Server responds with amount, recipient, and token address.</div>
+          <div class="step-title">Enter your prompt</div>
+          <div class="step-desc">Describe what you want. Smart routing auto-picks the best model.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
         <div>
-          <div class="step-title">Pay USDC on Tempo</div>
-          <div class="step-desc">Transfer USDC to the server wallet. Gas fees covered.</div>
+          <div class="step-title">Approve USDC payment</div>
+          <div class="step-desc">Your wallet signs a small USDC transfer ($0.03-$0.10). Verified on-chain.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
         <div>
           <div class="step-title">Get your image</div>
-          <div class="step-desc">Retry with payment credential. Cached for instant replay.</div>
+          <div class="step-desc">Image is generated and displayed. Payment receipt included.</div>
         </div>
       </div>
     </div>
@@ -686,7 +744,7 @@
   <!-- Code -->
   <div class="code-section">
     <h2 class="section-title">Quick start</h2>
-    <p class="section-desc">Works with any HTTP client.</p>
+    <p class="section-desc">Works with any HTTP client. Or just connect your wallet above.</p>
     <div class="tabs">
       <div class="tab active" onclick="showTab('curl')">curl</div>
       <div class="tab" onclick="showTab('node')">Node.js</div>
@@ -738,46 +796,267 @@ res = requests.<span class="fn">post</span>(
 </div>
 
 <script>
+// ── Config ──
+const TEMPO_CHAIN_ID = 4217;
+const TEMPO_RPC = "https://rpc.tempo.xyz";
+const USDC_TOKEN = "0x20c000000000000000000000b9537d11c60e8b50";
+const SERVER_WALLET = "0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb";
+const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)", "function balanceOf(address) view returns (uint256)"];
 const DEMO_LIMIT = 3;
 const STORAGE_KEY = "demo_count";
 
-// ── Custom Dropdown ──
-function toggleDropdown() {
-  document.getElementById("modelDropdown").classList.toggle("open");
-}
-function selectModel(el) {
-  const dropdown = document.getElementById("modelDropdown");
-  const items = dropdown.querySelectorAll(".dropdown-item");
-  items.forEach(i => i.classList.remove("active"));
-  el.classList.add("active");
+// ── Wallet State ──
+let walletConnected = false;
+let walletAddress = null;
+let walletSigner = null;
+let usdcBalance = null;
 
-  document.getElementById("model").value = el.dataset.value;
-  document.getElementById("selectedLabel").textContent = el.dataset.label;
-  document.getElementById("selectedPrice").textContent = el.dataset.price;
-  dropdown.classList.remove("open");
+// ── Base64url helpers ──
+function b64urlEncode(str) {
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-// Close dropdown on outside click
-document.addEventListener("click", (e) => {
-  const dd = document.getElementById("modelDropdown");
-  if (!dd.contains(e.target)) dd.classList.remove("open");
-});
-
-// ── Demo logic ──
-function getDemoCount() {
-  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-  const today = new Date().toISOString().slice(0, 10);
-  return data.date === today ? data.count : 0;
-}
-function incrementDemo() {
-  const today = new Date().toISOString().slice(0, 10);
-  const count = getDemoCount() + 1;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: today, count }));
-  return count;
+function b64urlDecode(str) {
+  let s = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return atob(s);
 }
 
-async function generateImage() {
+// ── Wallet Connect ──
+async function handleWallet() {
+  if (walletConnected) {
+    // Disconnect
+    walletConnected = false;
+    walletAddress = null;
+    walletSigner = null;
+    usdcBalance = null;
+    document.getElementById("walletBtn").innerHTML = "Connect Wallet";
+    document.getElementById("walletBtn").className = "btn-wallet";
+    document.getElementById("walletBanner").style.display = "none";
+    document.getElementById("modeHint").innerHTML = 'Free demo &middot; 3 per day';
+    return;
+  }
+
+  if (!window.ethereum) {
+    alert("No wallet found. Please install MetaMask or another Web3 wallet.");
+    return;
+  }
+
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+
+    // Switch to Tempo network
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16) }]
+      });
+    } catch (switchErr) {
+      // Chain not added, add it
+      if (switchErr.code === 4902) {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x" + TEMPO_CHAIN_ID.toString(16),
+            chainName: "Tempo",
+            rpcUrls: [TEMPO_RPC],
+            nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+            blockExplorerUrls: ["https://explorer.tempo.xyz"]
+          }]
+        });
+      } else {
+        throw switchErr;
+      }
+    }
+
+    const signer = await provider.getSigner();
+    const address = await signer.getAddress();
+
+    walletConnected = true;
+    walletAddress = address;
+    walletSigner = signer;
+
+    // Update UI
+    const shortAddr = address.slice(0, 6) + "..." + address.slice(-4);
+    document.getElementById("walletBtn").innerHTML = '<span class="wallet-dot"></span>' + shortAddr;
+    document.getElementById("walletBtn").className = "btn-wallet connected";
+    document.getElementById("modeHint").innerHTML = '<span class="wallet-mode">Wallet connected</span> &middot; Unlimited';
+
+    // Get USDC balance
+    await refreshBalance(provider, address);
+
+    // Show banner
+    document.getElementById("walletBanner").style.display = "flex";
+    document.getElementById("bannerAddr").textContent = shortAddr;
+
+  } catch (err) {
+    console.error("Wallet connection error:", err);
+    alert("Failed to connect wallet: " + (err.message || err));
+  }
+}
+
+async function refreshBalance(provider, address) {
+  try {
+    if (!provider) provider = new ethers.BrowserProvider(window.ethereum);
+    const usdc = new ethers.Contract(USDC_TOKEN, ERC20_ABI, provider);
+    const bal = await usdc.balanceOf(address);
+    usdcBalance = bal;
+    const formatted = ethers.formatUnits(bal, 6);
+    document.getElementById("bannerBalance").textContent = "$" + parseFloat(formatted).toFixed(2) + " USDC";
+  } catch (err) {
+    document.getElementById("bannerBalance").textContent = "Balance unavailable";
+    console.error("Balance error:", err);
+  }
+}
+
+// ── Parse WWW-Authenticate header ──
+function parseWWWAuth(header) {
+  const params = {};
+  const regex = /(\w+)="([^"]*)"/g;
+  let match;
+  while ((match = regex.exec(header)) !== null) {
+    params[match[1]] = match[2];
+  }
+  return params;
+}
+
+// ── Paid flow: Challenge → Pay → Generate ──
+async function generatePaid() {
+  const prompt = document.getElementById("prompt").value.trim();
+  if (!prompt) return;
+
+  const model = document.getElementById("model").value;
+  const btn = document.getElementById("generate");
+  const result = document.getElementById("result");
+  const progress = document.getElementById("progressSteps");
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Processing...';
+  result.innerHTML = '';
+  progress.style.display = "flex";
+
+  // Reset progress
+  ["ps1","ps2","ps3"].forEach(id => {
+    document.getElementById(id).className = "step-indicator";
+  });
+
+  try {
+    // Step 1: Get 402 challenge
+    document.getElementById("ps1").className = "step-indicator active";
+    const challengeRes = await fetch("/v1/images/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, model })
+    });
+
+    if (challengeRes.status !== 402) {
+      throw new Error("Expected 402 challenge, got " + challengeRes.status);
+    }
+
+    const wwwAuth = challengeRes.headers.get("WWW-Authenticate");
+    if (!wwwAuth) throw new Error("No WWW-Authenticate header in challenge");
+
+    const challenge = parseWWWAuth(wwwAuth);
+    document.getElementById("ps1").className = "step-indicator done";
+
+    // Decode request to get amount
+    const requestJson = JSON.parse(b64urlDecode(challenge.request));
+    const amount = BigInt(requestJson.amount);
+    const amountUsd = (Number(amount) / 1_000_000).toFixed(2);
+
+    // Check balance
+    if (usdcBalance !== null && usdcBalance < amount) {
+      throw new Error("Insufficient USDC balance. Need $" + amountUsd + " USDC.");
+    }
+
+    // Step 2: Send USDC transfer via wallet
+    document.getElementById("ps2").className = "step-indicator active";
+    btn.innerHTML = '<span class="spinner"></span>Approve $' + amountUsd + ' USDC...';
+
+    const usdc = new ethers.Contract(USDC_TOKEN, ERC20_ABI, walletSigner);
+    const tx = await usdc.transfer(SERVER_WALLET, amount);
+
+    btn.innerHTML = '<span class="spinner"></span>Confirming...';
+    const receipt = await tx.wait();
+
+    document.getElementById("ps2").className = "step-indicator done";
+
+    // Step 3: Build credential and retry
+    document.getElementById("ps3").className = "step-indicator active";
+    btn.innerHTML = '<span class="spinner"></span>Generating image...';
+
+    const credential = {
+      challenge: {
+        id: challenge.id,
+        realm: challenge.realm,
+        method: challenge.method,
+        intent: challenge.intent,
+        request: challenge.request,
+        expires: challenge.expires
+      },
+      payload: {
+        hash: receipt.hash
+      }
+    };
+
+    const credentialB64 = b64urlEncode(JSON.stringify(credential));
+
+    const imageRes = await fetch("/v1/images/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Payment " + credentialB64
+      },
+      body: JSON.stringify({ prompt, model })
+    });
+
+    if (!imageRes.ok) {
+      const err = await imageRes.json();
+      throw new Error(err.detail || "Generation failed after payment");
+    }
+
+    const data = await imageRes.json();
+    document.getElementById("ps3").className = "step-indicator done";
+
+    // Display image
+    const img = data.images?.[0];
+    if (img?.url) {
+      result.innerHTML = `
+        <img src="${img.url}" alt="${prompt}">
+        <div class="meta">
+          <span>${data.model}</span>
+          <span class="paid">Paid $${amountUsd} USDC</span>
+        </div>`;
+    } else if (img?.b64_json) {
+      const mime = img.content_type || "image/png";
+      result.innerHTML = `
+        <img src="data:${mime};base64,${img.b64_json}" alt="${prompt}">
+        <div class="meta">
+          <span>${data.model}</span>
+          <span class="paid">Paid $${amountUsd} USDC</span>
+        </div>`;
+    }
+
+    // Refresh balance
+    await refreshBalance(null, walletAddress);
+
+  } catch (err) {
+    console.error("Paid flow error:", err);
+    let msg = err.message || "Something went wrong";
+    if (err.code === "ACTION_REJECTED" || err.code === 4001) {
+      msg = "Transaction rejected. No USDC was spent.";
+    }
+    result.innerHTML = `<div class="error">${msg}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Generate";
+    setTimeout(() => { progress.style.display = "none"; }, 5000);
+  }
+}
+
+// ── Free demo flow ──
+async function generateDemo() {
   if (getDemoCount() >= DEMO_LIMIT) {
-    document.getElementById("result").innerHTML = '<div class="error">Daily limit reached (3/day). Use the API with a Tempo wallet for unlimited access.</div>';
+    document.getElementById("result").innerHTML = '<div class="error">Daily limit reached (3/day). Connect a wallet for unlimited access.</div>';
     return;
   }
   const prompt = document.getElementById("prompt").value.trim();
@@ -832,11 +1111,64 @@ async function generateImage() {
   }
 }
 
+// ── Main generate handler — routes to paid or demo ──
+function generateImage() {
+  if (walletConnected) {
+    generatePaid();
+  } else {
+    generateDemo();
+  }
+}
+
+// ── Demo count tracking ──
+function getDemoCount() {
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  const today = new Date().toISOString().slice(0, 10);
+  return data.date === today ? data.count : 0;
+}
+function incrementDemo() {
+  const today = new Date().toISOString().slice(0, 10);
+  const count = getDemoCount() + 1;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: today, count }));
+  return count;
+}
+
+// ── Dropdown ──
+function toggleDropdown() {
+  document.getElementById("modelDropdown").classList.toggle("open");
+}
+function selectModel(el) {
+  const dropdown = document.getElementById("modelDropdown");
+  dropdown.querySelectorAll(".dropdown-item").forEach(i => i.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("model").value = el.dataset.value;
+  document.getElementById("selectedLabel").textContent = el.dataset.label;
+  document.getElementById("selectedPrice").textContent = el.dataset.price;
+  dropdown.classList.remove("open");
+}
+document.addEventListener("click", (e) => {
+  const dd = document.getElementById("modelDropdown");
+  if (!dd.contains(e.target)) dd.classList.remove("open");
+});
+
 function showTab(lang) {
   document.querySelectorAll("pre[id^='code-']").forEach(el => el.style.display = "none");
   document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
   document.getElementById("code-" + lang).style.display = "block";
   event.target.classList.add("active");
+}
+
+// ── Listen for account/chain changes ──
+if (window.ethereum) {
+  window.ethereum.on("accountsChanged", () => {
+    if (walletConnected) {
+      walletConnected = false;
+      handleWallet();
+    }
+  });
+  window.ethereum.on("chainChanged", () => {
+    if (walletConnected) window.location.reload();
+  });
 }
 </script>
 </body>

@@ -16,7 +16,7 @@ const CHALLENGE_SECRET = process.env.MPP_CHALLENGE_SECRET || randomBytes(32).toS
 const CHALLENGE_TTL_SECONDS = Number(process.env.MPP_CHALLENGE_TTL || 300); // 5 min
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
 const CURRENCY_TOKEN = process.env.CURRENCY_TOKEN;
-const CHAIN_ID = Number(process.env.TEMPO_CHAIN_ID || 42431);
+const CHAIN_ID = Number(process.env.TEMPO_CHAIN_ID || 4217);
 const TEMPO_RPC = process.env.TEMPO_RPC || "https://rpc.tempo.xyz";
 
 // ERC-20 Transfer event topic
