@@ -4,7 +4,7 @@
  * This script demonstrates the complete flow:
  * 1. POST prompt → get 402 challenge
  * 2. Parse challenge → extract payment details
- * 3. Sign & submit pathUSD transfer on Tempo blockchain
+ * 3. Sign & submit USDC transfer on Tempo blockchain
  * 4. Build credential with tx hash
  * 5. Retry request → get image
  *
@@ -13,7 +13,7 @@
  *   PRIVATE_KEY=0x... node examples/full-flow.js "a cat in space"
  *
  * Requirements:
- *   - A Tempo wallet with pathUSD balance
+ *   - A Tempo wallet with USDC balance
  *   - Private key for that wallet (PRIVATE_KEY env var)
  */
 
@@ -67,7 +67,7 @@ function parseWwwAuth(header) {
 
 async function main() {
   console.log("═══════════════════════════════════════════════");
-  console.log("  Paid Image API — Full MPP Payment Flow");
+  console.log("  PixelPay — Full MPP Payment Flow");
   console.log("═══════════════════════════════════════════════\n");
 
   // ── Step 1: POST prompt, get 402 challenge ──
@@ -103,7 +103,7 @@ async function main() {
   console.log(`  Expires:    ${ch.expires}`);
   console.log(`  Fee payer:  ${requestObj.methodDetails.feePayer ? "server pays gas" : "you pay gas"}`);
 
-  // ── Step 3: Sign & submit pathUSD transfer on Tempo ──
+  // ── Step 3: Sign & submit USDC transfer on Tempo ──
   console.log("\nStep 3: Submitting payment on Tempo blockchain...");
 
   const provider = new ethers.JsonRpcProvider(TEMPO_RPC, CHAIN_ID, {
@@ -112,10 +112,10 @@ async function main() {
   const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
   console.log(`  Your wallet: ${wallet.address}`);
 
-  // Check pathUSD balance first
-  const pathUSD = new ethers.Contract(requestObj.currency, ERC20_ABI, wallet);
+  // Check USDC balance first
+  const USDC = new ethers.Contract(requestObj.currency, ERC20_ABI, wallet);
 
-  const tx = await pathUSD.transfer(
+  const tx = await USDC.transfer(
     requestObj.recipient,
     BigInt(requestObj.amount)
   );

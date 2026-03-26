@@ -1,10 +1,10 @@
-# Paid Image API
+# PixelPay
 
-> AI image generation API monetized via MPP (Machine Payments Protocol).
+> PixelPay — AI image generation API monetized via MPP (Machine Payments Protocol).
 
 ## Overview
 
-Paid Image API lets you generate images from text prompts using fal.ai Flux models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with USDC stablecoins.
+PixelPay lets you generate images from text prompts using fal.ai models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with USDC stablecoins.
 
 No API keys needed. Just pay per request.
 
@@ -20,9 +20,13 @@ No API keys needed. Just pay per request.
 
 | Model | Tier | Price (USDC) | Base Units |
 |---|---|---|---|
-| `fal-ai/flux/schnell` | schnell (fast) | $0.03 | 30000 |
-| `fal-ai/flux/dev` | dev (balanced) | $0.05 | 50000 |
-| `fal-ai/flux-pro/v1.1` | pro (high quality) | $0.10 | 100000 |
+| `fal-ai/flux/schnell` | schnell | $0.03 | 30000 |
+| `fal-ai/stable-diffusion-v35-large` | sd35 | $0.04 | 40000 |
+| `fal-ai/flux/dev` | dev | $0.05 | 50000 |
+| `fal-ai/recraft-v3` | recraft | $0.06 | 60000 |
+| `fal-ai/hidream-i1-full` | hidream | $0.08 | 80000 |
+| `fal-ai/ideogram/v3` | ideogram | $0.08 | 80000 |
+| `fal-ai/flux-pro/v1.1` | pro | $0.10 | 100000 |
 
 Default model: `fal-ai/flux/schnell` ($0.03). Price is determined by the `model` field in your request.
 
@@ -42,7 +46,7 @@ Generate an image from a text prompt.
 
 **Request body** (JSON):
 - `prompt` (string, required): Text describing the image to generate
-- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03, default), `fal-ai/flux/dev` ($0.05), `fal-ai/flux-pro/v1.1` ($0.10)
+- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03, default), `fal-ai/stable-diffusion-v35-large` ($0.04), `fal-ai/flux/dev` ($0.05), `fal-ai/recraft-v3` ($0.06), `fal-ai/hidream-i1-full` ($0.08), `fal-ai/ideogram/v3` ($0.08), `fal-ai/flux-pro/v1.1` ($0.10)
 - `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `landscape_4_3`, `landscape_16_9`, `portrait_4_3`, `portrait_16_9`
 - `num_images` (integer, optional): Number of images, 1-4. Default: 1
 

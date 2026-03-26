@@ -11,7 +11,7 @@ import { createHmac, randomBytes } from "node:crypto";
 // Config – populated from env
 // ---------------------------------------------------------------------------
 
-const REALM = process.env.MPP_REALM || "paid-image-api";
+const REALM = process.env.MPP_REALM || "pixelpay";
 const CHALLENGE_SECRET = process.env.MPP_CHALLENGE_SECRET || randomBytes(32).toString("hex");
 const CHALLENGE_TTL_SECONDS = Number(process.env.MPP_CHALLENGE_TTL || 300); // 5 min
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS;

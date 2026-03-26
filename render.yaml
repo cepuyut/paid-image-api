@@ -17,10 +17,10 @@ services:
       - key: CURRENCY_TOKEN
         value: "0x20c000000000000000000000b9537d11c60e8b50"
       - key: MPP_REALM
-        value: paid-image-api
+        value: pixelpay
       - key: MPP_CHALLENGE_SECRET
         sync: false
       - key: MPP_CHALLENGE_TTL
         value: "300"
       - key: TEMPO_CHAIN_ID
-        value: "42431"
+        value: "4217"

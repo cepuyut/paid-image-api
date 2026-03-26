@@ -1,7 +1,7 @@
 {
   "name": "paid-image-api",
   "version": "1.0.0",
-  "description": "Paid image generation API via fal.ai, monetized with MPP (Machine Payments Protocol)",
+  "description": "PixelPay - AI image generation API via fal.ai, monetized with MPP (Machine Payments Protocol)",
   "main": "src/index.js",
   "type": "module",
   "scripts": {

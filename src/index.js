@@ -400,7 +400,7 @@ app.get("/v1/stats", (_req, res) => {
 // ---------------------------------------------------------------------------
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`paid-image-api listening on ${HOST}`);
+  console.log(`PixelPay listening on ${HOST}`);
   console.log(`  POST ${HOST}/v1/images/generate  (MPP-protected, tiered pricing)`);
   console.log(`  GET  ${HOST}/v1/prices`);
   console.log(`  GET  ${HOST}/openapi.json`);

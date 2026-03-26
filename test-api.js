@@ -1,5 +1,5 @@
 /**
- * Test script for the Paid Image API MPP flow.
+ * Test script for the PixelPay MPP flow.
  * Usage: node test-api.js "your prompt here" [model]
  */
 
@@ -21,7 +21,7 @@ function parseWwwAuth(header) {
 }
 
 async function main() {
-  console.log(`\n--- Paid Image API Test ---`);
+  console.log(`\n--- PixelPay Test ---`);
   console.log(`Prompt: "${prompt}"`);
   console.log(`Model:  ${model}`);
   console.log(`Server: ${BASE}\n`);
