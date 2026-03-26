@@ -2,7 +2,7 @@
 
 AI image generation API monetized via [MPP](https://mpp.dev) (Machine Payments Protocol). No API keys — just pay per request with pathUSD on Tempo blockchain.
 
-**Live:** https://paid-image-api-production.up.railway.app
+**Live:** https://paid-image-api.onrender.com
 
 ## Pricing
 
@@ -10,7 +10,6 @@ AI image generation API monetized via [MPP](https://mpp.dev) (Machine Payments P
 |-------|------|-------|
 | `fal-ai/flux/schnell` | Schnell (fast) | $0.03 |
 | `fal-ai/flux/dev` | Dev (balanced) | $0.05 |
-| `gemini-3-pro-image-preview` | Dev (balanced) | $0.05 |
 | `fal-ai/flux-pro/v1.1` | Pro (high quality) | $0.10 |
 
 ## How It Works
@@ -30,6 +29,7 @@ POST /v1/images/generate  →  402 "pay first"  →  transfer pathUSD  →  200 
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/v1/images/generate` | Generate image (MPP-protected) |
+| `POST` | `/api/demo` | Free demo (3/day, no wallet needed) |
 | `GET` | `/v1/prices` | Current pricing tiers |
 | `GET` | `/openapi.json` | MPP service discovery |
 | `GET` | `/llms.txt` | LLM-friendly docs |
@@ -39,7 +39,7 @@ POST /v1/images/generate  →  402 "pay first"  →  transfer pathUSD  →  200 
 
 ```bash
 cp .env.example .env
-# Edit .env with your keys
+# Edit .env with your FAL_KEY
 npm install
 npm start
 ```
@@ -47,9 +47,9 @@ npm start
 ## Tech Stack
 
 - **Server:** Express.js
-- **Image backends:** Bluesminds (OpenAI-compatible) + fal.ai
+- **Image backend:** fal.ai (Flux models)
 - **Payments:** MPP via Tempo blockchain (pathUSD)
-- **Deploy:** Railway
+- **Deploy:** Render
 
 ## MPP Directory
 

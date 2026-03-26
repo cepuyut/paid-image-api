@@ -27,7 +27,7 @@
       "post": {
         "operationId": "generateImage",
         "summary": "Generate an image from a text prompt",
-        "description": "Generates images from text prompts using AI models. Each request costs 0.08 pathUSD, paid via MPP Tempo charge.",
+        "description": "Generates images from text prompts using fal.ai Flux models. Tiered pricing: Schnell $0.03, Dev $0.05, Pro $0.10 pathUSD via MPP Tempo charge.",
         "x-payment-info": {
           "protocols": ["mpp"],
           "pricingMode": "tiered",
@@ -35,7 +35,6 @@
           "tiers": [
             { "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "0.030000" },
             { "model": "fal-ai/flux/dev", "tier": "dev", "price": "0.050000" },
-            { "model": "gemini-3-pro-image-preview", "tier": "dev", "price": "0.050000" },
             { "model": "fal-ai/flux-pro/v1.1", "tier": "pro", "price": "0.100000" }
           ]
         },
@@ -53,15 +52,15 @@
                   },
                   "model": {
                     "type": "string",
-                    "description": "Model identifier. Pricing varies by model: fal-ai/flux/schnell ($0.03), fal-ai/flux/dev ($0.05), gemini-3-pro-image-preview ($0.05), fal-ai/flux-pro/v1.1 ($0.10)",
-                    "default": "gemini-3-pro-image-preview",
-                    "enum": ["fal-ai/flux/schnell", "fal-ai/flux/dev", "fal-ai/flux-pro/v1.1", "gemini-3-pro-image-preview"]
+                    "description": "Model identifier. Pricing varies by model: fal-ai/flux/schnell ($0.03), fal-ai/flux/dev ($0.05), fal-ai/flux-pro/v1.1 ($0.10)",
+                    "default": "fal-ai/flux/schnell",
+                    "enum": ["fal-ai/flux/schnell", "fal-ai/flux/dev", "fal-ai/flux-pro/v1.1"]
                   },
                   "image_size": {
                     "type": "string",
                     "description": "Output image size",
-                    "default": "1024x1024",
-                    "enum": ["512x512", "1024x1024", "1792x1024"]
+                    "default": "landscape_4_3",
+                    "enum": ["square_hd", "square", "landscape_4_3", "landscape_16_9", "portrait_4_3", "portrait_16_9"]
                   },
                   "num_images": {
                     "type": "integer",

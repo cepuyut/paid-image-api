@@ -340,20 +340,20 @@
     <pre id="code-curl"><code><span class="cm"># Step 1: Get payment challenge</span>
 curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
   -H <span class="str">"Content-Type: application/json"</span> \
-  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "gemini-3-pro-image-preview"}'</span>
+  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "fal-ai/flux/schnell"}'</span>
 
 <span class="cm"># Step 2: Pay via Tempo, then retry with credential</span>
 curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
   -H <span class="str">"Content-Type: application/json"</span> \
   -H <span class="str">"Authorization: Payment &lt;base64url-credential&gt;"</span> \
-  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "gemini-3-pro-image-preview"}'</span></code></pre>
+  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "fal-ai/flux/schnell"}'</span></code></pre>
     <pre id="code-node" style="display:none"><code><span class="cm">// Get payment challenge</span>
 <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://paid-image-api.onrender.com/v1/images/generate"</span>, {
   method: <span class="str">"POST"</span>,
   headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
   body: JSON.<span class="fn">stringify</span>({
     prompt: <span class="str">"a sunset over mountains"</span>,
-    model: <span class="str">"gemini-3-pro-image-preview"</span>
+    model: <span class="str">"fal-ai/flux/schnell"</span>
   })
 });
 
@@ -366,7 +366,7 @@ curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
 <span class="cm"># Get payment challenge</span>
 res = requests.<span class="fn">post</span>(
     <span class="str">"https://paid-image-api.onrender.com/v1/images/generate"</span>,
-    json={<span class="str">"prompt"</span>: <span class="str">"a sunset over mountains"</span>, <span class="str">"model"</span>: <span class="str">"gemini-3-pro-image-preview"</span>}
+    json={<span class="str">"prompt"</span>: <span class="str">"a sunset over mountains"</span>, <span class="str">"model"</span>: <span class="str">"fal-ai/flux/schnell"</span>}
 )
 
 <span class="cm"># Parse 402 challenge</span>

@@ -18,36 +18,22 @@ const HOST = process.env.HOST || `http://localhost:${PORT}`;
 // Tiered pricing per model (base units, 6 decimals: 1 pathUSD = 1_000_000)
 // ---------------------------------------------------------------------------
 const PRICING_TIERS = {
-  // fal.ai models
-  "fal-ai/flux/schnell":       { price: "30000",  usd: "0.03", tier: "schnell" },
-  "fal-ai/flux/dev":            { price: "50000",  usd: "0.05", tier: "dev" },
-  "fal-ai/flux-pro/v1.1":     { price: "100000", usd: "0.10", tier: "pro" },
-  // Bluesminds models
-  "gemini-3-pro-image-preview":{ price: "50000",  usd: "0.05", tier: "dev" },
+  "fal-ai/flux/schnell":   { price: "30000",  usd: "0.03", tier: "schnell" },
+  "fal-ai/flux/dev":       { price: "50000",  usd: "0.05", tier: "dev" },
+  "fal-ai/flux-pro/v1.1":  { price: "100000", usd: "0.10", tier: "pro" },
 };
-const DEFAULT_PRICE = { price: "50000", usd: "0.05", tier: "dev" };
+const DEFAULT_MODEL = "fal-ai/flux/schnell";
+const DEFAULT_PRICE = { price: "30000", usd: "0.03", tier: "schnell" };
 
 function getPricing(model) {
   return PRICING_TIERS[model] || DEFAULT_PRICE;
 }
 
-// Image backends
-const BLUESMINDS_KEY = process.env.BLUESMINDS_KEY;
-const BLUESMINDS_BASE = process.env.BLUESMINDS_BASE || "https://api.bluesminds.com/v1";
-
-// Always load fal.ai if FAL_KEY is available
-let fal;
-if (process.env.FAL_KEY) {
-  const falClient = await import("@fal-ai/client");
-  fal = falClient.fal;
-  fal.config({ credentials: process.env.FAL_KEY });
-  console.log("fal.ai backend loaded");
-}
-
-// Route model to correct backend
-function isFalModel(model) {
-  return model && model.startsWith("fal-ai/");
-}
+// fal.ai image backend
+const falClient = await import("@fal-ai/client");
+const fal = falClient.fal;
+fal.config({ credentials: process.env.FAL_KEY });
+console.log("fal.ai backend loaded");
 
 const app = express();
 app.use(express.json());
@@ -121,49 +107,27 @@ app.post("/v1/images/generate", async (req, res) => {
     });
   }
 
-  // --- Call image backend ---
+  // --- Call fal.ai ---
   try {
-    let images, usedModel, timings;
-
-    if (isFalModel(model) && fal) {
-      const falModel = model;
-      const result = await fal.subscribe(falModel, {
-        input: {
-          prompt,
-          image_size: image_size || "landscape_4_3",
-          num_images: Math.min(num_images || 1, 4),
-        },
+    const usedModel = model || DEFAULT_MODEL;
+    if (!PRICING_TIERS[usedModel]) {
+      return res.status(400).json({
+        type: "https://paymentauth.org/problems/bad-request",
+        title: "Unsupported Model",
+        status: 400,
+        detail: `Model '${usedModel}' is not supported. Use: ${Object.keys(PRICING_TIERS).join(", ")}`,
       });
-      images = result.data?.images || [];
-      usedModel = falModel;
-      timings = result.data?.timings;
-    } else {
-      // Bluesminds (OpenAI-compatible /v1/images/generations)
-      usedModel = model || "gemini-3-pro-image-preview";
-      const resp = await fetch(`${BLUESMINDS_BASE}/images/generations`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${BLUESMINDS_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: usedModel,
-          prompt,
-          n: Math.min(num_images || 1, 4),
-          size: image_size || "1024x1024",
-        }),
-      });
-      if (!resp.ok) {
-        const errBody = await resp.text();
-        throw new Error(`Bluesminds ${resp.status}: ${errBody}`);
-      }
-      const data = await resp.json();
-      images = (data.data || []).map((d) => ({
-        url: d.url || undefined,
-        content_type: "image/png",
-        ...(d.b64_json ? { b64_json: d.b64_json } : {}),
-      }));
     }
+
+    const result = await fal.subscribe(usedModel, {
+      input: {
+        prompt,
+        image_size: image_size || "landscape_4_3",
+        num_images: Math.min(num_images || 1, 4),
+      },
+    });
+    const images = result.data?.images || [];
+    const timings = result.data?.timings;
 
     const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
 
@@ -221,46 +185,21 @@ app.post("/api/demo", async (req, res) => {
   }
 
   try {
-    let images;
-    const usedModel = model || "fal-ai/flux/schnell";
-
-    if (isFalModel(usedModel) && fal) {
-      // Use fal.ai
-      const result = await fal.subscribe(usedModel, {
-        input: { prompt, image_size: "landscape_4_3", num_images: 1 },
-      });
-      // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
-      const falImages = result.data?.images || [];
-      images = [];
-      for (const img of falImages) {
-        if (img.url) {
-          try {
-            const imgResp = await fetch(img.url);
-            const buf = Buffer.from(await imgResp.arrayBuffer());
-            images.push({ b64_json: buf.toString("base64"), content_type: img.content_type || "image/jpeg" });
-          } catch { images.push(img); }
-        } else { images.push(img); }
-      }
-    } else {
-      // Use Bluesminds
-      const resp = await fetch(`${BLUESMINDS_BASE}/images/generations`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${BLUESMINDS_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ model: usedModel, prompt, n: 1, size: "1024x1024" }),
-      });
-      if (!resp.ok) {
-        const errBody = await resp.text();
-        throw new Error(`Bluesminds ${resp.status}: ${errBody}`);
-      }
-      const data = await resp.json();
-      images = (data.data || []).map((d) => ({
-        url: d.url || undefined,
-        content_type: "image/png",
-        ...(d.b64_json ? { b64_json: d.b64_json } : {}),
-      }));
+    const usedModel = model || DEFAULT_MODEL;
+    const result = await fal.subscribe(usedModel, {
+      input: { prompt, image_size: "landscape_4_3", num_images: 1 },
+    });
+    // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
+    const falImages = result.data?.images || [];
+    const images = [];
+    for (const img of falImages) {
+      if (img.url) {
+        try {
+          const imgResp = await fetch(img.url);
+          const buf = Buffer.from(await imgResp.arrayBuffer());
+          images.push({ b64_json: buf.toString("base64"), content_type: img.content_type || "image/jpeg" });
+        } catch { images.push(img); }
+      } else { images.push(img); }
     }
 
     // Track usage

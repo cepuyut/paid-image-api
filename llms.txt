@@ -4,7 +4,7 @@
 
 ## Overview
 
-Paid Image API lets you generate images from text prompts using AI models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with pathUSD stablecoins.
+Paid Image API lets you generate images from text prompts using fal.ai Flux models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with pathUSD stablecoins.
 
 No API keys needed. Just pay per request.
 
@@ -22,10 +22,9 @@ No API keys needed. Just pay per request.
 |---|---|---|---|
 | `fal-ai/flux/schnell` | schnell (fast) | $0.03 | 30000 |
 | `fal-ai/flux/dev` | dev (balanced) | $0.05 | 50000 |
-| `gemini-3-pro-image-preview` | dev (balanced) | $0.05 | 50000 |
 | `fal-ai/flux-pro/v1.1` | pro (high quality) | $0.10 | 100000 |
 
-Default model: `gemini-3-pro-image-preview` ($0.05). Price is determined by the `model` field in your request.
+Default model: `fal-ai/flux/schnell` ($0.03). Price is determined by the `model` field in your request.
 
 ## Payment Flow
 
@@ -43,8 +42,8 @@ Generate an image from a text prompt.
 
 **Request body** (JSON):
 - `prompt` (string, required): Text describing the image to generate
-- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03), `fal-ai/flux/dev` ($0.05), `gemini-3-pro-image-preview` ($0.05, default), `fal-ai/flux-pro/v1.1` ($0.10)
-- `image_size` (string, optional): Output size. Default: `1024x1024`. Options: `512x512`, `1024x1024`, `1792x1024`
+- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03, default), `fal-ai/flux/dev` ($0.05), `fal-ai/flux-pro/v1.1` ($0.10)
+- `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `landscape_4_3`, `landscape_16_9`, `portrait_4_3`, `portrait_16_9`
 - `num_images` (integer, optional): Number of images, 1-4. Default: 1
 
 **Success response** (200):
@@ -59,7 +58,7 @@ Generate an image from a text prompt.
     }
   ],
   "prompt": "...",
-  "model": "gemini-3-pro-image-preview",
+  "model": "fal-ai/flux/schnell",
   "timings": {}
 }
 ```
@@ -70,8 +69,7 @@ Generate an image from a text prompt.
   "type": "https://paymentauth.org/problems/payment-required",
   "title": "Payment Required",
   "status": 402,
-  "detail": "Generate an image for 80000 base-unit pathUSD",
-  "challengeId": "..."
+  "detail": "Generate an image for 0.03 pathUSD (schnell tier)"
 }
 ```
 
@@ -85,5 +83,5 @@ Generate an image from a text prompt.
 ## Links
 
 - MPP spec: https://mpp.dev
-- Bluesminds: https://api.bluesminds.com
+- fal.ai: https://fal.ai
 - Tempo docs: https://docs.tempo.xyz
