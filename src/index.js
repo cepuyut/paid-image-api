@@ -276,7 +276,7 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 // Start
 // ---------------------------------------------------------------------------
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`paid-image-api listening on ${HOST}`);
   console.log(`  POST ${HOST}/v1/images/generate  (MPP-protected, tiered pricing)`);
   console.log(`  GET  ${HOST}/v1/prices`);
