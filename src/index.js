@@ -17,16 +17,52 @@ const HOST = process.env.HOST || `http://localhost:${PORT}`;
 // ---------------------------------------------------------------------------
 // Tiered pricing per model (base units, 6 decimals: 1 USDC = 1_000_000)
 // ---------------------------------------------------------------------------
-const PRICING_TIERS = {
-  "fal-ai/flux/schnell":   { price: "30000",  usd: "0.03", tier: "schnell" },
-  "fal-ai/flux/dev":       { price: "50000",  usd: "0.05", tier: "dev" },
-  "fal-ai/flux-pro/v1.1":  { price: "100000", usd: "0.10", tier: "pro" },
+const BASE_PRICING = {
+  // Flux family
+  "fal-ai/flux/schnell":        { base: 30000,  tier: "schnell" },
+  "fal-ai/flux/dev":            { base: 50000,  tier: "dev" },
+  "fal-ai/flux-pro/v1.1":       { base: 100000, tier: "pro" },
+  // Recraft V3 (SVG + raster)
+  "fal-ai/recraft-v3":          { base: 60000,  tier: "recraft" },
+  // Stable Diffusion 3.5
+  "fal-ai/stable-diffusion-v35-large": { base: 40000, tier: "sd35" },
+  // HiDream (high quality)
+  "fal-ai/hidream-i1-full":     { base: 80000,  tier: "hidream" },
+  // Ideogram V3 (text-in-image)
+  "fal-ai/ideogram/v3":         { base: 80000,  tier: "ideogram" },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
-const DEFAULT_PRICE = { price: "30000", usd: "0.03", tier: "schnell" };
+
+// ---------------------------------------------------------------------------
+// Dynamic pricing — adjusts based on request volume (last 5 min window)
+// ---------------------------------------------------------------------------
+const REQUEST_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const requestTimestamps = [];
+
+function getDemandMultiplier() {
+  const now = Date.now();
+  // Clean old timestamps
+  while (requestTimestamps.length && requestTimestamps[0] < now - REQUEST_WINDOW_MS) {
+    requestTimestamps.shift();
+  }
+  const rpm = requestTimestamps.length;
+  // Surge tiers: 0-10 req → 1x, 10-30 → 1.25x, 30-60 → 1.5x, 60+ → 2x
+  if (rpm >= 60) return 2.0;
+  if (rpm >= 30) return 1.5;
+  if (rpm >= 10) return 1.25;
+  return 1.0;
+}
 
 function getPricing(model) {
-  return PRICING_TIERS[model] || DEFAULT_PRICE;
+  const info = BASE_PRICING[model] || BASE_PRICING[DEFAULT_MODEL];
+  const multiplier = getDemandMultiplier();
+  const price = Math.round(info.base * multiplier);
+  const usd = (price / 1_000_000).toFixed(2);
+  return { price: String(price), usd, tier: info.tier, multiplier };
+}
+
+function trackRequest() {
+  requestTimestamps.push(Date.now());
 }
 
 // fal.ai image backend
@@ -70,25 +106,32 @@ app.post("/v1/images/generate", async (req, res) => {
   const authHeader = req.get("Authorization");
   const { prompt, model, image_size, num_images } = req.body || {};
 
-  // Determine price from requested model
-  const pricing = getPricing(model);
+  // Determine price from requested model + batch discount
+  const count = Math.min(Math.max(num_images || 1, 1), 4);
+  const perImage = getPricing(model);
+  const batchDiscount = count >= 4 ? 0.80 : count >= 3 ? 0.90 : 1.0;
+  const totalPrice = String(Math.round(Number(perImage.price) * count * batchDiscount));
+  const totalUsd = (Number(totalPrice) / 1_000_000).toFixed(2);
+  const desc = count > 1
+    ? `Generate ${count} images for ${totalUsd} USDC (${perImage.tier}, ${batchDiscount < 1 ? Math.round((1 - batchDiscount) * 100) + "% batch discount" : "no discount"})`
+    : `Generate an image for ${perImage.usd} USDC (${perImage.tier} tier)`;
 
   // --- No credential → 402 challenge ---
   if (!authHeader || !authHeader.startsWith("Payment ")) {
     const { statusCode, headers, body } = createChallenge({
-      amount: pricing.price,
-      description: `Generate an image for ${pricing.usd} USDC (${pricing.tier} tier)`,
+      amount: totalPrice,
+      description: desc,
     });
     for (const [k, v] of Object.entries(headers)) res.set(k, v);
     return res.status(statusCode).json(body);
   }
 
   // --- Verify credential ---
-  const { ok, error, credential } = await verifyCredential(authHeader, pricing.price);
+  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
   if (!ok) {
     const { statusCode, headers, body } = createChallenge({
-      amount: pricing.price,
-      description: `Generate an image for ${pricing.usd} USDC (${pricing.tier} tier)`,
+      amount: totalPrice,
+      description: desc,
     });
     body.type = `https://paymentauth.org/problems/${error}`;
     body.title = error.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -110,12 +153,12 @@ app.post("/v1/images/generate", async (req, res) => {
   // --- Call fal.ai ---
   try {
     const usedModel = model || DEFAULT_MODEL;
-    if (!PRICING_TIERS[usedModel]) {
+    if (!BASE_PRICING[usedModel]) {
       return res.status(400).json({
         type: "https://paymentauth.org/problems/bad-request",
         title: "Unsupported Model",
         status: 400,
-        detail: `Model '${usedModel}' is not supported. Use: ${Object.keys(PRICING_TIERS).join(", ")}`,
+        detail: `Model '${usedModel}' is not supported. Use: ${Object.keys(BASE_PRICING).join(", ")}`,
       });
     }
 
@@ -129,6 +172,7 @@ app.post("/v1/images/generate", async (req, res) => {
     const images = result.data?.images || [];
     const timings = result.data?.timings;
 
+    trackRequest();
     const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
 
     res.set("Payment-Receipt", receipt);
@@ -150,14 +194,25 @@ app.post("/v1/images/generate", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get("/v1/prices", (_req, res) => {
-  const tiers = Object.entries(PRICING_TIERS).map(([model, info]) => ({
-    model,
-    tier: info.tier,
-    price_base_units: info.price,
-    price_usd: info.usd,
-  }));
-  res.set("Cache-Control", "max-age=300");
-  res.json({ currency: "USDC", decimals: 6, tiers });
+  const multiplier = getDemandMultiplier();
+  const tiers = Object.entries(BASE_PRICING).map(([model, info]) => {
+    const price = Math.round(info.base * multiplier);
+    return {
+      model,
+      tier: info.tier,
+      base_price: String(info.base),
+      current_price: String(price),
+      price_usd: (price / 1_000_000).toFixed(2),
+    };
+  });
+  res.set("Cache-Control", "no-cache");
+  res.json({
+    currency: "USDC",
+    decimals: 6,
+    demand_multiplier: multiplier,
+    surge: multiplier > 1 ? `${multiplier}x surge pricing active` : "normal",
+    tiers,
+  });
 });
 
 // ---------------------------------------------------------------------------
