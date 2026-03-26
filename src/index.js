@@ -11,7 +11,7 @@ const ROOT = join(__dirname, "..");
 // Config
 // ---------------------------------------------------------------------------
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 10000);
 const HOST = process.env.HOST || `http://localhost:${PORT}`;
 
 // ---------------------------------------------------------------------------
