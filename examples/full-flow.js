@@ -26,7 +26,7 @@ import { writeFileSync } from "node:fs";
 
 const API_URL = process.env.API_URL || "https://paid-image-api.onrender.com";
 const TEMPO_RPC = "https://rpc.tempo.xyz";
-const CHAIN_ID = 42431;
+const CHAIN_ID = 4217; // Tempo mainnet chain ID
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 if (!PRIVATE_KEY) {
@@ -106,7 +106,9 @@ async function main() {
   // ── Step 3: Sign & submit pathUSD transfer on Tempo ──
   console.log("\nStep 3: Submitting payment on Tempo blockchain...");
 
-  const provider = new ethers.JsonRpcProvider(TEMPO_RPC, CHAIN_ID);
+  const provider = new ethers.JsonRpcProvider(TEMPO_RPC, CHAIN_ID, {
+    staticNetwork: true,
+  });
   const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
   console.log(`  Your wallet: ${wallet.address}`);
 
