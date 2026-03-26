@@ -210,13 +210,13 @@ app.post("/api/demo", async (req, res) => {
     });
   }
 
-  const { prompt } = req.body || {};
+  const { prompt, model } = req.body || {};
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({ detail: "A 'prompt' string is required." });
   }
 
   try {
-    const usedModel = "gemini-3-pro-image-preview";
+    const usedModel = model || "gemini-3-pro-image-preview";
     const resp = await fetch(`${BLUESMINDS_BASE}/images/generations`, {
       method: "POST",
       headers: {

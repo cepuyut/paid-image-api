@@ -423,10 +423,11 @@ async function generateImage() {
   result.innerHTML = '<div class="status">Generating your image...</div>';
 
   try {
+    const model = document.getElementById("model").value;
     const res = await fetch("/api/demo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, model })
     });
 
     if (!res.ok) {
