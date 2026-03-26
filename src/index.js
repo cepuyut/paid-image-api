@@ -20,7 +20,7 @@ const HOST = process.env.HOST || `http://localhost:${PORT}`;
 const PRICING_TIERS = {
   // fal.ai models
   "fal-ai/flux/schnell":       { price: "30000",  usd: "0.03", tier: "schnell" },
-  "fal-ai/flux/dev":           { price: "50000",  usd: "0.05", tier: "dev" },
+  "fal-ai/flux/dev":            { price: "50000",  usd: "0.05", tier: "dev" },
   "fal-ai/flux-pro/v1.1":     { price: "100000", usd: "0.10", tier: "pro" },
   // Bluesminds models
   "gemini-3-pro-image-preview":{ price: "50000",  usd: "0.05", tier: "dev" },
