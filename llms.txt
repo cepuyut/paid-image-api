@@ -4,7 +4,7 @@
 
 ## Overview
 
-Paid Image API lets you generate images from text prompts using fal.ai Flux models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with pathUSD stablecoins.
+Paid Image API lets you generate images from text prompts using fal.ai Flux models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with USDC stablecoins.
 
 No API keys needed. Just pay per request.
 
@@ -13,12 +13,12 @@ No API keys needed. Just pay per request.
 - Protocol: MPP (Machine Payments Protocol)
 - Method: `tempo` (Tempo blockchain)
 - Intent: `charge` (one-time per-request payment)
-- Currency: `0x20c000000000000000000000b9537d11c60e8b50` (pathUSD on Tempo)
+- Currency: `0x20c000000000000000000000b9537d11c60e8b50` (USDC on Tempo)
 - Recipient: `0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb`
 
 ### Tiered Pricing (per image)
 
-| Model | Tier | Price (pathUSD) | Base Units |
+| Model | Tier | Price (USDC) | Base Units |
 |---|---|---|---|
 | `fal-ai/flux/schnell` | schnell (fast) | $0.03 | 30000 |
 | `fal-ai/flux/dev` | dev (balanced) | $0.05 | 50000 |
@@ -30,7 +30,7 @@ Default model: `fal-ai/flux/schnell` ($0.03). Price is determined by the `model`
 
 1. `POST /v1/images/generate` with your prompt and model (no auth header)
 2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge (amount varies by model)
-3. Sign a Tempo transaction transferring the required pathUSD to the recipient
+3. Sign a Tempo transaction transferring the required USDC to the recipient
 4. Retry the same request with `Authorization: Payment <base64url-credential>`
 5. Receive `200 OK` with generated images and a `Payment-Receipt` header
 
@@ -69,7 +69,7 @@ Generate an image from a text prompt.
   "type": "https://paymentauth.org/problems/payment-required",
   "title": "Payment Required",
   "status": 402,
-  "detail": "Generate an image for 0.03 pathUSD (schnell tier)"
+  "detail": "Generate an image for 0.03 USDC (schnell tier)"
 }
 ```
 

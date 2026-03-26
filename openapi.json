@@ -4,7 +4,7 @@
     "title": "Paid Image API",
     "version": "1.0.0",
     "description": "AI image generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
-    "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.03, Dev $0.05, Pro $0.10 pathUSD via Tempo blockchain, then retry with the payment credential to receive your generated image. Check GET /v1/prices for current pricing."
+    "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.03, Dev $0.05, Pro $0.10 USDC via Tempo blockchain, then retry with the payment credential to receive your generated image. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
     "ownershipProofs": ["dns:paid-image-api.onrender.com"]
@@ -27,7 +27,7 @@
       "post": {
         "operationId": "generateImage",
         "summary": "Generate an image from a text prompt",
-        "description": "Generates images from text prompts using fal.ai Flux models. Tiered pricing: Schnell $0.03, Dev $0.05, Pro $0.10 pathUSD via MPP Tempo charge.",
+        "description": "Generates images from text prompts using fal.ai Flux models. Tiered pricing: Schnell $0.03, Dev $0.05, Pro $0.10 USDC via MPP Tempo charge.",
         "x-payment-info": {
           "protocols": ["mpp"],
           "pricingMode": "tiered",

@@ -15,7 +15,7 @@ const PORT = Number(process.env.PORT || 10000);
 const HOST = process.env.HOST || `http://localhost:${PORT}`;
 
 // ---------------------------------------------------------------------------
-// Tiered pricing per model (base units, 6 decimals: 1 pathUSD = 1_000_000)
+// Tiered pricing per model (base units, 6 decimals: 1 USDC = 1_000_000)
 // ---------------------------------------------------------------------------
 const PRICING_TIERS = {
   "fal-ai/flux/schnell":   { price: "30000",  usd: "0.03", tier: "schnell" },
@@ -77,7 +77,7 @@ app.post("/v1/images/generate", async (req, res) => {
   if (!authHeader || !authHeader.startsWith("Payment ")) {
     const { statusCode, headers, body } = createChallenge({
       amount: pricing.price,
-      description: `Generate an image for ${pricing.usd} pathUSD (${pricing.tier} tier)`,
+      description: `Generate an image for ${pricing.usd} USDC (${pricing.tier} tier)`,
     });
     for (const [k, v] of Object.entries(headers)) res.set(k, v);
     return res.status(statusCode).json(body);
@@ -88,7 +88,7 @@ app.post("/v1/images/generate", async (req, res) => {
   if (!ok) {
     const { statusCode, headers, body } = createChallenge({
       amount: pricing.price,
-      description: `Generate an image for ${pricing.usd} pathUSD (${pricing.tier} tier)`,
+      description: `Generate an image for ${pricing.usd} USDC (${pricing.tier} tier)`,
     });
     body.type = `https://paymentauth.org/problems/${error}`;
     body.title = error.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -157,7 +157,7 @@ app.get("/v1/prices", (_req, res) => {
     price_usd: info.usd,
   }));
   res.set("Cache-Control", "max-age=300");
-  res.json({ currency: "pathUSD", decimals: 6, tiers });
+  res.json({ currency: "USDC", decimals: 6, tiers });
 });
 
 // ---------------------------------------------------------------------------

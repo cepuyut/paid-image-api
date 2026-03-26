@@ -128,7 +128,7 @@ export function createChallenge({ amount, description }) {
 /**
  * Verify a transaction on Tempo blockchain via JSON-RPC.
  * Checks that the tx is confirmed and contains a Transfer event
- * sending the correct amount of pathUSD to our wallet.
+ * sending the correct amount of USDC to our wallet.
  */
 async function verifyOnChain(txHash, expectedAmount) {
   const res = await fetch(TEMPO_RPC, {
@@ -147,7 +147,7 @@ async function verifyOnChain(txHash, expectedAmount) {
     return { ok: false, error: "tx-not-confirmed" };
   }
 
-  // Find Transfer event from the pathUSD token contract
+  // Find Transfer event from the USDC token contract
   const transferLog = receipt.logs.find(
     (log) =>
       log.address.toLowerCase() === CURRENCY_TOKEN.toLowerCase() &&
