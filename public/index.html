@@ -440,10 +440,12 @@ async function generateImage() {
     incrementDemo();
     const remaining = DEMO_LIMIT - getDemoCount();
 
-    if (data.images?.[0]?.b64_json) {
-      result.innerHTML = `<img src="data:image/png;base64,${data.images[0].b64_json}" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
-    } else if (data.images?.[0]?.url) {
-      result.innerHTML = `<img src="${data.images[0].url}" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
+    const img = data.images?.[0];
+    if (img?.b64_json) {
+      const mime = img.content_type || "image/png";
+      result.innerHTML = `<img src="data:${mime};base64,${img.b64_json}" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
+    } else if (img?.url) {
+      result.innerHTML = `<img src="${img.url}" crossorigin="anonymous" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
     }
   } catch (e) {
     result.innerHTML = '<div class="error">Network error. Try again.</div>';

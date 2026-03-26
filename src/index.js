@@ -229,7 +229,18 @@ app.post("/api/demo", async (req, res) => {
       const result = await fal.subscribe(usedModel, {
         input: { prompt, image_size: "landscape_4_3", num_images: 1 },
       });
-      images = result.data?.images || [];
+      // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
+      const falImages = result.data?.images || [];
+      images = [];
+      for (const img of falImages) {
+        if (img.url) {
+          try {
+            const imgResp = await fetch(img.url);
+            const buf = Buffer.from(await imgResp.arrayBuffer());
+            images.push({ b64_json: buf.toString("base64"), content_type: img.content_type || "image/jpeg" });
+          } catch { images.push(img); }
+        } else { images.push(img); }
+      }
     } else {
       // Use Bluesminds
       const resp = await fetch(`${BLUESMINDS_BASE}/images/generations`, {
