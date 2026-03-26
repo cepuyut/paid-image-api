@@ -181,7 +181,7 @@
     }
     .pricing-row {
       display: grid;
-      grid-template-columns: 1fr 100px 100px 100px;
+      grid-template-columns: 1fr 100px 100px;
       align-items: center;
       padding: 14px 24px;
       border-bottom: 1px solid var(--border);
@@ -215,7 +215,7 @@
     }
     .model-tier { color: var(--muted); }
     .model-price { font-weight: 600; font-variant-numeric: tabular-nums; }
-    .model-speed { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .model-quality { color: var(--muted); font-size: 13px; }
 
     /* ── Generate Section ── */
     .demo {
@@ -591,8 +591,8 @@
       h1 { font-size: 36px; }
       .stats { grid-template-columns: repeat(2, 1fr); }
       .stats .stat:nth-child(2) { border-right: none; }
-      .pricing-row { grid-template-columns: 1fr 80px 70px; }
-      .pricing-row .model-speed { display: none; }
+      .pricing-row { grid-template-columns: 1fr 70px; }
+      .pricing-row .model-quality { display: none; }
       .input-row { flex-direction: column; }
       .nav-links { display: none; }
       .demo { padding: 20px; }
@@ -649,51 +649,43 @@
   <div class="pricing-table">
     <div class="pricing-row header">
       <span>Model</span>
-      <span>Tier</span>
       <span>Price</span>
-      <span>Speed</span>
+      <span>Best for</span>
     </div>
     <div class="pricing-row">
       <div class="model-name">Schnell</div>
-      <div class="model-tier">Fast</div>
       <div class="model-price">$0.03</div>
-      <div class="model-speed">~5-10s</div>
+      <div class="model-quality">Quick drafts</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">SD 3.5</div>
-      <div class="model-tier">Balanced</div>
       <div class="model-price">$0.04</div>
-      <div class="model-speed">~10-20s</div>
+      <div class="model-quality">General use</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Dev <span class="tag">POPULAR</span></div>
-      <div class="model-tier">Balanced</div>
       <div class="model-price">$0.05</div>
-      <div class="model-speed">~10-20s</div>
+      <div class="model-quality">All-around</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Recraft V3</div>
-      <div class="model-tier">Creative</div>
       <div class="model-price">$0.06</div>
-      <div class="model-speed">~10-25s</div>
+      <div class="model-quality">Creative, SVG</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">HiDream</div>
-      <div class="model-tier">Quality</div>
       <div class="model-price">$0.08</div>
-      <div class="model-speed">~15-30s</div>
+      <div class="model-quality">High detail</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Ideogram V3</div>
-      <div class="model-tier">Text</div>
       <div class="model-price">$0.08</div>
-      <div class="model-speed">~15-30s</div>
+      <div class="model-quality">Text in images</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Pro</div>
-      <div class="model-tier">Premium</div>
       <div class="model-price">$0.10</div>
-      <div class="model-speed">~20-40s</div>
+      <div class="model-quality">Max quality</div>
     </div>
   </div>
 
