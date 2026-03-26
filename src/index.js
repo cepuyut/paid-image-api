@@ -311,7 +311,7 @@ app.get("/v1/prices", (_req, res) => {
 // Demo endpoint: POST /api/demo (free, rate-limited by IP)
 // ---------------------------------------------------------------------------
 
-const DEMO_LIMIT = 3; // per IP per day
+const DEMO_LIMIT = 1; // per IP per day
 const demoUsage = new Map(); // ip -> { date, count }
 
 app.post("/api/demo", async (req, res) => {
@@ -322,7 +322,7 @@ app.post("/api/demo", async (req, res) => {
   const usage = demoUsage.get(ip);
   if (usage && usage.date === today && usage.count >= DEMO_LIMIT) {
     return res.status(429).json({
-      detail: `Demo limit reached (${DEMO_LIMIT}/day). Use the API with a Tempo wallet for unlimited access.`,
+      detail: `Demo limit reached (${DEMO_LIMIT}/day). Connect a wallet for unlimited access.`,
     });
   }
 

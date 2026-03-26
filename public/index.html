@@ -693,7 +693,7 @@
   <div class="demo">
     <div class="demo-header">
       <h2>Generate</h2>
-      <span class="hint" id="modeHint">Free demo &middot; 3 per day</span>
+      <span class="hint" id="modeHint">Free demo &middot; 1 per day</span>
     </div>
 
     <!-- Wallet banner (shown when connected) -->
@@ -872,7 +872,7 @@ const TEMPO_RPC = "https://rpc.tempo.xyz";
 const USDC_TOKEN = "0x20c000000000000000000000b9537d11c60e8b50";
 const SERVER_WALLET = "0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb";
 const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)", "function balanceOf(address) view returns (uint256)"];
-const DEMO_LIMIT = 3;
+const DEMO_LIMIT = 1;
 const STORAGE_KEY = "demo_count";
 
 // ── Wallet State ──
@@ -902,7 +902,7 @@ async function handleWallet() {
     document.getElementById("walletBtn").innerHTML = "Connect Wallet";
     document.getElementById("walletBtn").className = "btn-wallet";
     document.getElementById("walletBanner").style.display = "none";
-    document.getElementById("modeHint").innerHTML = 'Free demo &middot; 3 per day';
+    document.getElementById("modeHint").innerHTML = 'Free demo &middot; 1 per day';
     return;
   }
 
@@ -1194,7 +1194,7 @@ async function generatePaid() {
 // ── Free demo flow ──
 async function generateDemo() {
   if (getDemoCount() >= DEMO_LIMIT) {
-    document.getElementById("result").innerHTML = '<div class="error">Daily limit reached (3/day). Connect a wallet for unlimited access.</div>';
+    document.getElementById("result").innerHTML = '<div class="error">Daily limit reached (1/day). Connect a wallet for unlimited access.</div>';
     return;
   }
   const prompt = document.getElementById("prompt").value.trim();
