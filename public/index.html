@@ -391,6 +391,7 @@
     @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
     .result .meta {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       margin-top: 10px;
       font-size: 12px;
@@ -398,6 +399,24 @@
     }
     .result .meta .cached { color: var(--green); font-weight: 600; }
     .result .meta .paid { color: var(--green); font-weight: 600; }
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface2);
+      color: var(--text2);
+      border: 1px solid var(--border2);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn-download:hover { border-color: var(--border-hover); color: var(--white); }
+    .btn-download svg { width: 12px; height: 12px; }
     .result .error {
       color: var(--red);
       font-size: 13px;
@@ -407,6 +426,65 @@
       border-radius: var(--radius);
     }
     .result .status { font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
+
+    /* Loading animation */
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      gap: 20px;
+    }
+    .loading-visual {
+      width: 200px;
+      height: 200px;
+      border-radius: 16px;
+      background: var(--surface2);
+      position: relative;
+      overflow: hidden;
+    }
+    .loading-visual::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        #ffffff08 50%,
+        transparent 100%
+      );
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .loading-visual .pixel-grid {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 2px;
+      padding: 8px;
+    }
+    .loading-visual .pixel {
+      background: var(--surface3);
+      border-radius: 2px;
+      animation: pixelFade 2s ease-in-out infinite;
+    }
+    @keyframes pixelFade {
+      0%, 100% { opacity: 0.15; }
+      50% { opacity: 0.5; }
+    }
+    .loading-text {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .loading-text .timer { color: var(--white); font-weight: 600; font-variant-numeric: tabular-nums; }
+
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
@@ -579,43 +657,43 @@
       <div class="model-name">Schnell</div>
       <div class="model-tier">Fast</div>
       <div class="model-price">$0.03</div>
-      <div class="model-speed">~2s</div>
+      <div class="model-speed">~5-10s</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">SD 3.5</div>
       <div class="model-tier">Balanced</div>
       <div class="model-price">$0.04</div>
-      <div class="model-speed">~4s</div>
+      <div class="model-speed">~10-20s</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Dev <span class="tag">POPULAR</span></div>
       <div class="model-tier">Balanced</div>
       <div class="model-price">$0.05</div>
-      <div class="model-speed">~6s</div>
+      <div class="model-speed">~10-20s</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Recraft V3</div>
       <div class="model-tier">Creative</div>
       <div class="model-price">$0.06</div>
-      <div class="model-speed">~5s</div>
+      <div class="model-speed">~10-25s</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">HiDream</div>
       <div class="model-tier">Quality</div>
       <div class="model-price">$0.08</div>
-      <div class="model-speed">~8s</div>
+      <div class="model-speed">~15-30s</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Ideogram V3</div>
       <div class="model-tier">Text</div>
       <div class="model-price">$0.08</div>
-      <div class="model-speed">~8s</div>
+      <div class="model-speed">~15-30s</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Pro</div>
       <div class="model-tier">Premium</div>
       <div class="model-price">$0.10</div>
-      <div class="model-speed">~12s</div>
+      <div class="model-speed">~20-40s</div>
     </div>
   </div>
 
@@ -919,6 +997,87 @@ function parseWWWAuth(header) {
   return params;
 }
 
+// ── Loading Animation ──
+let loadingTimer = null;
+let loadingStartTime = null;
+
+function showLoading(message) {
+  const result = document.getElementById("result");
+  const pixels = Array.from({length: 64}, (_, i) =>
+    `<div class="pixel" style="animation-delay: ${(i * 0.05 % 1.5).toFixed(2)}s"></div>`
+  ).join('');
+
+  result.innerHTML = `
+    <div class="loading-container">
+      <div class="loading-visual">
+        <div class="pixel-grid">${pixels}</div>
+      </div>
+      <div class="loading-text">
+        <div>${message}</div>
+        <div style="margin-top:4px">Elapsed: <span class="timer" id="loadingTimer">0s</span></div>
+      </div>
+    </div>`;
+
+  loadingStartTime = Date.now();
+  loadingTimer = setInterval(() => {
+    const el = document.getElementById("loadingTimer");
+    if (el) el.textContent = Math.floor((Date.now() - loadingStartTime) / 1000) + "s";
+  }, 1000);
+}
+
+function stopLoading() {
+  if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
+}
+
+// ── Download helper ──
+function downloadImage(imgEl, filename) {
+  const link = document.createElement("a");
+  // Handle both src types
+  if (imgEl.src.startsWith("data:")) {
+    link.href = imgEl.src;
+  } else {
+    // For URL images, use canvas to convert
+    const canvas = document.createElement("canvas");
+    canvas.width = imgEl.naturalWidth;
+    canvas.height = imgEl.naturalHeight;
+    canvas.getContext("2d").drawImage(imgEl, 0, 0);
+    link.href = canvas.toDataURL("image/png");
+  }
+  link.download = filename || "pixelpay-image.png";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function renderResult(imgData, prompt, modelName, extraInfo, extraClass) {
+  const result = document.getElementById("result");
+  const safePrompt = prompt.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const filename = "pixelpay-" + prompt.replace(/[^a-z0-9]/gi, '-').slice(0, 30) + ".png";
+  const downloadSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4M2 13h12"/></svg>';
+
+  let imgSrc;
+  if (imgData.b64_json) {
+    const mime = imgData.content_type || "image/png";
+    imgSrc = `data:${mime};base64,${imgData.b64_json}`;
+  } else if (imgData.url) {
+    imgSrc = imgData.url;
+  }
+
+  if (imgSrc) {
+    result.innerHTML = `
+      <img src="${imgSrc}" alt="${safePrompt}" id="generatedImg" crossorigin="anonymous">
+      <div class="meta">
+        <span>${extraInfo} &middot; ${modelName}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${extraClass ? `<span class="${extraClass}">${extraClass === 'paid' ? 'Paid' : 'Cached'}</span>` : ''}
+          <button class="btn-download" onclick="downloadImage(document.getElementById('generatedImg'), '${filename}')">
+            ${downloadSvg} Download
+          </button>
+        </div>
+      </div>`;
+  }
+}
+
 // ── Paid flow: Challenge → Pay → Generate ──
 async function generatePaid() {
   const prompt = document.getElementById("prompt").value.trim();
@@ -931,7 +1090,6 @@ async function generatePaid() {
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Processing...';
-  result.innerHTML = '';
   progress.style.display = "flex";
 
   // Reset progress
@@ -975,14 +1133,15 @@ async function generatePaid() {
     const usdc = new ethers.Contract(USDC_TOKEN, ERC20_ABI, walletSigner);
     const tx = await usdc.transfer(SERVER_WALLET, amount);
 
-    btn.innerHTML = '<span class="spinner"></span>Confirming...';
+    btn.innerHTML = '<span class="spinner"></span>Confirming tx...';
     const receipt = await tx.wait();
 
     document.getElementById("ps2").className = "step-indicator done";
 
     // Step 3: Build credential and retry
     document.getElementById("ps3").className = "step-indicator active";
-    btn.innerHTML = '<span class="spinner"></span>Generating image...';
+    btn.innerHTML = '<span class="spinner"></span>Generating...';
+    showLoading("Generating your image...");
 
     const credential = {
       challenge: {
@@ -1009,6 +1168,8 @@ async function generatePaid() {
       body: JSON.stringify({ prompt, model })
     });
 
+    stopLoading();
+
     if (!imageRes.ok) {
       const err = await imageRes.json();
       throw new Error(err.detail || "Generation failed after payment");
@@ -1017,29 +1178,14 @@ async function generatePaid() {
     const data = await imageRes.json();
     document.getElementById("ps3").className = "step-indicator done";
 
-    // Display image
     const img = data.images?.[0];
-    if (img?.url) {
-      result.innerHTML = `
-        <img src="${img.url}" alt="${prompt}">
-        <div class="meta">
-          <span>${data.model}</span>
-          <span class="paid">Paid $${amountUsd} USDC</span>
-        </div>`;
-    } else if (img?.b64_json) {
-      const mime = img.content_type || "image/png";
-      result.innerHTML = `
-        <img src="data:${mime};base64,${img.b64_json}" alt="${prompt}">
-        <div class="meta">
-          <span>${data.model}</span>
-          <span class="paid">Paid $${amountUsd} USDC</span>
-        </div>`;
-    }
+    if (img) renderResult(img, prompt, data.model, `$${amountUsd} USDC`, 'paid');
 
     // Refresh balance
     await refreshBalance(null, walletAddress);
 
   } catch (err) {
+    stopLoading();
     console.error("Paid flow error:", err);
     let msg = err.message || "Something went wrong";
     if (err.code === "ACTION_REJECTED" || err.code === 4001) {
@@ -1066,7 +1212,7 @@ async function generateDemo() {
   const result = document.getElementById("result");
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Generating...';
-  result.innerHTML = '';
+  showLoading("Generating your image...");
 
   try {
     const model = document.getElementById("model").value;
@@ -1075,6 +1221,8 @@ async function generateDemo() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, model })
     });
+
+    stopLoading();
 
     if (!res.ok) {
       const err = await res.json();
@@ -1087,23 +1235,11 @@ async function generateDemo() {
     const remaining = DEMO_LIMIT - getDemoCount();
 
     const img = data.images?.[0];
-    if (img?.b64_json) {
-      const mime = img.content_type || "image/png";
-      result.innerHTML = `
-        <img src="data:${mime};base64,${img.b64_json}" alt="${prompt}">
-        <div class="meta">
-          <span>${remaining} left today &middot; ${data.model}</span>
-          ${data.cached ? '<span class="cached">Cached</span>' : ''}
-        </div>`;
-    } else if (img?.url) {
-      result.innerHTML = `
-        <img src="${img.url}" crossorigin="anonymous" alt="${prompt}">
-        <div class="meta">
-          <span>${remaining} left today &middot; ${data.model}</span>
-          ${data.cached ? '<span class="cached">Cached</span>' : ''}
-        </div>`;
+    if (img) {
+      renderResult(img, prompt, data.model, `${remaining} left today`, data.cached ? 'cached' : '');
     }
   } catch (e) {
+    stopLoading();
     result.innerHTML = '<div class="error">Network error. Try again.</div>';
   } finally {
     btn.disabled = false;
