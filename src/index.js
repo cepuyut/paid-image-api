@@ -31,17 +31,22 @@ function getPricing(model) {
   return PRICING_TIERS[model] || DEFAULT_PRICE;
 }
 
-// Image backend: "bluesminds" (default) or "fal"
-const IMAGE_BACKEND = process.env.IMAGE_BACKEND || "bluesminds";
+// Image backends
 const BLUESMINDS_KEY = process.env.BLUESMINDS_KEY;
 const BLUESMINDS_BASE = process.env.BLUESMINDS_BASE || "https://api.bluesminds.com/v1";
 
-// fal.ai (optional)
+// Always load fal.ai if FAL_KEY is available
 let fal;
-if (IMAGE_BACKEND === "fal") {
+if (process.env.FAL_KEY) {
   const falClient = await import("@fal-ai/client");
   fal = falClient.fal;
   fal.config({ credentials: process.env.FAL_KEY });
+  console.log("fal.ai backend loaded");
+}
+
+// Route model to correct backend
+function isFalModel(model) {
+  return model && model.startsWith("fal-ai/");
 }
 
 const app = express();
@@ -120,8 +125,8 @@ app.post("/v1/images/generate", async (req, res) => {
   try {
     let images, usedModel, timings;
 
-    if (IMAGE_BACKEND === "fal") {
-      const falModel = model || "fal-ai/flux/schnell";
+    if (isFalModel(model) && fal) {
+      const falModel = model;
       const result = await fal.subscribe(falModel, {
         input: {
           prompt,
@@ -216,30 +221,36 @@ app.post("/api/demo", async (req, res) => {
   }
 
   try {
-    const usedModel = model || "gemini-3-pro-image-preview";
-    const resp = await fetch(`${BLUESMINDS_BASE}/images/generations`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${BLUESMINDS_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: usedModel,
-        prompt,
-        n: 1,
-        size: "1024x1024",
-      }),
-    });
-    if (!resp.ok) {
-      const errBody = await resp.text();
-      throw new Error(`Bluesminds ${resp.status}: ${errBody}`);
+    let images;
+    const usedModel = model || "fal-ai/flux/schnell";
+
+    if (isFalModel(usedModel) && fal) {
+      // Use fal.ai
+      const result = await fal.subscribe(usedModel, {
+        input: { prompt, image_size: "landscape_4_3", num_images: 1 },
+      });
+      images = result.data?.images || [];
+    } else {
+      // Use Bluesminds
+      const resp = await fetch(`${BLUESMINDS_BASE}/images/generations`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${BLUESMINDS_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model: usedModel, prompt, n: 1, size: "1024x1024" }),
+      });
+      if (!resp.ok) {
+        const errBody = await resp.text();
+        throw new Error(`Bluesminds ${resp.status}: ${errBody}`);
+      }
+      const data = await resp.json();
+      images = (data.data || []).map((d) => ({
+        url: d.url || undefined,
+        content_type: "image/png",
+        ...(d.b64_json ? { b64_json: d.b64_json } : {}),
+      }));
     }
-    const data = await resp.json();
-    const images = (data.data || []).map((d) => ({
-      url: d.url || undefined,
-      content_type: "image/png",
-      ...(d.b64_json ? { b64_json: d.b64_json } : {}),
-    }));
 
     // Track usage
     if (usage && usage.date === today) {
