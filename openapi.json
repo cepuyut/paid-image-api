@@ -7,19 +7,19 @@
     "x-guidance": "This API generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.03, Dev $0.05, Pro $0.10 pathUSD via Tempo blockchain, then retry with the payment credential to receive your generated image. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
-    "ownershipProofs": ["dns:paid-image-api-production.up.railway.app"]
+    "ownershipProofs": ["dns:paid-image-api.onrender.com"]
   },
   "x-service-info": {
     "categories": ["media", "compute"],
     "docs": {
-      "homepage": "https://paid-image-api-production.up.railway.app",
-      "llms": "https://paid-image-api-production.up.railway.app/llms.txt",
-      "apiReference": "https://paid-image-api-production.up.railway.app/openapi.json"
+      "homepage": "https://paid-image-api.onrender.com",
+      "llms": "https://paid-image-api.onrender.com/llms.txt",
+      "apiReference": "https://paid-image-api.onrender.com/openapi.json"
     }
   },
   "servers": [
     {
-      "url": "https://paid-image-api-production.up.railway.app"
+      "url": "https://paid-image-api.onrender.com"
     }
   ],
   "paths": {
