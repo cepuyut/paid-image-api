@@ -3,339 +3,690 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Paid Image API — AI Image Generation via MPP</title>
-  <meta name="description" content="Generate AI images via API. Pay per request with USDC. No API keys needed.">
+  <title>PixelPay — AI Image Generation via MPP</title>
+  <meta name="description" content="Generate AI images via API. Pay per request with USDC on Tempo. No API keys. 7 models, smart routing.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23fff'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='%23000'>P</text></svg>">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --border: #262626;
-      --text: #e5e5e5;
+      --bg: #000000;
+      --surface: #0a0a0a;
+      --surface2: #111111;
+      --surface3: #161616;
+      --border: #1a1a1a;
+      --border2: #262626;
+      --border-hover: #333333;
+      --text: #fafafa;
+      --text2: #e5e5e5;
       --muted: #737373;
-      --accent: #22c55e;
-      --accent2: #3b82f6;
+      --muted2: #525252;
+      --white: #ffffff;
+      --green: #00d47b;
+      --green-dim: #00d47b18;
+      --red: #ff4444;
+      --radius: 10px;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.6;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .container { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+    .container { max-width: 760px; margin: 0 auto; padding: 0 24px; }
 
-    /* Header */
-    header {
-      padding: 60px 0 40px;
-      text-align: center;
+    /* ── Nav ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
     }
-    header .badge {
-      display: inline-block;
-      background: #22c55e15;
-      color: var(--accent);
-      border: 1px solid #22c55e30;
-      padding: 4px 12px;
-      border-radius: 20px;
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--white);
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--white);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 17px;
+      color: #000;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
+    .nav-links { display: flex; gap: 4px; }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
       font-size: 13px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--white); }
+
+    /* ── Hero ── */
+    .hero { padding: 72px 0 56px; text-align: center; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--green);
+      border: 1px solid #00d47b30;
+      background: var(--green-dim);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-bottom: 28px;
+    }
+    .hero-badge .dot {
+      width: 5px; height: 5px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    h1 {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      color: var(--white);
       margin-bottom: 16px;
     }
-    h1 {
-      font-size: 40px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 12px;
-    }
-    h1 span { color: var(--accent); }
-    .subtitle {
-      font-size: 18px;
+    .hero-sub {
+      font-size: 17px;
       color: var(--muted);
-      max-width: 500px;
-      margin: 0 auto;
+      max-width: 480px;
+      margin: 0 auto 44px;
+      line-height: 1.6;
+      font-weight: 400;
     }
 
-    /* Pricing */
-    .pricing {
+    /* ── Stats strip ── */
+    .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin: 40px 0;
-    }
-    .tier {
-      background: var(--surface);
+      grid-template-columns: repeat(4, 1fr);
       border: 1px solid var(--border);
       border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 64px;
+    }
+    .stat {
       padding: 20px;
       text-align: center;
-      transition: border-color 0.2s;
+      border-right: 1px solid var(--border);
     }
-    .tier:hover { border-color: var(--accent); }
-    .tier .name { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .tier .price { font-size: 32px; font-weight: 700; margin: 8px 0 4px; }
-    .tier .price span { font-size: 16px; color: var(--muted); }
-    .tier .desc { font-size: 13px; color: var(--muted); }
+    .stat:last-child { border-right: none; }
+    .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--white); }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-top: 4px; }
 
-    /* Demo */
-    .demo {
+    /* ── Pricing ── */
+    .section-title { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; color: var(--white); margin-bottom: 6px; }
+    .section-desc { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+    .pricing-table {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 64px;
+    }
+    .pricing-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 100px 100px;
+      align-items: center;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .pricing-row:last-child { border-bottom: none; }
+    .pricing-row:hover { background: var(--surface2); }
+    .pricing-row.header {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
       background: var(--surface);
+      padding: 10px 24px;
+    }
+    .pricing-row.header:hover { background: var(--surface); }
+    .model-name { font-weight: 600; color: var(--white); }
+    .model-name .tag {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      background: var(--white);
+      color: #000;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 8px;
+      letter-spacing: 0.05em;
+      vertical-align: middle;
+    }
+    .model-tier { color: var(--muted); }
+    .model-price { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .model-speed { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* ── Demo ── */
+    .demo {
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 32px;
-      margin: 40px 0;
+      margin-bottom: 64px;
+      background: var(--surface);
     }
-    .demo h2 { font-size: 20px; margin-bottom: 4px; }
-    .demo .hint { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-    .input-row {
+    .demo-header {
       display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
     }
-    input[type="text"], select {
+    .demo h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+    .demo .hint { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    .text-input {
+      width: 100%;
       background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
+      border: 1px solid var(--border2);
+      color: var(--white);
       padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 15px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-family: inherit;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.15s;
     }
-    input[type="text"]:focus, select:focus { border-color: var(--accent); }
-    input[type="text"] { flex: 1; }
-    select { min-width: 130px; cursor: pointer; }
-    button {
-      background: var(--accent);
+    .text-input:focus { border-color: var(--muted); }
+    .text-input::placeholder { color: var(--muted2); }
+
+    /* ── Custom Dropdown ── */
+    .dropdown {
+      position: relative;
+      width: 100%;
+    }
+    .dropdown-trigger {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      color: var(--white);
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.15s;
+      user-select: none;
+    }
+    .dropdown-trigger:hover { border-color: var(--border-hover); }
+    .dropdown.open .dropdown-trigger { border-color: var(--muted); border-radius: var(--radius) var(--radius) 0 0; }
+    .dropdown-trigger .arrow {
+      width: 16px; height: 16px;
+      fill: var(--muted);
+      transition: transform 0.15s;
+    }
+    .dropdown.open .dropdown-trigger .arrow { transform: rotate(180deg); }
+    .dropdown-trigger .selected-text { display: flex; align-items: center; gap: 10px; }
+    .dropdown-trigger .selected-price { color: var(--muted); font-weight: 400; font-size: 13px; }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      z-index: 100;
+      display: none;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .dropdown.open .dropdown-menu { display: block; }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 16px;
+      cursor: pointer;
+      transition: background 0.1s;
+      font-size: 14px;
+    }
+    .dropdown-item:hover { background: var(--surface3); }
+    .dropdown-item.active { background: var(--surface3); }
+    .dropdown-item .item-left { display: flex; align-items: center; gap: 10px; }
+    .dropdown-item .item-name { font-weight: 500; color: var(--text2); }
+    .dropdown-item .item-tier { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .dropdown-item .item-price { font-size: 13px; color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .dropdown-item.active .item-name { color: var(--white); }
+    .dropdown-item.active .item-price { color: var(--white); }
+    .dropdown-item .check-icon {
+      width: 14px; height: 14px;
+      fill: var(--white);
+      opacity: 0;
+    }
+    .dropdown-item.active .check-icon { opacity: 1; }
+    .dropdown-divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+    .input-row { display: flex; gap: 12px; }
+    .input-row > .field { flex: 1; margin-bottom: 14px; }
+
+    .btn-generate {
+      width: 100%;
+      background: var(--white);
       color: #000;
       border: none;
       padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 15px;
+      border-radius: var(--radius);
+      font-size: 14px;
       font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: opacity 0.15s;
+      letter-spacing: -0.01em;
     }
-    button:hover { opacity: 0.9; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-generate:hover { opacity: 0.85; }
+    .btn-generate:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    .result {
-      margin-top: 20px;
-      min-height: 60px;
-    }
+    .result { margin-top: 20px; }
     .result img {
       max-width: 100%;
       border-radius: 12px;
       border: 1px solid var(--border);
+      animation: fadeIn 0.4s ease;
     }
-    .result .status {
-      font-size: 14px;
-      color: var(--muted);
-      padding: 20px;
-      text-align: center;
-    }
-    .result .error {
-      color: #ef4444;
-      font-size: 14px;
-      padding: 12px;
-      background: #ef444415;
-      border-radius: 8px;
-    }
-
-    /* How it works */
-    .flow {
-      margin: 40px 0;
-    }
-    .flow h2 { font-size: 20px; margin-bottom: 20px; }
-    .steps {
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+    .result .meta {
       display: flex;
-      flex-direction: column;
-      gap: 0;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
     }
+    .result .meta .cached { color: var(--green); font-weight: 600; }
+    .result .error {
+      color: var(--red);
+      font-size: 13px;
+      padding: 12px 16px;
+      background: #ff444410;
+      border: 1px solid #ff444420;
+      border-radius: var(--radius);
+    }
+    .result .status { font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border-hover);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* ── How it works ── */
+    .flow { margin-bottom: 64px; }
+    .steps { display: flex; flex-direction: column; }
     .step {
       display: flex;
       gap: 16px;
       padding: 16px 0;
+      border-bottom: 1px solid var(--border);
     }
+    .step:last-child { border-bottom: none; }
     .step-num {
-      width: 32px;
-      height: 32px;
-      min-width: 32px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 50%;
+      width: 28px; height: 28px; min-width: 28px;
+      background: var(--white);
+      color: #000;
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
     }
-    .step-content .step-title { font-weight: 600; font-size: 15px; }
-    .step-content .step-desc { font-size: 14px; color: var(--muted); margin-top: 2px; }
+    .step-title { font-weight: 600; font-size: 14px; color: var(--white); }
+    .step-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
-    /* Code */
-    .code-section { margin: 40px 0; }
-    .code-section h2 { font-size: 20px; margin-bottom: 16px; }
-    .tabs {
-      display: flex;
-      gap: 0;
-      margin-bottom: 0;
-    }
+    /* ── Code ── */
+    .code-section { margin-bottom: 64px; }
+    .tabs { display: flex; gap: 0; margin-bottom: -1px; position: relative; z-index: 1; }
     .tab {
       padding: 8px 16px;
-      font-size: 13px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
       background: transparent;
       color: var(--muted);
       border: 1px solid var(--border);
-      border-bottom: none;
+      border-bottom: 1px solid var(--border);
       cursor: pointer;
-      font-weight: 500;
       border-radius: 8px 8px 0 0;
+      transition: color 0.15s;
     }
-    .tab.active { background: var(--surface); color: var(--text); }
+    .tab:hover { color: var(--text2); }
+    .tab.active { background: var(--surface); color: var(--white); border-bottom-color: var(--surface); }
     pre {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 0 8px 8px 8px;
-      padding: 20px;
+      padding: 20px 24px;
       overflow-x: auto;
       font-size: 13px;
-      line-height: 1.7;
+      line-height: 1.8;
     }
-    code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+    code { font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace; }
     .kw { color: #c084fc; }
-    .str { color: #22c55e; }
-    .cm { color: #525252; }
+    .str { color: var(--green); }
+    .cm { color: #404040; }
     .fn { color: #60a5fa; }
 
-    /* Links */
+    /* ── Links ── */
     .links {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin: 40px 0;
+      gap: 8px;
+      margin-bottom: 64px;
       justify-content: center;
     }
     .links a {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 10px 20px;
-      background: var(--surface);
+      padding: 8px 16px;
       border: 1px solid var(--border);
-      color: var(--text);
+      color: var(--muted);
       text-decoration: none;
       border-radius: 8px;
-      font-size: 14px;
-      transition: border-color 0.2s;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
     }
-    .links a:hover { border-color: var(--accent); }
+    .links a:hover { border-color: var(--border-hover); color: var(--white); }
 
     footer {
       text-align: center;
-      padding: 40px 0;
-      color: var(--muted);
-      font-size: 13px;
+      padding: 32px 0;
+      color: var(--muted2);
+      font-size: 12px;
       border-top: 1px solid var(--border);
-      margin-top: 40px;
     }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--white); }
 
-    @media (max-width: 600px) {
-      h1 { font-size: 28px; }
-      .pricing { grid-template-columns: 1fr; }
+    @media (max-width: 640px) {
+      h1 { font-size: 36px; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stats .stat:nth-child(2) { border-right: none; }
+      .pricing-row { grid-template-columns: 1fr 80px 70px; }
+      .pricing-row .model-speed { display: none; }
       .input-row { flex-direction: column; }
-      .tier .price { font-size: 24px; }
+      .nav-links { display: none; }
+      .demo { padding: 20px; }
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <header>
-    <div class="badge">Live on Tempo Mainnet</div>
-    <h1>AI Images. <span>Pay per pixel.</span></h1>
-    <p class="subtitle">Generate images from text prompts. No API keys, no signup. Just pay with USDC via MPP.</p>
-  </header>
+  <nav>
+    <a href="/" class="logo">
+      <div class="logo-icon">P</div>
+      <div class="logo-text">PixelPay</div>
+    </a>
+    <div class="nav-links">
+      <a href="/v1/prices">Pricing</a>
+      <a href="/llms.txt">Docs</a>
+      <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
+    </div>
+  </nav>
 
-  <!-- Pricing -->
-  <div class="pricing">
-    <div class="tier">
-      <div class="name">Schnell</div>
-      <div class="price">$0.03<span>/img</span></div>
-      <div class="desc">Fast generation</div>
+  <div class="hero">
+    <div class="hero-badge"><span class="dot"></span> Live on Tempo</div>
+    <h1>AI Images.<br>Pay per pixel.</h1>
+    <p class="hero-sub">Generate images from 7 models. No API keys, no signup. Pay with USDC on Tempo via MPP.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value">7</div>
+      <div class="stat-label">Models</div>
     </div>
-    <div class="tier">
-      <div class="name">Dev</div>
-      <div class="price">$0.05<span>/img</span></div>
-      <div class="desc">Balanced quality</div>
+    <div class="stat">
+      <div class="stat-value">$0.03</div>
+      <div class="stat-label">Starting</div>
     </div>
-    <div class="tier">
-      <div class="name">Pro</div>
-      <div class="price">$0.10<span>/img</span></div>
-      <div class="desc">High quality</div>
+    <div class="stat">
+      <div class="stat-value">0s</div>
+      <div class="stat-label">Signup</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">Auto</div>
+      <div class="stat-label">Routing</div>
+    </div>
+  </div>
+
+  <!-- Pricing Table -->
+  <h2 class="section-title">Pricing</h2>
+  <p class="section-desc">From fast drafts to production quality. Batch: 10% off 3+, 20% off 4.</p>
+  <div class="pricing-table">
+    <div class="pricing-row header">
+      <span>Model</span>
+      <span>Tier</span>
+      <span>Price</span>
+      <span>Speed</span>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Schnell</div>
+      <div class="model-tier">Fast</div>
+      <div class="model-price">$0.03</div>
+      <div class="model-speed">~2s</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">SD 3.5</div>
+      <div class="model-tier">Balanced</div>
+      <div class="model-price">$0.04</div>
+      <div class="model-speed">~4s</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Dev <span class="tag">POPULAR</span></div>
+      <div class="model-tier">Balanced</div>
+      <div class="model-price">$0.05</div>
+      <div class="model-speed">~6s</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Recraft V3</div>
+      <div class="model-tier">Creative</div>
+      <div class="model-price">$0.06</div>
+      <div class="model-speed">~5s</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">HiDream</div>
+      <div class="model-tier">Quality</div>
+      <div class="model-price">$0.08</div>
+      <div class="model-speed">~8s</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Ideogram V3</div>
+      <div class="model-tier">Text</div>
+      <div class="model-price">$0.08</div>
+      <div class="model-speed">~8s</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Pro</div>
+      <div class="model-tier">Premium</div>
+      <div class="model-price">$0.10</div>
+      <div class="model-speed">~12s</div>
     </div>
   </div>
 
   <!-- Demo -->
   <div class="demo">
-    <h2>Try it</h2>
-    <p class="hint">Free demo — 3 generations per day. No wallet needed.</p>
-    <div class="input-row">
-      <input type="text" id="prompt" placeholder="a cat wearing sunglasses on a beach" />
-      <select id="model">
-        <option value="fal-ai/flux/schnell">Schnell — $0.03</option>
-        <option value="fal-ai/stable-diffusion-v35-large">SD 3.5 — $0.04</option>
-        <option value="fal-ai/flux/dev" selected>Dev — $0.05</option>
-        <option value="fal-ai/recraft-v3">Recraft V3 — $0.06</option>
-        <option value="fal-ai/hidream-i1-full">HiDream — $0.08</option>
-        <option value="fal-ai/ideogram/v3">Ideogram V3 — $0.08</option>
-        <option value="fal-ai/flux-pro/v1.1">Pro — $0.10</option>
-      </select>
+    <div class="demo-header">
+      <h2>Try it</h2>
+      <span class="hint">Free &middot; 3 per day</span>
     </div>
-    <button id="generate" onclick="generateImage()">Generate</button>
+
+    <div class="field">
+      <label>Prompt</label>
+      <input type="text" class="text-input" id="prompt" placeholder="a cat wearing sunglasses on a beach">
+    </div>
+
+    <div class="input-row">
+      <div class="field">
+        <label>Model</label>
+        <div class="dropdown" id="modelDropdown">
+          <div class="dropdown-trigger" onclick="toggleDropdown()">
+            <span class="selected-text">
+              <span id="selectedLabel">Dev</span>
+              <span class="selected-price" id="selectedPrice">$0.05</span>
+            </span>
+            <svg class="arrow" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="dropdown-menu" id="dropdownMenu">
+            <div class="dropdown-item" data-value="auto" data-label="Auto" data-price="Smart pick" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">Auto</span>
+                <span class="item-tier">Smart pick</span>
+              </div>
+              <svg class="check-icon" viewBox="0 0 16 16"><path d="M3 8l4 4 6-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-value="fal-ai/flux/schnell" data-label="Schnell" data-price="$0.03" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">Schnell</span>
+                <span class="item-tier">Fast</span>
+              </div>
+              <span class="item-price">$0.03</span>
+            </div>
+            <div class="dropdown-item" data-value="fal-ai/stable-diffusion-v35-large" data-label="SD 3.5" data-price="$0.04" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">SD 3.5</span>
+                <span class="item-tier">Balanced</span>
+              </div>
+              <span class="item-price">$0.04</span>
+            </div>
+            <div class="dropdown-item active" data-value="fal-ai/flux/dev" data-label="Dev" data-price="$0.05" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">Dev</span>
+                <span class="item-tier">Popular</span>
+              </div>
+              <span class="item-price">$0.05</span>
+            </div>
+            <div class="dropdown-item" data-value="fal-ai/recraft-v3" data-label="Recraft V3" data-price="$0.06" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">Recraft V3</span>
+                <span class="item-tier">Creative</span>
+              </div>
+              <span class="item-price">$0.06</span>
+            </div>
+            <div class="dropdown-item" data-value="fal-ai/hidream-i1-full" data-label="HiDream" data-price="$0.08" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">HiDream</span>
+                <span class="item-tier">Quality</span>
+              </div>
+              <span class="item-price">$0.08</span>
+            </div>
+            <div class="dropdown-item" data-value="fal-ai/ideogram/v3" data-label="Ideogram V3" data-price="$0.08" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">Ideogram V3</span>
+                <span class="item-tier">Text</span>
+              </div>
+              <span class="item-price">$0.08</span>
+            </div>
+            <div class="dropdown-item" data-value="fal-ai/flux-pro/v1.1" data-label="Pro" data-price="$0.10" onclick="selectModel(this)">
+              <div class="item-left">
+                <span class="item-name">Pro</span>
+                <span class="item-tier">Premium</span>
+              </div>
+              <span class="item-price">$0.10</span>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="model" value="fal-ai/flux/dev">
+      </div>
+    </div>
+
+    <button class="btn-generate" id="generate" onclick="generateImage()">Generate</button>
     <div class="result" id="result"></div>
   </div>
 
   <!-- How it works -->
   <div class="flow">
-    <h2>How it works</h2>
+    <h2 class="section-title">How it works</h2>
+    <p class="section-desc">Built for AI agents. No signup, no API keys.</p>
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
-        <div class="step-content">
+        <div>
           <div class="step-title">POST your prompt</div>
-          <div class="step-desc">Send a request to /v1/images/generate with your text prompt</div>
+          <div class="step-desc">Send to /v1/images/generate with model "auto" for smart routing.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
-        <div class="step-content">
-          <div class="step-title">Receive payment challenge</div>
-          <div class="step-desc">Server responds 402 with a WWW-Authenticate challenge containing the price</div>
+        <div>
+          <div class="step-title">Receive 402 challenge</div>
+          <div class="step-desc">Server responds with amount, recipient, and token address.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-content">
-          <div class="step-title">Pay with USDC</div>
-          <div class="step-desc">Transfer USDC on Tempo blockchain. Gas fees covered by the server.</div>
+        <div>
+          <div class="step-title">Pay USDC on Tempo</div>
+          <div class="step-desc">Transfer USDC to the server wallet. Gas fees covered.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
-        <div class="step-content">
+        <div>
           <div class="step-title">Get your image</div>
-          <div class="step-desc">Retry with the payment credential. Receive your image + receipt.</div>
+          <div class="step-desc">Retry with payment credential. Cached for instant replay.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Code examples -->
+  <!-- Code -->
   <div class="code-section">
-    <h2>Quick start</h2>
+    <h2 class="section-title">Quick start</h2>
+    <p class="section-desc">Works with any HTTP client.</p>
     <div class="tabs">
       <div class="tab active" onclick="showTab('curl')">curl</div>
       <div class="tab" onclick="showTab('node')">Node.js</div>
@@ -344,52 +695,45 @@
     <pre id="code-curl"><code><span class="cm"># Step 1: Get payment challenge</span>
 curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
   -H <span class="str">"Content-Type: application/json"</span> \
-  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "fal-ai/flux/schnell"}'</span>
+  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "auto"}'</span>
 
 <span class="cm"># Step 2: Pay via Tempo, then retry with credential</span>
 curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
   -H <span class="str">"Content-Type: application/json"</span> \
   -H <span class="str">"Authorization: Payment &lt;base64url-credential&gt;"</span> \
-  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "fal-ai/flux/schnell"}'</span></code></pre>
-    <pre id="code-node" style="display:none"><code><span class="cm">// Get payment challenge</span>
-<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://paid-image-api.onrender.com/v1/images/generate"</span>, {
+  -d <span class="str">'{"prompt": "a sunset over mountains", "model": "auto"}'</span></code></pre>
+    <pre id="code-node" style="display:none"><code><span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://paid-image-api.onrender.com/v1/images/generate"</span>, {
   method: <span class="str">"POST"</span>,
   headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
   body: JSON.<span class="fn">stringify</span>({
     prompt: <span class="str">"a sunset over mountains"</span>,
-    model: <span class="str">"fal-ai/flux/schnell"</span>
+    model: <span class="str">"auto"</span>
   })
 });
 
-<span class="cm">// Parse 402 challenge from WWW-Authenticate header</span>
-<span class="kw">const</span> challenge = res.headers.<span class="fn">get</span>(<span class="str">"WWW-Authenticate"</span>);
-
-<span class="cm">// ... sign Tempo tx, build credential, retry with Authorization header</span></code></pre>
+<span class="cm">// Parse 402 challenge, pay via Tempo SDK, retry</span></code></pre>
     <pre id="code-python" style="display:none"><code><span class="kw">import</span> requests
 
-<span class="cm"># Get payment challenge</span>
 res = requests.<span class="fn">post</span>(
     <span class="str">"https://paid-image-api.onrender.com/v1/images/generate"</span>,
-    json={<span class="str">"prompt"</span>: <span class="str">"a sunset over mountains"</span>, <span class="str">"model"</span>: <span class="str">"fal-ai/flux/schnell"</span>}
+    json={<span class="str">"prompt"</span>: <span class="str">"a sunset over mountains"</span>, <span class="str">"model"</span>: <span class="str">"auto"</span>}
 )
 
-<span class="cm"># Parse 402 challenge</span>
-challenge = res.headers[<span class="str">"WWW-Authenticate"</span>]
-
-<span class="cm"># ... sign Tempo tx, build credential, retry with Authorization header</span></code></pre>
+<span class="cm"># Parse 402 challenge, pay via Tempo SDK, retry</span></code></pre>
   </div>
 
   <!-- Links -->
   <div class="links">
     <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
-    <a href="/openapi.json">OpenAPI Spec</a>
+    <a href="/openapi.json">OpenAPI</a>
     <a href="/llms.txt">llms.txt</a>
     <a href="/v1/prices">Pricing API</a>
+    <a href="/v1/stats">Stats</a>
     <a href="https://www.mppscan.com/server/cf369327194725b2d722e8d37faf10702abbbb3b8a8d06695eba321c606b5973">MPPscan</a>
   </div>
 
   <footer>
-    Built with MPP (Machine Payments Protocol) on Tempo blockchain.
+    PixelPay &mdash; Built on <a href="https://tempo.xyz">Tempo</a> with <a href="https://mpp.dev">MPP</a>
   </footer>
 </div>
 
@@ -397,12 +741,33 @@ challenge = res.headers[<span class="str">"WWW-Authenticate"</span>]
 const DEMO_LIMIT = 3;
 const STORAGE_KEY = "demo_count";
 
+// ── Custom Dropdown ──
+function toggleDropdown() {
+  document.getElementById("modelDropdown").classList.toggle("open");
+}
+function selectModel(el) {
+  const dropdown = document.getElementById("modelDropdown");
+  const items = dropdown.querySelectorAll(".dropdown-item");
+  items.forEach(i => i.classList.remove("active"));
+  el.classList.add("active");
+
+  document.getElementById("model").value = el.dataset.value;
+  document.getElementById("selectedLabel").textContent = el.dataset.label;
+  document.getElementById("selectedPrice").textContent = el.dataset.price;
+  dropdown.classList.remove("open");
+}
+// Close dropdown on outside click
+document.addEventListener("click", (e) => {
+  const dd = document.getElementById("modelDropdown");
+  if (!dd.contains(e.target)) dd.classList.remove("open");
+});
+
+// ── Demo logic ──
 function getDemoCount() {
   const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
   const today = new Date().toISOString().slice(0, 10);
   return data.date === today ? data.count : 0;
 }
-
 function incrementDemo() {
   const today = new Date().toISOString().slice(0, 10);
   const count = getDemoCount() + 1;
@@ -411,20 +776,18 @@ function incrementDemo() {
 }
 
 async function generateImage() {
-  const count = getDemoCount();
-  if (count >= DEMO_LIMIT) {
-    document.getElementById("result").innerHTML = '<div class="error">Daily demo limit reached (3/day). Use the API with a Tempo wallet for unlimited access.</div>';
+  if (getDemoCount() >= DEMO_LIMIT) {
+    document.getElementById("result").innerHTML = '<div class="error">Daily limit reached (3/day). Use the API with a Tempo wallet for unlimited access.</div>';
     return;
   }
-
   const prompt = document.getElementById("prompt").value.trim();
   if (!prompt) return;
 
   const btn = document.getElementById("generate");
   const result = document.getElementById("result");
   btn.disabled = true;
-  btn.textContent = "Generating...";
-  result.innerHTML = '<div class="status">Generating your image...</div>';
+  btn.innerHTML = '<span class="spinner"></span>Generating...';
+  result.innerHTML = '';
 
   try {
     const model = document.getElementById("model").value;
@@ -436,20 +799,30 @@ async function generateImage() {
 
     if (!res.ok) {
       const err = await res.json();
-      result.innerHTML = `<div class="error">${err.detail || "Generation failed. Try again."}</div>`;
+      result.innerHTML = `<div class="error">${err.detail || "Failed. Try again."}</div>`;
       return;
     }
 
     const data = await res.json();
-    incrementDemo();
+    if (!data.cached) incrementDemo();
     const remaining = DEMO_LIMIT - getDemoCount();
 
     const img = data.images?.[0];
     if (img?.b64_json) {
       const mime = img.content_type || "image/png";
-      result.innerHTML = `<img src="data:${mime};base64,${img.b64_json}" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
+      result.innerHTML = `
+        <img src="data:${mime};base64,${img.b64_json}" alt="${prompt}">
+        <div class="meta">
+          <span>${remaining} left today &middot; ${data.model}</span>
+          ${data.cached ? '<span class="cached">Cached</span>' : ''}
+        </div>`;
     } else if (img?.url) {
-      result.innerHTML = `<img src="${img.url}" crossorigin="anonymous" alt="${prompt}"><div class="status">${remaining} demo generations remaining today</div>`;
+      result.innerHTML = `
+        <img src="${img.url}" crossorigin="anonymous" alt="${prompt}">
+        <div class="meta">
+          <span>${remaining} left today &middot; ${data.model}</span>
+          ${data.cached ? '<span class="cached">Cached</span>' : ''}
+        </div>`;
     }
   } catch (e) {
     result.innerHTML = '<div class="error">Network error. Try again.</div>';
