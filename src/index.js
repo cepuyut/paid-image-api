@@ -4,9 +4,26 @@ import { createChallenge, verifyCredential, createReceipt } from "./mpp.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { privateKeyToAccount } from "viem/accounts";
+import { Mppx, tempo } from "mppx/client";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
+
+// ---------------------------------------------------------------------------
+// MPP Client — patches global fetch to auto-pay fal.ai via Tempo wallet
+// ---------------------------------------------------------------------------
+const WALLET_PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY;
+if (!WALLET_PRIVATE_KEY) {
+  console.error("WALLET_PRIVATE_KEY is required for MPP client payments");
+  process.exit(1);
+}
+Mppx.create({
+  methods: [tempo({ account: privateKeyToAccount(WALLET_PRIVATE_KEY) })],
+});
+console.log("MPP client initialized — fal.ai payments via Tempo wallet");
+
+const FAL_MPP_BASE = "https://fal.mpp.tempo.xyz";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -140,11 +157,8 @@ function autoSelectModel(prompt, maxBudget) {
   return "fal-ai/flux/schnell";
 }
 
-// fal.ai image backend
-const falClient = await import("@fal-ai/client");
-const fal = falClient.fal;
-fal.config({ credentials: process.env.FAL_KEY });
-console.log("fal.ai backend loaded (cache + prompt enhancement + smart routing)");
+// fal.ai via MPP (no API key needed — paid via Tempo wallet)
+console.log("fal.ai backend loaded via MPP (cache + prompt enhancement + smart routing)");
 
 const app = express();
 app.use(express.json());
@@ -251,15 +265,15 @@ app.post("/v1/images/generate", async (req, res) => {
       timings = { cached: true };
       console.log(`Cache hit: ${cacheKey}`);
     } else {
-      const result = await fal.subscribe(usedModel, {
-        input: {
-          prompt: enhanced,
-          image_size: size,
-          num_images: count,
-        },
+      const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: enhanced, image_size: size, num_images: count }),
       });
-      images = result.data?.images || [];
-      timings = result.data?.timings;
+      if (!falRes.ok) throw new Error(`fal.ai MPP error: ${falRes.status}`);
+      const result = await falRes.json();
+      images = result.images || [];
+      timings = result.timings;
       // Cache single-image results
       if (count === 1 && images.length > 0) setCache(cacheKey, images, usedModel);
     }
@@ -352,11 +366,15 @@ app.post("/api/demo", async (req, res) => {
       images = cached.images;
       console.log(`Demo cache hit: ${cacheKey}`);
     } else {
-      const result = await fal.subscribe(usedModel, {
-        input: { prompt: enhanced, image_size: "landscape_4_3", num_images: 1 },
+      const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: enhanced, image_size: "landscape_4_3", num_images: 1 }),
       });
+      if (!falRes.ok) throw new Error(`fal.ai MPP error: ${falRes.status}`);
+      const result = await falRes.json();
       // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
-      const falImages = result.data?.images || [];
+      const falImages = result.images || [];
       images = [];
       for (const img of falImages) {
         if (img.url) {

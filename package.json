@@ -17,8 +17,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@fal-ai/client": "^1.0.0",
-    "ethers": "^6.16.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "mppx": "^0.4.11",
+    "viem": "^2.47.6"
   }
 }

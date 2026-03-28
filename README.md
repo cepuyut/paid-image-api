@@ -43,7 +43,7 @@ POST /v1/images/generate  →  402 "pay first"  →  transfer USDC  →  200 + i
 
 ```bash
 cp .env.example .env
-# Edit .env with your FAL_KEY
+# Edit .env with your WALLET_PRIVATE_KEY (Tempo wallet)
 npm install
 npm start
 ```
@@ -51,7 +51,7 @@ npm start
 ## Tech Stack
 
 - **Server:** Express.js
-- **Image backend:** fal.ai (7 models)
+- **Image backend:** fal.ai via MPP (9 models, paid with same Tempo wallet)
 - **Payments:** MPP via Tempo blockchain (USDC)
 - **Deploy:** Render
 

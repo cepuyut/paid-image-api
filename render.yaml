@@ -10,7 +10,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: FAL_KEY
+      - key: WALLET_PRIVATE_KEY
         sync: false
       - key: WALLET_ADDRESS
         value: "0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb"
