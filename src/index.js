@@ -31,6 +31,9 @@ const BASE_PRICING = {
   "fal-ai/hidream-i1-full":     { base: 80000,  tier: "hidream" },
   // Ideogram V3 (text-in-image)
   "fal-ai/ideogram/v3":         { base: 80000,  tier: "ideogram" },
+  // Premium tier
+  "fal-ai/nano-banana-2":       { base: 150000, tier: "premium", premium: true },
+  "fal-ai/nano-banana-pro":     { base: 230000, tier: "premium", premium: true },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
 
@@ -333,6 +336,13 @@ app.post("/api/demo", async (req, res) => {
 
   try {
     const usedModel = (!model || model === "auto") ? autoSelectModel(prompt) : (model || DEFAULT_MODEL);
+
+    // Block premium models from free demo
+    const modelInfo = BASE_PRICING[usedModel];
+    if (modelInfo && modelInfo.premium) {
+      return res.status(403).json({ detail: `${usedModel} is a Premium model. Connect a wallet to use it.` });
+    }
+
     const enhanced = enhancePrompt(prompt, usedModel);
     const cacheKey = getCacheKey(enhanced, usedModel, "landscape_4_3");
     const cached = getCached(cacheKey);

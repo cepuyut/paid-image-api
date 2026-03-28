@@ -27,6 +27,10 @@ No API keys needed. Just pay per request.
 | `fal-ai/hidream-i1-full` | hidream | $0.08 | 80000 |
 | `fal-ai/ideogram/v3` | ideogram | $0.08 | 80000 |
 | `fal-ai/flux-pro/v1.1` | pro | $0.10 | 100000 |
+| `fal-ai/nano-banana-2` | premium | $0.15 | 150000 |
+| `fal-ai/nano-banana-pro` | premium | $0.23 | 230000 |
+
+**Premium models** (`fal-ai/nano-banana-2`, `fal-ai/nano-banana-pro`) require wallet payment — not available in free demo.
 
 Default model: `fal-ai/flux/schnell` ($0.03). Price is determined by the `model` field in your request.
 
@@ -46,7 +50,7 @@ Generate an image from a text prompt.
 
 **Request body** (JSON):
 - `prompt` (string, required): Text describing the image to generate
-- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03, default), `fal-ai/stable-diffusion-v35-large` ($0.04), `fal-ai/flux/dev` ($0.05), `fal-ai/recraft-v3` ($0.06), `fal-ai/hidream-i1-full` ($0.08), `fal-ai/ideogram/v3` ($0.08), `fal-ai/flux-pro/v1.1` ($0.10)
+- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03, default), `fal-ai/stable-diffusion-v35-large` ($0.04), `fal-ai/flux/dev` ($0.05), `fal-ai/recraft-v3` ($0.06), `fal-ai/hidream-i1-full` ($0.08), `fal-ai/ideogram/v3` ($0.08), `fal-ai/flux-pro/v1.1` ($0.10), `fal-ai/nano-banana-2` ($0.15, premium), `fal-ai/nano-banana-pro` ($0.23, premium)
 - `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `landscape_4_3`, `landscape_16_9`, `portrait_4_3`, `portrait_16_9`
 - `num_images` (integer, optional): Number of images, 1-4. Default: 1
 

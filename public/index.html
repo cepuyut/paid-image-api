@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PixelPay — AI Image Generation via MPP</title>
-  <meta name="description" content="Generate AI images via API. Pay per request with USDC on Tempo. No API keys. 7 models, smart routing.">
+  <meta name="description" content="Generate AI images via API. Pay per request with USDC on Tempo. No API keys. 9 models, smart routing.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -212,6 +212,20 @@
       margin-left: 8px;
       letter-spacing: 0.05em;
       vertical-align: middle;
+    }
+    .model-name .tag.premium {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #fff;
+    }
+    .dropdown-item .item-tag {
+      font-size: 8px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+      margin-left: 6px;
     }
     .model-tier { color: var(--muted); }
     .model-price { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -620,13 +634,13 @@
   <div class="hero">
     <div class="hero-badge"><span class="dot"></span> Live on Tempo</div>
     <h1>AI Images.<br>Pay per pixel.</h1>
-    <p class="hero-sub">Generate images from 7 models. No API keys, no signup. Pay with USDC on Tempo via MPP.</p>
+    <p class="hero-sub">Generate images from 9 models. No API keys, no signup. Pay with USDC on Tempo via MPP.</p>
   </div>
 
   <!-- Stats -->
   <div class="stats">
     <div class="stat">
-      <div class="stat-value">7</div>
+      <div class="stat-value">9</div>
       <div class="stat-label">Models</div>
     </div>
     <div class="stat">
@@ -686,6 +700,16 @@
       <div class="model-name">Pro</div>
       <div class="model-price">$0.10</div>
       <div class="model-quality">Max quality</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Nano Banana 2 <span class="tag premium">PREMIUM</span></div>
+      <div class="model-price">$0.15</div>
+      <div class="model-quality">Ultra quality</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Nano Banana Pro <span class="tag premium">PREMIUM</span></div>
+      <div class="model-price">$0.23</div>
+      <div class="model-quality">Best-in-class</div>
     </div>
   </div>
 
@@ -758,6 +782,15 @@
               <div class="item-left"><span class="item-name">Pro</span><span class="item-tier">Premium</span></div>
               <span class="item-price">$0.10</span>
             </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-value="fal-ai/nano-banana-2" data-label="Nano Banana 2" data-price="$0.15" data-premium="true" onclick="selectModel(this)">
+              <div class="item-left"><span class="item-name">Nano Banana 2</span><span class="item-tag">PREMIUM</span></div>
+              <span class="item-price">$0.15</span>
+            </div>
+            <div class="dropdown-item" data-value="fal-ai/nano-banana-pro" data-label="Nano Banana Pro" data-price="$0.23" data-premium="true" onclick="selectModel(this)">
+              <div class="item-left"><span class="item-name">Nano Banana Pro</span><span class="item-tag">PREMIUM</span></div>
+              <span class="item-price">$0.23</span>
+            </div>
           </div>
         </div>
         <input type="hidden" id="model" value="fal-ai/flux/dev">
@@ -784,7 +817,7 @@
         <div class="step-num">1</div>
         <div>
           <div class="step-title">Connect wallet or use free demo</div>
-          <div class="step-desc">Connect MetaMask with Tempo network for unlimited, or try 3 free per day.</div>
+          <div class="step-desc">Connect MetaMask with Tempo network for unlimited, or try 1 free per day.</div>
         </div>
       </div>
       <div class="step">
@@ -798,7 +831,7 @@
         <div class="step-num">3</div>
         <div>
           <div class="step-title">Approve USDC payment</div>
-          <div class="step-desc">Your wallet signs a small USDC transfer ($0.03-$0.10). Verified on-chain.</div>
+          <div class="step-desc">Your wallet signs a small USDC transfer ($0.03-$0.23). Verified on-chain.</div>
         </div>
       </div>
       <div class="step">
@@ -1264,6 +1297,11 @@ async function generateDemo() {
 
 // ── Main generate handler — routes to paid or demo ──
 function generateImage() {
+  const modelEl = document.querySelector('.dropdown-item.active');
+  if (modelEl && modelEl.dataset.premium === 'true' && !walletConnected) {
+    document.getElementById("result").innerHTML = '<div class="error">Premium models require a wallet. Connect your wallet to use this model.</div>';
+    return;
+  }
   if (walletConnected) {
     generatePaid();
   } else {
