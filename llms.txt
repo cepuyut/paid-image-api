@@ -14,7 +14,7 @@ No API keys needed. Just pay per request.
 - Method: `tempo` (Tempo blockchain)
 - Intent: `charge` (one-time per-request payment)
 - Currency: `0x20c000000000000000000000b9537d11c60e8b50` (USDC on Tempo)
-- Recipient: `0x8009c928c37285dc7e6e0527c3ac36d7a930e4eb`
+- Recipient: `0xf48c6E46358652fC77462d56d609B8bC7f4ba82e`
 
 ### Tiered Pricing (per image)
 
