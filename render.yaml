@@ -24,3 +24,7 @@ services:
         value: "300"
       - key: TEMPO_CHAIN_ID
         value: "4217"
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false

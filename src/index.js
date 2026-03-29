@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import { Mppx, tempo } from "mppx/client";
+import { Redis } from "@upstash/redis";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -168,10 +169,33 @@ function enhancePrompt(prompt, model, { style, enhance } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Public Gallery — stores last 50 generated images (opt-out with private:true)
+// Public Gallery — Redis-backed, stores last 50 generated images
 // ---------------------------------------------------------------------------
-const gallery = []; // { prompt, model, style, image_url, timestamp }
 const MAX_GALLERY = 50;
+const GALLERY_KEY = "pixelpay:gallery";
+
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+  : null;
+
+if (redis) console.log("Redis gallery connected (Upstash)");
+else console.warn("Gallery: UPSTASH_REDIS_REST_URL/TOKEN not set — gallery disabled");
+
+async function gallerySave(entry) {
+  if (!redis) return;
+  try {
+    await redis.lpush(GALLERY_KEY, JSON.stringify(entry));
+    await redis.ltrim(GALLERY_KEY, 0, MAX_GALLERY - 1);
+  } catch (err) { console.error("Gallery save error:", err.message); }
+}
+
+async function galleryList() {
+  if (!redis) return [];
+  try {
+    const items = await redis.lrange(GALLERY_KEY, 0, MAX_GALLERY - 1);
+    return items.map(item => typeof item === "string" ? JSON.parse(item) : item);
+  } catch (err) { console.error("Gallery list error:", err.message); return []; }
+}
 
 // ---------------------------------------------------------------------------
 // Smart Model Routing — auto-pick best model based on prompt + budget
@@ -356,8 +380,7 @@ app.post("/v1/images/generate", async (req, res) => {
     if (!isPrivate && images.length > 0 && !cached) {
       const imgUrl = images[0].url || null;
       if (imgUrl) {
-        gallery.unshift({ prompt, model: usedModel, style: style || null, image_url: imgUrl, timestamp: Date.now() });
-        if (gallery.length > MAX_GALLERY) gallery.pop();
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, timestamp: Date.now() });
       }
     }
 
@@ -501,18 +524,11 @@ app.post("/api/demo", async (req, res) => {
       }
     }
 
-    // Save to gallery (unless private) — demo images are base64 so store the URL if available
+    // Save to gallery (unless private)
     if (!isPrivate && images.length > 0 && !cached) {
       const img0 = images[0];
-      const imgUrl = img0.url || (img0.b64_json ? `data:${img0.content_type || "image/jpeg"};base64,${img0.b64_json.slice(0, 100)}...` : null);
-      if (img0.url || img0.b64_json) {
-        gallery.unshift({
-          prompt, model: usedModel, style: style || null,
-          image_url: img0.url || null,
-          image_b64_thumb: img0.b64_json ? img0.b64_json.slice(0, 200) : null,
-          timestamp: Date.now(),
-        });
-        if (gallery.length > MAX_GALLERY) gallery.pop();
+      if (img0.url) {
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: img0.url, timestamp: Date.now() });
       }
     }
 
@@ -527,9 +543,10 @@ app.post("/api/demo", async (req, res) => {
 // Gallery API: GET /v1/gallery
 // ---------------------------------------------------------------------------
 
-app.get("/v1/gallery", (_req, res) => {
+app.get("/v1/gallery", async (_req, res) => {
   res.set("Cache-Control", "no-cache");
-  res.json({ images: gallery, total: gallery.length, max: MAX_GALLERY });
+  const images = await galleryList();
+  res.json({ images, total: images.length, max: MAX_GALLERY });
 });
 
 // ---------------------------------------------------------------------------
