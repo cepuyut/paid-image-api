@@ -53,6 +53,10 @@ Generate an image from a text prompt.
 - `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.03, default), `fal-ai/stable-diffusion-v35-large` ($0.04), `fal-ai/flux/dev` ($0.05), `fal-ai/recraft-v3` ($0.06), `fal-ai/hidream-i1-full` ($0.08), `fal-ai/ideogram/v3` ($0.08), `fal-ai/flux-pro/v1.1` ($0.10), `fal-ai/nano-banana-2` ($0.15, premium), `fal-ai/nano-banana-pro` ($0.23, premium)
 - `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `landscape_4_3`, `landscape_16_9`, `portrait_4_3`, `portrait_16_9`
 - `num_images` (integer, optional): Number of images, 1-4. Default: 1
+- `image_urls` (string or array, optional): Reference image(s) for image-to-image generation. Pass a URL or base64 data URL. Model support: Nano Banana 2/Pro (up to 14), Recraft V3/FLUX Dev/SD 3.5 (1 image), Schnell/HiDream/Ideogram/Pro (text-only, not supported)
+- `style` (string, optional): Style preset. Options: `anime`, `cinematic`, `vintage`, `noir`, `cyberpunk`, `watercolor`, `oil-painting`, `pixel-art`, `minimalist`, `pop-art`. Automatically appends style keywords to prompt.
+- `enhance` (boolean, optional): If true, auto-enhance prompt with quality keywords for better results. Default: false
+- `private` (boolean, optional): If true, image will not appear in the public gallery. Default: false
 
 **Success response** (200):
 ```json
@@ -86,6 +90,8 @@ Generate an image from a text prompt.
 - OpenAPI spec: `GET /openapi.json`
 - LLM docs: `GET /llms.txt`
 - Pricing: `GET /v1/prices`
+- Style presets: `GET /v1/styles`
+- Public gallery: `GET /v1/gallery` (JSON) or `GET /gallery` (HTML page)
 - Health check: `GET /health`
 
 ## Links

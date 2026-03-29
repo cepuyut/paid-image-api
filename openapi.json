@@ -74,6 +74,28 @@
                     "default": 1,
                     "minimum": 1,
                     "maximum": 4
+                  },
+                  "image_urls": {
+                    "oneOf": [
+                      { "type": "string", "format": "uri", "description": "Single reference image URL or base64 data URL" },
+                      { "type": "array", "items": { "type": "string" }, "description": "Array of reference image URLs or base64 data URLs" }
+                    ],
+                    "description": "Reference image(s) for image-to-image generation. Support varies by model: Nano Banana 2/Pro up to 14 images, Recraft V3/FLUX Dev/SD 3.5 support 1 image, Schnell/HiDream/Ideogram/Pro are text-only (no reference images)."
+                  },
+                  "style": {
+                    "type": "string",
+                    "description": "Style preset to apply. Appends style-specific keywords to prompt automatically.",
+                    "enum": ["anime", "cinematic", "vintage", "noir", "cyberpunk", "watercolor", "oil-painting", "pixel-art", "minimalist", "pop-art"]
+                  },
+                  "enhance": {
+                    "type": "boolean",
+                    "description": "If true, automatically enhance the prompt with quality keywords for better results.",
+                    "default": false
+                  },
+                  "private": {
+                    "type": "boolean",
+                    "description": "If true, the generated image will not appear in the public gallery.",
+                    "default": false
                   }
                 },
                 "required": ["prompt"]

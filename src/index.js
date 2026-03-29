@@ -37,20 +37,20 @@ const HOST = process.env.HOST || `http://localhost:${PORT}`;
 // ---------------------------------------------------------------------------
 const BASE_PRICING = {
   // Flux family
-  "fal-ai/flux/schnell":        { base: 30000,  tier: "schnell" },
-  "fal-ai/flux/dev":            { base: 50000,  tier: "dev" },
-  "fal-ai/flux-pro/v1.1":       { base: 100000, tier: "pro" },
+  "fal-ai/flux/schnell":        { base: 30000,  tier: "schnell", maxImages: 0 },
+  "fal-ai/flux/dev":            { base: 50000,  tier: "dev", maxImages: 1 },
+  "fal-ai/flux-pro/v1.1":       { base: 100000, tier: "pro", maxImages: 0 },
   // Recraft V3 (SVG + raster)
-  "fal-ai/recraft-v3":          { base: 60000,  tier: "recraft" },
+  "fal-ai/recraft-v3":          { base: 60000,  tier: "recraft", maxImages: 1 },
   // Stable Diffusion 3.5
-  "fal-ai/stable-diffusion-v35-large": { base: 40000, tier: "sd35" },
+  "fal-ai/stable-diffusion-v35-large": { base: 40000, tier: "sd35", maxImages: 1 },
   // HiDream (high quality)
-  "fal-ai/hidream-i1-full":     { base: 80000,  tier: "hidream" },
+  "fal-ai/hidream-i1-full":     { base: 80000,  tier: "hidream", maxImages: 0 },
   // Ideogram V3 (text-in-image)
-  "fal-ai/ideogram/v3":         { base: 80000,  tier: "ideogram" },
-  // Premium tier
-  "fal-ai/nano-banana-2":       { base: 150000, tier: "premium", premium: true },
-  "fal-ai/nano-banana-pro":     { base: 230000, tier: "premium", premium: true },
+  "fal-ai/ideogram/v3":         { base: 80000,  tier: "ideogram", maxImages: 0 },
+  // Premium tier (multi-reference)
+  "fal-ai/nano-banana-2":       { base: 150000, tier: "premium", premium: true, maxImages: 14 },
+  "fal-ai/nano-banana-pro":     { base: 230000, tier: "premium", premium: true, maxImages: 14 },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
 
@@ -118,6 +118,22 @@ function setCache(key, images, model) {
 }
 
 // ---------------------------------------------------------------------------
+// Style Presets — predefined style keywords appended to prompts
+// ---------------------------------------------------------------------------
+const STYLE_PRESETS = {
+  anime: "anime style, cel shading, vibrant colors, manga-inspired, detailed linework",
+  cinematic: "cinematic lighting, dramatic composition, film grain, movie still, anamorphic lens",
+  vintage: "vintage photography, faded colors, retro aesthetic, film grain, nostalgic mood",
+  noir: "film noir style, high contrast, black and white, dramatic shadows, moody atmosphere",
+  cyberpunk: "cyberpunk aesthetic, neon lights, futuristic, dark cityscape, holographic elements",
+  watercolor: "watercolor painting, soft washes, artistic brushstrokes, delicate textures, hand-painted feel",
+  "oil-painting": "oil painting style, rich textures, classical technique, impasto brushwork, museum quality",
+  "pixel-art": "pixel art style, retro 16-bit graphics, crisp pixels, nostalgic game aesthetic",
+  minimalist: "minimalist design, clean lines, simple composition, negative space, modern aesthetic",
+  "pop-art": "pop art style, bold colors, Ben-Day dots, comic book aesthetic, Andy Warhol inspired",
+};
+
+// ---------------------------------------------------------------------------
 // Prompt Enhancement — auto-improve short/vague prompts
 // ---------------------------------------------------------------------------
 const STYLE_SUFFIXES = [
@@ -126,9 +142,22 @@ const STYLE_SUFFIXES = [
   "masterful composition, stunning detail, award-winning",
 ];
 
-function enhancePrompt(prompt, model) {
-  const trimmed = prompt.trim();
-  // Don't enhance if already detailed (>80 chars) or user explicitly opts out
+function enhancePrompt(prompt, model, { style, enhance } = {}) {
+  let trimmed = prompt.trim();
+
+  // Apply style preset if provided
+  if (style && STYLE_PRESETS[style]) {
+    trimmed = `${trimmed}, ${STYLE_PRESETS[style]}`;
+  }
+
+  // If enhance=true explicitly requested, always enhance regardless of length
+  if (enhance === true) {
+    const hash = createHmac("sha256", "enhance").update(trimmed).digest();
+    const idx = hash[0] % STYLE_SUFFIXES.length;
+    return `${trimmed}, ${STYLE_SUFFIXES[idx]}, ultra high quality, masterpiece`;
+  }
+
+  // Don't auto-enhance if already detailed (>80 chars) or user explicitly opts out
   if (trimmed.length > 80 || trimmed.startsWith("raw:")) {
     return trimmed.replace(/^raw:/, "").trim();
   }
@@ -137,6 +166,12 @@ function enhancePrompt(prompt, model) {
   const idx = hash[0] % STYLE_SUFFIXES.length;
   return `${trimmed}, ${STYLE_SUFFIXES[idx]}`;
 }
+
+// ---------------------------------------------------------------------------
+// Public Gallery — stores last 50 generated images (opt-out with private:true)
+// ---------------------------------------------------------------------------
+const gallery = []; // { prompt, model, style, image_url, timestamp }
+const MAX_GALLERY = 50;
 
 // ---------------------------------------------------------------------------
 // Smart Model Routing — auto-pick best model based on prompt + budget
@@ -161,7 +196,7 @@ function autoSelectModel(prompt, maxBudget) {
 console.log("fal.ai backend loaded via MPP (cache + prompt enhancement + smart routing)");
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 
 // Serve landing page
 app.use(express.static(join(ROOT, "public")));
@@ -193,7 +228,7 @@ app.get("/llms.txt", (_req, res) => {
 
 app.post("/v1/images/generate", async (req, res) => {
   const authHeader = req.get("Authorization");
-  const { prompt, model, image_size, num_images } = req.body || {};
+  const { prompt, model, image_size, num_images, image_urls, style, enhance, private: isPrivate } = req.body || {};
 
   // Determine price from requested model + batch discount
   const count = Math.min(Math.max(num_images || 1, 1), 4);
@@ -252,12 +287,44 @@ app.post("/v1/images/generate", async (req, res) => {
       });
     }
 
-    const size = image_size || "landscape_4_3";
-    const enhanced = enhancePrompt(prompt, usedModel);
+    // Validate image_urls against model capability
+    const modelDef = BASE_PRICING[usedModel];
+    const maxRef = modelDef.maxImages || 0;
+    const refs = Array.isArray(image_urls) ? image_urls : (image_urls ? [image_urls] : []);
+    if (refs.length > 0 && maxRef === 0) {
+      return res.status(400).json({
+        type: "https://paymentauth.org/problems/bad-request",
+        title: "Image Reference Not Supported",
+        status: 400,
+        detail: `${usedModel} is text-only and does not support reference images.`,
+      });
+    }
+    if (refs.length > maxRef) {
+      return res.status(400).json({
+        type: "https://paymentauth.org/problems/bad-request",
+        title: "Too Many Reference Images",
+        status: 400,
+        detail: `${usedModel} supports max ${maxRef} reference image(s), got ${refs.length}.`,
+      });
+    }
 
-    // Check cache first (only for single image requests)
+    // Validate style preset
+    if (style && !STYLE_PRESETS[style]) {
+      return res.status(400).json({
+        type: "https://paymentauth.org/problems/bad-request",
+        title: "Invalid Style",
+        status: 400,
+        detail: `Unknown style '${style}'. Options: ${Object.keys(STYLE_PRESETS).join(", ")}`,
+      });
+    }
+
+    const size = image_size || "landscape_4_3";
+    const enhanced = enhancePrompt(prompt, usedModel, { style, enhance });
+    const hasRefs = refs.length > 0;
+
+    // Check cache first (only for single image requests without references)
     const cacheKey = getCacheKey(enhanced, usedModel, size);
-    const cached = count === 1 ? getCached(cacheKey) : null;
+    const cached = (count === 1 && !hasRefs) ? getCached(cacheKey) : null;
 
     let images, timings;
     if (cached) {
@@ -265,17 +332,33 @@ app.post("/v1/images/generate", async (req, res) => {
       timings = { cached: true };
       console.log(`Cache hit: ${cacheKey}`);
     } else {
+      const falBody = { prompt: enhanced, image_size: size, num_images: count };
+      if (hasRefs) {
+        if (maxRef === 1) {
+          falBody.image_url = refs[0];
+        } else {
+          falBody.image_urls = refs;
+        }
+      }
       const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: enhanced, image_size: size, num_images: count }),
+        body: JSON.stringify(falBody),
       });
       if (!falRes.ok) throw new Error(`fal.ai MPP error: ${falRes.status}`);
       const result = await falRes.json();
       images = result.images || [];
       timings = result.timings;
-      // Cache single-image results
-      if (count === 1 && images.length > 0) setCache(cacheKey, images, usedModel);
+      if (count === 1 && !hasRefs && images.length > 0) setCache(cacheKey, images, usedModel);
+    }
+
+    // Save to gallery (unless private)
+    if (!isPrivate && images.length > 0 && !cached) {
+      const imgUrl = images[0].url || null;
+      if (imgUrl) {
+        gallery.unshift({ prompt, model: usedModel, style: style || null, image_url: imgUrl, timestamp: Date.now() });
+        if (gallery.length > MAX_GALLERY) gallery.pop();
+      }
     }
 
     trackRequest();
@@ -285,6 +368,7 @@ app.post("/v1/images/generate", async (req, res) => {
     res.set("Cache-Control", "private");
     res.json({
       images, prompt, enhanced_prompt: enhanced, model: usedModel, timings,
+      ...(style ? { style } : {}),
       ...(cached ? { cached: true } : {}),
     });
   } catch (err) {
@@ -343,7 +427,7 @@ app.post("/api/demo", async (req, res) => {
     });
   }
 
-  const { prompt, model } = req.body || {};
+  const { prompt, model, image_urls, style, enhance, private: isPrivate } = req.body || {};
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({ detail: "A 'prompt' string is required." });
   }
@@ -357,19 +441,39 @@ app.post("/api/demo", async (req, res) => {
       return res.status(403).json({ detail: `${usedModel} is a Premium model. Connect a wallet to use it.` });
     }
 
-    const enhanced = enhancePrompt(prompt, usedModel);
+    // Validate style preset
+    if (style && !STYLE_PRESETS[style]) {
+      return res.status(400).json({ detail: `Unknown style '${style}'. Options: ${Object.keys(STYLE_PRESETS).join(", ")}` });
+    }
+
+    // Validate reference images
+    const maxRef = modelInfo ? (modelInfo.maxImages || 0) : 0;
+    const refs = Array.isArray(image_urls) ? image_urls : (image_urls ? [image_urls] : []);
+    if (refs.length > 0 && maxRef === 0) {
+      return res.status(400).json({ detail: `${usedModel} is text-only and does not support reference images.` });
+    }
+    if (refs.length > maxRef) {
+      return res.status(400).json({ detail: `${usedModel} supports max ${maxRef} reference image(s).` });
+    }
+
+    const enhanced = enhancePrompt(prompt, usedModel, { style, enhance });
+    const hasRefs = refs.length > 0;
     const cacheKey = getCacheKey(enhanced, usedModel, "landscape_4_3");
-    const cached = getCached(cacheKey);
+    const cached = hasRefs ? null : getCached(cacheKey);
 
     let images;
     if (cached) {
       images = cached.images;
       console.log(`Demo cache hit: ${cacheKey}`);
     } else {
+      const falBody = { prompt: enhanced, image_size: "landscape_4_3", num_images: 1 };
+      if (hasRefs) {
+        if (maxRef === 1) { falBody.image_url = refs[0]; } else { falBody.image_urls = refs; }
+      }
       const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: enhanced, image_size: "landscape_4_3", num_images: 1 }),
+        body: JSON.stringify(falBody),
       });
       if (!falRes.ok) throw new Error(`fal.ai MPP error: ${falRes.status}`);
       const result = await falRes.json();
@@ -385,7 +489,7 @@ app.post("/api/demo", async (req, res) => {
           } catch { images.push(img); }
         } else { images.push(img); }
       }
-      if (images.length > 0) setCache(cacheKey, images, usedModel);
+      if (!hasRefs && images.length > 0) setCache(cacheKey, images, usedModel);
     }
 
     // Only count non-cached as demo usage (cached = free)
@@ -397,11 +501,51 @@ app.post("/api/demo", async (req, res) => {
       }
     }
 
-    res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, cached: !!cached });
+    // Save to gallery (unless private) — demo images are base64 so store the URL if available
+    if (!isPrivate && images.length > 0 && !cached) {
+      const img0 = images[0];
+      const imgUrl = img0.url || (img0.b64_json ? `data:${img0.content_type || "image/jpeg"};base64,${img0.b64_json.slice(0, 100)}...` : null);
+      if (img0.url || img0.b64_json) {
+        gallery.unshift({
+          prompt, model: usedModel, style: style || null,
+          image_url: img0.url || null,
+          image_b64_thumb: img0.b64_json ? img0.b64_json.slice(0, 200) : null,
+          timestamp: Date.now(),
+        });
+        if (gallery.length > MAX_GALLERY) gallery.pop();
+      }
+    }
+
+    res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, ...(style ? { style } : {}), cached: !!cached });
   } catch (err) {
     console.error("Demo error:", err.message);
     res.status(502).json({ detail: "Image generation failed. Please retry." });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Gallery API: GET /v1/gallery
+// ---------------------------------------------------------------------------
+
+app.get("/v1/gallery", (_req, res) => {
+  res.set("Cache-Control", "no-cache");
+  res.json({ images: gallery, total: gallery.length, max: MAX_GALLERY });
+});
+
+// ---------------------------------------------------------------------------
+// Gallery page: GET /gallery
+// ---------------------------------------------------------------------------
+
+app.get("/gallery", (_req, res) => {
+  res.sendFile(join(ROOT, "public", "gallery.html"));
+});
+
+// ---------------------------------------------------------------------------
+// Style presets list: GET /v1/styles
+// ---------------------------------------------------------------------------
+
+app.get("/v1/styles", (_req, res) => {
+  res.json({ styles: Object.keys(STYLE_PRESETS) });
 });
 
 // ---------------------------------------------------------------------------
@@ -419,7 +563,7 @@ app.get("/v1/stats", (_req, res) => {
     requests_5min: requestTimestamps.length,
     demand_multiplier: getDemandMultiplier(),
     models: Object.keys(BASE_PRICING).length,
-    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification"],
+    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification", "reference_images", "style_presets", "prompt_enhance", "public_gallery"],
   });
 });
 

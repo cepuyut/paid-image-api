@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallery — PixelPay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23fff'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='%23000'>P</text></svg>">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #000000; --surface: #0a0a0a; --surface2: #111111;
+      --border: #1a1a1a; --border2: #262626; --border-hover: #333333;
+      --text: #fafafa; --text2: #e5e5e5; --muted: #737373; --muted2: #525252;
+      --white: #ffffff; --green: #00d47b; --radius: 10px;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 0; border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--white); }
+    .logo-icon {
+      width: 32px; height: 32px; background: var(--white); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 17px; color: #000;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
+      padding: 6px 12px; border-radius: 6px; transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--white); }
+
+    .page-header { padding: 48px 0 32px; text-align: center; }
+    .page-header h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.04em; color: var(--white); margin-bottom: 8px; }
+    .page-header p { color: var(--muted); font-size: 15px; }
+
+    .gallery-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px; padding-bottom: 64px;
+    }
+    .gallery-card {
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      background: var(--surface); transition: border-color 0.2s;
+    }
+    .gallery-card:hover { border-color: var(--border2); }
+    .gallery-card img {
+      width: 100%; aspect-ratio: 4/3; object-fit: cover;
+      display: block; background: var(--surface2);
+    }
+    .gallery-card .card-info { padding: 12px 14px; }
+    .gallery-card .card-prompt {
+      font-size: 13px; color: var(--text2); font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gallery-card .card-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 6px; font-size: 11px; color: var(--muted);
+    }
+    .gallery-card .card-meta .style-tag {
+      background: var(--surface2); border: 1px solid var(--border2);
+      padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center; padding: 80px 20px; color: var(--muted);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+    .empty-state p { font-size: 15px; }
+
+    footer {
+      text-align: center; padding: 32px 0; color: var(--muted2); font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--white); }
+
+    @media (max-width: 640px) {
+      .page-header h1 { font-size: 28px; }
+      .gallery-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <nav>
+    <a href="/" class="logo">
+      <div class="logo-icon">P</div>
+      <div class="logo-text">PixelPay</div>
+    </a>
+    <div class="nav-links">
+      <a href="/">Generate</a>
+      <a href="/v1/prices">Pricing</a>
+      <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <h1>Public Gallery</h1>
+    <p>Recent generations from the PixelPay community. Set <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:13px;">private: true</code> to opt out.</p>
+  </div>
+
+  <div class="gallery-grid" id="galleryGrid">
+    <div class="empty-state" id="emptyState">
+      <div class="icon">&#9633;</div>
+      <p>No images yet. Be the first to generate!</p>
+    </div>
+  </div>
+
+  <footer>
+    PixelPay &mdash; Built on <a href="https://tempo.xyz">Tempo</a> with <a href="https://mpp.dev">MPP</a>
+  </footer>
+</div>
+
+<script>
+async function loadGallery() {
+  try {
+    const res = await fetch("/v1/gallery");
+    const data = await res.json();
+    const grid = document.getElementById("galleryGrid");
+    const empty = document.getElementById("emptyState");
+
+    if (!data.images || data.images.length === 0) {
+      empty.style.display = "block";
+      return;
+    }
+    empty.style.display = "none";
+
+    grid.innerHTML = data.images.map(item => {
+      const imgSrc = item.image_url || "";
+      if (!imgSrc) return "";
+      const safePrompt = (item.prompt || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+      const shortModel = (item.model || "").replace("fal-ai/", "");
+      const ago = timeAgo(item.timestamp);
+      const styleTag = item.style ? `<span class="style-tag">${item.style}</span>` : "";
+      return `
+        <div class="gallery-card">
+          <img src="${imgSrc}" alt="${safePrompt}" loading="lazy">
+          <div class="card-info">
+            <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
+            <div class="card-meta">
+              <span>${shortModel} &middot; ${ago}</span>
+              ${styleTag}
+            </div>
+          </div>
+        </div>`;
+    }).join("");
+  } catch (err) {
+    console.error("Gallery load error:", err);
+  }
+}
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + "h ago";
+  return Math.floor(hrs / 24) + "d ago";
+}
+
+loadGallery();
+// Auto-refresh every 30 seconds
+setInterval(loadGallery, 30000);
+</script>
+</body>
+</html>

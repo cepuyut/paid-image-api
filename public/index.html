@@ -441,6 +441,87 @@
     }
     .result .status { font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
 
+    /* ── Enhance Toggle ── */
+    .toggle-switch {
+      width: 36px; height: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .toggle-switch.active {
+      background: var(--green);
+      border-color: var(--green);
+    }
+    .toggle-knob {
+      width: 14px; height: 14px;
+      background: var(--muted);
+      border-radius: 50%;
+      position: absolute;
+      top: 2px; left: 2px;
+      transition: all 0.2s;
+    }
+    .toggle-switch.active .toggle-knob {
+      left: 18px;
+      background: #fff;
+    }
+
+    /* ── Reference Image Upload ── */
+    .upload-area {
+      border: 1px dashed var(--border2);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 14px;
+      background: var(--bg);
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: var(--muted);
+      background: var(--surface2);
+    }
+    .upload-area.hidden { display: none; }
+    .upload-label { font-size: 13px; color: var(--muted); }
+    .upload-label strong { color: var(--text2); }
+    .upload-hint { font-size: 11px; color: var(--muted2); margin-top: 4px; }
+    .upload-previews {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+    .upload-preview {
+      position: relative;
+      width: 72px; height: 72px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border2);
+    }
+    .upload-preview img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .upload-preview .remove-btn {
+      position: absolute;
+      top: 2px; right: 2px;
+      width: 18px; height: 18px;
+      background: rgba(0,0,0,0.7);
+      border: none;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .upload-preview .remove-btn:hover { background: var(--red); }
+
     /* Loading animation */
     .loading-container {
       display: flex;
@@ -624,6 +705,7 @@
     <div class="nav-right">
       <div class="nav-links">
         <a href="/v1/prices">Pricing</a>
+        <a href="/gallery">Gallery</a>
         <a href="/llms.txt">Docs</a>
         <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
       </div>
@@ -794,6 +876,77 @@
           </div>
         </div>
         <input type="hidden" id="model" value="fal-ai/flux/dev">
+      </div>
+    </div>
+
+    <div class="input-row">
+      <div class="field">
+        <label>Style Preset</label>
+        <div class="dropdown" id="styleDropdown">
+          <div class="dropdown-trigger" onclick="toggleStyleDropdown()">
+            <span class="selected-text">
+              <span id="selectedStyle">None</span>
+            </span>
+            <svg class="arrow" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#737373" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="dropdown-menu" id="styleMenu">
+            <div class="dropdown-item active" data-value="" data-label="None" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">None</span><span class="item-tier">No style</span></div>
+              <svg class="check-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-value="anime" data-label="Anime" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Anime</span><span class="item-tier">Cel shading</span></div>
+            </div>
+            <div class="dropdown-item" data-value="cinematic" data-label="Cinematic" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Cinematic</span><span class="item-tier">Film look</span></div>
+            </div>
+            <div class="dropdown-item" data-value="vintage" data-label="Vintage" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Vintage</span><span class="item-tier">Retro</span></div>
+            </div>
+            <div class="dropdown-item" data-value="noir" data-label="Noir" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Noir</span><span class="item-tier">B&W drama</span></div>
+            </div>
+            <div class="dropdown-item" data-value="cyberpunk" data-label="Cyberpunk" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Cyberpunk</span><span class="item-tier">Neon future</span></div>
+            </div>
+            <div class="dropdown-item" data-value="watercolor" data-label="Watercolor" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Watercolor</span><span class="item-tier">Painted</span></div>
+            </div>
+            <div class="dropdown-item" data-value="oil-painting" data-label="Oil Painting" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Oil Painting</span><span class="item-tier">Classical</span></div>
+            </div>
+            <div class="dropdown-item" data-value="pixel-art" data-label="Pixel Art" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Pixel Art</span><span class="item-tier">Retro game</span></div>
+            </div>
+            <div class="dropdown-item" data-value="minimalist" data-label="Minimalist" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Minimalist</span><span class="item-tier">Clean</span></div>
+            </div>
+            <div class="dropdown-item" data-value="pop-art" data-label="Pop Art" onclick="selectStyle(this)">
+              <div class="item-left"><span class="item-name">Pop Art</span><span class="item-tier">Bold colors</span></div>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="style" value="">
+      </div>
+      <div class="field" style="flex:0 0 auto; display:flex; align-items:flex-end; padding-bottom:2px;">
+        <label class="toggle-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; margin-bottom:0;">
+          <div class="toggle-switch" id="enhanceToggle" onclick="toggleEnhance()">
+            <div class="toggle-knob"></div>
+          </div>
+          <span style="font-size:13px; font-weight:500; color:var(--text2);">Enhance</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Reference Image Upload -->
+    <div class="field" id="uploadField" style="display:none">
+      <label>Reference Image <span id="uploadLimit" style="font-weight:400; color:var(--muted2)"></span></label>
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFileSelect(event)">
+        <div class="upload-label"><strong>Click to upload</strong> or drag & drop</div>
+        <div class="upload-hint">PNG, JPG, WebP up to 10MB each</div>
+        <div class="upload-previews" id="uploadPreviews"></div>
       </div>
     </div>
 
@@ -1148,10 +1301,15 @@ async function generatePaid() {
   try {
     // Step 1: Get 402 challenge
     document.getElementById("ps1").className = "step-indicator active";
+    const selStyle = document.getElementById("style").value;
+    const reqBody = { prompt, model };
+    if (selStyle) reqBody.style = selStyle;
+    if (enhanceEnabled) reqBody.enhance = true;
+    if (uploadedImages.length > 0) reqBody.image_urls = uploadedImages;
     const challengeRes = await fetch("/v1/images/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, model })
+      body: JSON.stringify(reqBody)
     });
 
     if (challengeRes.status !== 402) {
@@ -1213,7 +1371,7 @@ async function generatePaid() {
         "Content-Type": "application/json",
         "Authorization": "Payment " + credentialB64
       },
-      body: JSON.stringify({ prompt, model })
+      body: JSON.stringify(reqBody)
     });
 
     stopLoading();
@@ -1264,10 +1422,15 @@ async function generateDemo() {
 
   try {
     const model = document.getElementById("model").value;
+    const selStyle = document.getElementById("style").value;
+    const demoBody = { prompt, model };
+    if (selStyle) demoBody.style = selStyle;
+    if (enhanceEnabled) demoBody.enhance = true;
+    if (uploadedImages.length > 0) demoBody.image_urls = uploadedImages;
     const res = await fetch("/api/demo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, model })
+      body: JSON.stringify(demoBody)
     });
 
     stopLoading();
@@ -1334,6 +1497,7 @@ function selectModel(el) {
   document.getElementById("selectedLabel").textContent = el.dataset.label;
   document.getElementById("selectedPrice").textContent = el.dataset.price;
   dropdown.classList.remove("open");
+  updateUploadVisibility();
 }
 document.addEventListener("click", (e) => {
   const dd = document.getElementById("modelDropdown");
@@ -1346,6 +1510,123 @@ function showTab(lang) {
   document.getElementById("code-" + lang).style.display = "block";
   event.target.classList.add("active");
 }
+
+// ── Style Dropdown ──
+function toggleStyleDropdown() {
+  document.getElementById("styleDropdown").classList.toggle("open");
+}
+function selectStyle(el) {
+  const dropdown = document.getElementById("styleDropdown");
+  dropdown.querySelectorAll(".dropdown-item").forEach(i => i.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("style").value = el.dataset.value;
+  document.getElementById("selectedStyle").textContent = el.dataset.label;
+  dropdown.classList.remove("open");
+}
+document.addEventListener("click", (e) => {
+  const sd = document.getElementById("styleDropdown");
+  if (!sd.contains(e.target)) sd.classList.remove("open");
+});
+
+// ── Enhance Toggle ──
+let enhanceEnabled = false;
+function toggleEnhance() {
+  enhanceEnabled = !enhanceEnabled;
+  document.getElementById("enhanceToggle").classList.toggle("active", enhanceEnabled);
+}
+
+// ── Reference Image Upload ──
+const MODEL_MAX_IMAGES = {
+  "fal-ai/flux/schnell": 0,
+  "fal-ai/flux/dev": 1,
+  "fal-ai/flux-pro/v1.1": 0,
+  "fal-ai/recraft-v3": 1,
+  "fal-ai/stable-diffusion-v35-large": 1,
+  "fal-ai/hidream-i1-full": 0,
+  "fal-ai/ideogram/v3": 0,
+  "fal-ai/nano-banana-2": 14,
+  "fal-ai/nano-banana-pro": 14,
+};
+
+let uploadedImages = []; // array of data URLs
+
+function getMaxImages() {
+  const model = document.getElementById("model").value;
+  if (model === "auto") return 0; // auto mode = no upload
+  return MODEL_MAX_IMAGES[model] || 0;
+}
+
+function updateUploadVisibility() {
+  const max = getMaxImages();
+  const field = document.getElementById("uploadField");
+  if (max === 0) {
+    field.style.display = "none";
+    uploadedImages = [];
+    renderPreviews();
+  } else {
+    field.style.display = "block";
+    const limit = max === 1 ? "(1 image)" : `(up to ${max} images)`;
+    document.getElementById("uploadLimit").textContent = limit;
+    // Trim if switched to lower-limit model
+    if (uploadedImages.length > max) {
+      uploadedImages = uploadedImages.slice(0, max);
+      renderPreviews();
+    }
+    // Update file input multiple attribute
+    document.getElementById("fileInput").multiple = max > 1;
+  }
+}
+
+function handleFileSelect(e) {
+  addFiles(e.target.files);
+  e.target.value = ""; // reset so same file can be re-selected
+}
+
+function addFiles(files) {
+  const max = getMaxImages();
+  for (const file of files) {
+    if (uploadedImages.length >= max) break;
+    if (!file.type.startsWith("image/")) continue;
+    if (file.size > 10 * 1024 * 1024) { alert("File too large (max 10MB)"); continue; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (uploadedImages.length < max) {
+        uploadedImages.push(e.target.result);
+        renderPreviews();
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function removeImage(idx) {
+  uploadedImages.splice(idx, 1);
+  renderPreviews();
+}
+
+function renderPreviews() {
+  const container = document.getElementById("uploadPreviews");
+  if (uploadedImages.length === 0) {
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = uploadedImages.map((src, i) =>
+    `<div class="upload-preview">
+      <img src="${src}" alt="ref ${i+1}">
+      <button class="remove-btn" onclick="event.stopPropagation(); removeImage(${i})">&times;</button>
+    </div>`
+  ).join("");
+}
+
+// Drag and drop
+const uploadArea = document.getElementById("uploadArea");
+uploadArea.addEventListener("dragover", (e) => { e.preventDefault(); uploadArea.classList.add("dragover"); });
+uploadArea.addEventListener("dragleave", () => { uploadArea.classList.remove("dragover"); });
+uploadArea.addEventListener("drop", (e) => {
+  e.preventDefault();
+  uploadArea.classList.remove("dragover");
+  if (getMaxImages() > 0) addFiles(e.dataTransfer.files);
+});
 
 // ── Listen for account/chain changes ──
 if (window.ethereum) {
