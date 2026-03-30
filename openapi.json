@@ -4,7 +4,7 @@
     "title": "PixelPay",
     "version": "1.0.0",
     "description": "PixelPay — AI image generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
-    "x-guidance": "PixelPay generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.03, SD3.5 $0.04, Dev $0.05, Recraft $0.06, HiDream $0.08, Ideogram $0.08, Pro $0.10, Nano Banana 2 $0.15 (premium), Nano Banana Pro $0.23 (premium) USDC via Tempo blockchain, then retry with the payment credential to receive your generated image. Premium models require wallet payment. Check GET /v1/prices for current pricing."
+    "x-guidance": "PixelPay generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.029, SD3.5 $0.039, Dev $0.049, Recraft $0.059, HiDream $0.079, Ideogram $0.079, Pro $0.099, Nano Banana 2 $0.14 (premium), Nano Banana Pro $0.19 (premium) USDC via Tempo blockchain, then retry with the payment credential to receive your generated image. Premium models require wallet payment. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
     "ownershipProofs": ["dns:paid-image-api.onrender.com"]
@@ -27,21 +27,21 @@
       "post": {
         "operationId": "generateImage",
         "summary": "Generate an image from a text prompt",
-        "description": "PixelPay generates images from text prompts using fal.ai models. 9 models available: Schnell $0.03, SD3.5 $0.04, Dev $0.05, Recraft $0.06, HiDream $0.08, Ideogram $0.08, Pro $0.10, Nano Banana 2 $0.15 (premium), Nano Banana Pro $0.23 (premium) USDC via MPP Tempo charge.",
+        "description": "PixelPay generates images from text prompts using fal.ai models. 9 models available: Schnell $0.029, SD3.5 $0.039, Dev $0.049, Recraft $0.059, HiDream $0.079, Ideogram $0.079, Pro $0.099, Nano Banana 2 $0.14 (premium), Nano Banana Pro $0.19 (premium) USDC via MPP Tempo charge.",
         "x-payment-info": {
           "protocols": ["mpp"],
           "pricingMode": "tiered",
-          "priceRange": { "min": "0.030000", "max": "0.230000" },
+          "priceRange": { "min": "0.029000", "max": "0.190000" },
           "tiers": [
-            { "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "0.030000" },
-            { "model": "fal-ai/stable-diffusion-v35-large", "tier": "sd35", "price": "0.040000" },
-            { "model": "fal-ai/flux/dev", "tier": "dev", "price": "0.050000" },
-            { "model": "fal-ai/recraft-v3", "tier": "recraft", "price": "0.060000" },
-            { "model": "fal-ai/hidream-i1-full", "tier": "hidream", "price": "0.080000" },
-            { "model": "fal-ai/ideogram/v3", "tier": "ideogram", "price": "0.080000" },
-            { "model": "fal-ai/flux-pro/v1.1", "tier": "pro", "price": "0.100000" },
-            { "model": "fal-ai/nano-banana-2", "tier": "premium", "price": "0.150000", "premium": true },
-            { "model": "fal-ai/nano-banana-pro", "tier": "premium", "price": "0.230000", "premium": true }
+            { "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "0.029000" },
+            { "model": "fal-ai/stable-diffusion-v35-large", "tier": "sd35", "price": "0.039000" },
+            { "model": "fal-ai/flux/dev", "tier": "dev", "price": "0.049000" },
+            { "model": "fal-ai/recraft-v3", "tier": "recraft", "price": "0.059000" },
+            { "model": "fal-ai/hidream-i1-full", "tier": "hidream", "price": "0.079000" },
+            { "model": "fal-ai/ideogram/v3", "tier": "ideogram", "price": "0.079000" },
+            { "model": "fal-ai/flux-pro/v1.1", "tier": "pro", "price": "0.099000" },
+            { "model": "fal-ai/nano-banana-2", "tier": "premium", "price": "0.140000", "premium": true },
+            { "model": "fal-ai/nano-banana-pro", "tier": "premium", "price": "0.190000", "premium": true }
           ]
         },
         "requestBody": {
@@ -58,7 +58,7 @@
                   },
                   "model": {
                     "type": "string",
-                    "description": "Model identifier. Pricing varies by model: fal-ai/flux/schnell ($0.03), fal-ai/stable-diffusion-v35-large ($0.04), fal-ai/flux/dev ($0.05), fal-ai/recraft-v3 ($0.06), fal-ai/hidream-i1-full ($0.08), fal-ai/ideogram/v3 ($0.08), fal-ai/flux-pro/v1.1 ($0.10), fal-ai/nano-banana-2 ($0.15, premium), fal-ai/nano-banana-pro ($0.23, premium)",
+                    "description": "Model identifier. Pricing varies by model: fal-ai/flux/schnell ($0.029), fal-ai/stable-diffusion-v35-large ($0.039), fal-ai/flux/dev ($0.049), fal-ai/recraft-v3 ($0.059), fal-ai/hidream-i1-full ($0.079), fal-ai/ideogram/v3 ($0.079), fal-ai/flux-pro/v1.1 ($0.099), fal-ai/nano-banana-2 ($0.14, premium), fal-ai/nano-banana-pro ($0.19, premium)",
                     "default": "fal-ai/flux/schnell",
                     "enum": ["fal-ai/flux/schnell", "fal-ai/stable-diffusion-v35-large", "fal-ai/flux/dev", "fal-ai/recraft-v3", "fal-ai/hidream-i1-full", "fal-ai/ideogram/v3", "fal-ai/flux-pro/v1.1", "fal-ai/nano-banana-2", "fal-ai/nano-banana-pro"]
                   },

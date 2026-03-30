@@ -38,20 +38,20 @@ const HOST = process.env.HOST || `http://localhost:${PORT}`;
 // ---------------------------------------------------------------------------
 const BASE_PRICING = {
   // Flux family
-  "fal-ai/flux/schnell":        { base: 30000,  tier: "schnell", maxImages: 0 },
-  "fal-ai/flux/dev":            { base: 50000,  tier: "dev", maxImages: 1 },
-  "fal-ai/flux-pro/v1.1":       { base: 100000, tier: "pro", maxImages: 0 },
+  "fal-ai/flux/schnell":        { base: 29000,  tier: "schnell", maxImages: 0 },
+  "fal-ai/flux/dev":            { base: 49000,  tier: "dev", maxImages: 1 },
+  "fal-ai/flux-pro/v1.1":       { base: 99000,  tier: "pro", maxImages: 0 },
   // Recraft V3 (SVG + raster)
-  "fal-ai/recraft-v3":          { base: 60000,  tier: "recraft", maxImages: 1 },
+  "fal-ai/recraft-v3":          { base: 59000,  tier: "recraft", maxImages: 1 },
   // Stable Diffusion 3.5
-  "fal-ai/stable-diffusion-v35-large": { base: 40000, tier: "sd35", maxImages: 1 },
+  "fal-ai/stable-diffusion-v35-large": { base: 39000, tier: "sd35", maxImages: 1 },
   // HiDream (high quality)
-  "fal-ai/hidream-i1-full":     { base: 80000,  tier: "hidream", maxImages: 0 },
+  "fal-ai/hidream-i1-full":     { base: 79000,  tier: "hidream", maxImages: 0 },
   // Ideogram V3 (text-in-image)
-  "fal-ai/ideogram/v3":         { base: 80000,  tier: "ideogram", maxImages: 0 },
+  "fal-ai/ideogram/v3":         { base: 79000,  tier: "ideogram", maxImages: 0 },
   // Premium tier (multi-reference)
-  "fal-ai/nano-banana-2":       { base: 150000, tier: "premium", premium: true, maxImages: 14 },
-  "fal-ai/nano-banana-pro":     { base: 230000, tier: "premium", premium: true, maxImages: 14 },
+  "fal-ai/nano-banana-2":       { base: 140000, tier: "premium", premium: true, maxImages: 14 },
+  "fal-ai/nano-banana-pro":     { base: 190000, tier: "premium", premium: true, maxImages: 14 },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
 
