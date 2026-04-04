@@ -566,6 +566,71 @@
       background: #fff;
     }
 
+    /* ── Collapsible Advanced Section ── */
+    .advanced-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 0;
+      margin-bottom: 10px;
+      transition: color 0.15s;
+    }
+    .advanced-toggle:hover { color: var(--text2); }
+    .advanced-toggle svg { transition: transform 0.2s; }
+    .advanced-toggle.open svg { transform: rotate(180deg); }
+    .advanced-section { display: none; }
+    .advanced-section.open { display: block; }
+
+    /* ── Seed display in results ── */
+    .seed-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'SF Mono', monospace;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .seed-badge:hover { border-color: var(--border-hover); color: var(--text2); }
+
+    /* ── Action buttons on results ── */
+    .result-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface2);
+      color: var(--text2);
+      border: 1px solid var(--border2);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn-action:hover { border-color: var(--border-hover); color: var(--white); }
+    .btn-action:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn-action svg { width: 12px; height: 12px; }
+
     /* ── Aspect Ratio Selector ── */
     .ratio-grid {
       display: flex;
@@ -1113,6 +1178,30 @@
       </div>
     </div>
 
+    <!-- Advanced Settings (collapsible) -->
+    <button class="advanced-toggle" id="advancedToggle" onclick="toggleAdvanced()">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Advanced Settings
+    </button>
+    <div class="advanced-section" id="advancedSection">
+      <div class="field">
+        <label>Negative Prompt <span style="font-weight:400; color:var(--muted2)">— things to avoid</span></label>
+        <input type="text" class="text-input" id="negativePrompt" placeholder="blur, watermark, low quality, text, deformed">
+      </div>
+      <div class="input-row">
+        <div class="field">
+          <label>Seed <span style="font-weight:400; color:var(--muted2)">— leave empty for random</span></label>
+          <input type="number" class="text-input" id="seedInput" placeholder="Random" min="0" max="2147483647">
+        </div>
+        <div class="field" style="flex:0 0 auto; display:flex; align-items:flex-end; padding-bottom:2px;">
+          <button class="btn-action" onclick="document.getElementById('seedInput').value=''; " title="Clear seed">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 1011.5-2.5M13.5 2v3.5H10"/></svg>
+            Random
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Aspect Ratio -->
     <div class="field">
       <label>Aspect Ratio</label>
@@ -1456,11 +1545,17 @@ function downloadImage(imgEl, filename) {
   document.body.removeChild(link);
 }
 
-function renderResult(imgData, prompt, modelName, extraInfo, extraClass) {
+let lastResultSeed = null;
+let lastResultImgSrc = null;
+
+function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
   const result = document.getElementById("result");
   const safePrompt = prompt.replace(/"/g, '&quot;').replace(/</g, '&lt;');
   const filename = "pixelpay-" + prompt.replace(/[^a-z0-9]/gi, '-').slice(0, 30) + ".png";
   const downloadSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4M2 13h12"/></svg>';
+  const variantSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 5h2a2 2 0 012 2v2"/></svg>';
+  const upscaleSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2h4v4M6 14H2v-4M14 2L9 7M2 14l5-5"/></svg>';
+  const copySvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>';
 
   let imgSrc;
   if (imgData.b64_json) {
@@ -1470,19 +1565,112 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass) {
     imgSrc = imgData.url;
   }
 
+  lastResultSeed = seed ?? null;
+  lastResultImgSrc = imgSrc;
+
   if (imgSrc) {
+    const seedHtml = seed != null ? `<span class="seed-badge" onclick="copySeed(${seed})" title="Click to copy seed">${copySvg} Seed: ${seed}</span>` : '';
+
     result.innerHTML = `
       <img src="${imgSrc}" alt="${safePrompt}" id="generatedImg" crossorigin="anonymous">
       <div class="meta">
-        <span>${extraInfo} &middot; ${modelName}</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${extraClass ? `<span class="${extraClass}">${extraClass === 'paid' ? 'Paid' : 'Cached'}</span>` : ''}
-          <button class="btn-download" onclick="downloadImage(document.getElementById('generatedImg'), '${filename}')">
-            ${downloadSvg} Download
-          </button>
-        </div>
+        <span>${extraInfo} &middot; ${modelName} ${seedHtml}</span>
+      </div>
+      <div class="result-actions" style="margin-top:8px">
+        <button class="btn-action" onclick="downloadImage(document.getElementById('generatedImg'), '${filename}')">
+          ${downloadSvg} Download
+        </button>
+        <button class="btn-action" onclick="generateVariation()" title="Same prompt, different seed">
+          ${variantSvg} Variation
+        </button>
+        <button class="btn-action" id="upscaleBtn" onclick="upscaleImage()" title="Upscale to higher resolution">
+          ${upscaleSvg} Upscale
+        </button>
+        ${seed != null ? `<button class="btn-action" onclick="reuseSeed(${seed})" title="Use this seed for next generation">${copySvg} Reuse Seed</button>` : ''}
+        ${extraClass ? `<span class="btn-action" style="cursor:default;color:var(--green);border-color:var(--green)">${extraClass === 'paid' ? 'Paid' : 'Cached'}</span>` : ''}
       </div>`;
+
+    // Save to history if wallet connected
+    if (walletConnected && walletAddress) {
+      fetch("/v1/history/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: walletAddress,
+          prompt,
+          model: modelName,
+          seed: seed ?? null,
+          image_url: imgData.url || null,
+          image_b64: imgData.b64_json ? imgSrc.slice(0, 200) + "..." : null
+        })
+      }).catch(() => {});
+    }
   }
+}
+
+// ── Advanced Settings Toggle ──
+function toggleAdvanced() {
+  const btn = document.getElementById("advancedToggle");
+  const section = document.getElementById("advancedSection");
+  btn.classList.toggle("open");
+  section.classList.toggle("open");
+}
+
+// ── Seed helpers ──
+function copySeed(seed) {
+  navigator.clipboard.writeText(String(seed));
+  const badges = document.querySelectorAll('.seed-badge');
+  badges.forEach(b => { b.style.color = 'var(--green)'; setTimeout(() => b.style.color = '', 1000); });
+}
+function reuseSeed(seed) {
+  document.getElementById("seedInput").value = seed;
+  // Open advanced if closed
+  if (!document.getElementById("advancedSection").classList.contains("open")) toggleAdvanced();
+}
+
+// ── Variation: re-generate same prompt with random seed ──
+function generateVariation() {
+  document.getElementById("seedInput").value = "";
+  generateImage();
+}
+
+// ── Upscale current result ──
+async function upscaleImage() {
+  if (!lastResultImgSrc) return;
+  const btn = document.getElementById("upscaleBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Upscaling...';
+  try {
+    const res = await fetch("/v1/images/upscale", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_url: lastResultImgSrc })
+    });
+    if (!res.ok) throw new Error("Upscale failed");
+    const data = await res.json();
+    const img = data.image;
+    if (img) {
+      const genImg = document.getElementById("generatedImg");
+      genImg.src = img.url || `data:${img.content_type || 'image/png'};base64,${img.b64_json}`;
+      lastResultImgSrc = genImg.src;
+      btn.innerHTML = '&#10003; Upscaled';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+    }
+  } catch (e) {
+    btn.innerHTML = 'Upscale failed';
+    btn.style.color = 'var(--red)';
+  }
+}
+
+// ── Get negative prompt and seed from UI ──
+function getAdvancedParams() {
+  const neg = document.getElementById("negativePrompt")?.value?.trim() || "";
+  const seedVal = document.getElementById("seedInput")?.value;
+  return {
+    negative_prompt: neg || undefined,
+    seed: seedVal ? Number(seedVal) : undefined,
+  };
 }
 
 // ── Paid flow: Challenge → Pay → Generate ──
@@ -1509,9 +1697,12 @@ async function generatePaid() {
     document.getElementById("ps1").className = "step-indicator active";
     const selStyle = document.getElementById("style").value;
     const selRatio = document.getElementById("aspect_ratio").value;
+    const adv = getAdvancedParams();
     const reqBody = { prompt, model, image_size: selRatio };
     if (selStyle) reqBody.style = selStyle;
     if (enhanceEnabled) reqBody.enhance = true;
+    if (adv.negative_prompt) reqBody.negative_prompt = adv.negative_prompt;
+    if (adv.seed != null) reqBody.seed = adv.seed;
     if (uploadedImages.length > 0) reqBody.image_urls = uploadedImages;
     const challengeRes = await fetch("/v1/images/generate", {
       method: "POST",
@@ -1592,7 +1783,7 @@ async function generatePaid() {
     document.getElementById("ps3").className = "step-indicator done";
 
     const img = data.images?.[0];
-    if (img) renderResult(img, prompt, data.model, `$${amountUsd} USDC`, 'paid');
+    if (img) renderResult(img, prompt, data.model, `$${amountUsd} USDC`, 'paid', data.seed);
 
     // Refresh balance
     await refreshBalance(null, walletAddress);
@@ -1631,9 +1822,12 @@ async function generateDemo() {
     const model = document.getElementById("model").value;
     const selStyle = document.getElementById("style").value;
     const selRatio = document.getElementById("aspect_ratio").value;
+    const adv = getAdvancedParams();
     const demoBody = { prompt, model, image_size: selRatio };
     if (selStyle) demoBody.style = selStyle;
     if (enhanceEnabled) demoBody.enhance = true;
+    if (adv.negative_prompt) demoBody.negative_prompt = adv.negative_prompt;
+    if (adv.seed != null) demoBody.seed = adv.seed;
     if (uploadedImages.length > 0) demoBody.image_urls = uploadedImages;
     const res = await fetch("/api/demo", {
       method: "POST",
@@ -1655,7 +1849,7 @@ async function generateDemo() {
 
     const img = data.images?.[0];
     if (img) {
-      renderResult(img, prompt, data.model, `${remaining} left today`, data.cached ? 'cached' : '');
+      renderResult(img, prompt, data.model, `${remaining} left today`, data.cached ? 'cached' : '', data.seed);
     }
   } catch (e) {
     stopLoading();

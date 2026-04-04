@@ -252,7 +252,7 @@ app.get("/llms.txt", (_req, res) => {
 
 app.post("/v1/images/generate", async (req, res) => {
   const authHeader = req.get("Authorization");
-  const { prompt, model, image_size, num_images, image_urls, style, enhance, private: isPrivate } = req.body || {};
+  const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate } = req.body || {};
 
   // Determine price from requested model + batch discount
   const count = Math.min(Math.max(num_images || 1, 1), 4);
@@ -350,13 +350,15 @@ app.post("/v1/images/generate", async (req, res) => {
     const cacheKey = getCacheKey(enhanced, usedModel, size);
     const cached = (count === 1 && !hasRefs) ? getCached(cacheKey) : null;
 
-    let images, timings;
+    let images, timings, usedSeed = seed ?? null;
     if (cached) {
       images = cached.images;
       timings = { cached: true };
       console.log(`Cache hit: ${cacheKey}`);
     } else {
       const falBody = { prompt: enhanced, image_size: size, num_images: count };
+      if (negative_prompt) falBody.negative_prompt = negative_prompt;
+      if (seed != null) falBody.seed = Number(seed);
       if (hasRefs) {
         if (maxRef === 1) {
           falBody.image_url = refs[0];
@@ -373,6 +375,7 @@ app.post("/v1/images/generate", async (req, res) => {
       const result = await falRes.json();
       images = result.images || [];
       timings = result.timings;
+      usedSeed = result.seed ?? seed ?? null;
       if (count === 1 && !hasRefs && images.length > 0) setCache(cacheKey, images, usedModel);
     }
 
@@ -380,7 +383,7 @@ app.post("/v1/images/generate", async (req, res) => {
     if (!isPrivate && images.length > 0 && !cached) {
       const imgUrl = images[0].url || null;
       if (imgUrl) {
-        gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, timestamp: Date.now() });
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, timestamp: Date.now() });
       }
     }
 
@@ -391,6 +394,7 @@ app.post("/v1/images/generate", async (req, res) => {
     res.set("Cache-Control", "private");
     res.json({
       images, prompt, enhanced_prompt: enhanced, model: usedModel, timings,
+      ...(usedSeed != null ? { seed: usedSeed } : {}),
       ...(style ? { style } : {}),
       ...(cached ? { cached: true } : {}),
     });
@@ -450,7 +454,7 @@ app.post("/api/demo", async (req, res) => {
     });
   }
 
-  const { prompt, model, image_size, image_urls, style, enhance, private: isPrivate } = req.body || {};
+  const { prompt, model, image_size, image_urls, style, enhance, negative_prompt, seed, private: isPrivate } = req.body || {};
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({ detail: "A 'prompt' string is required." });
   }
@@ -485,12 +489,14 @@ app.post("/api/demo", async (req, res) => {
     const cacheKey = getCacheKey(enhanced, usedModel, size);
     const cached = hasRefs ? null : getCached(cacheKey);
 
-    let images;
+    let images, usedSeed = seed ?? null;
     if (cached) {
       images = cached.images;
       console.log(`Demo cache hit: ${cacheKey}`);
     } else {
       const falBody = { prompt: enhanced, image_size: size, num_images: 1 };
+      if (negative_prompt) falBody.negative_prompt = negative_prompt;
+      if (seed != null) falBody.seed = Number(seed);
       if (hasRefs) {
         if (maxRef === 1) { falBody.image_url = refs[0]; } else { falBody.image_urls = refs; }
       }
@@ -501,6 +507,7 @@ app.post("/api/demo", async (req, res) => {
       });
       if (!falRes.ok) throw new Error(`fal.ai MPP error: ${falRes.status}`);
       const result = await falRes.json();
+      usedSeed = result.seed ?? seed ?? null;
       // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
       const falImages = result.images || [];
       images = [];
@@ -533,7 +540,7 @@ app.post("/api/demo", async (req, res) => {
       }
     }
 
-    res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, ...(style ? { style } : {}), cached: !!cached });
+    res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, ...(usedSeed != null ? { seed: usedSeed } : {}), ...(style ? { style } : {}), cached: !!cached });
   } catch (err) {
     console.error("Demo error:", err.message);
     res.status(502).json({ detail: "Image generation failed. Please retry." });
@@ -567,6 +574,64 @@ app.get("/v1/styles", (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Upscale endpoint: POST /v1/images/upscale (free utility)
+// ---------------------------------------------------------------------------
+
+app.post("/v1/images/upscale", async (req, res) => {
+  const { image_url } = req.body || {};
+  if (!image_url) {
+    return res.status(400).json({ detail: "An 'image_url' string is required (URL or base64 data URL)." });
+  }
+  try {
+    const falRes = await fetch(`${FAL_MPP_BASE}/fal-ai/creative-upscaler`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_url, scale: 2 }),
+    });
+    if (!falRes.ok) throw new Error(`fal.ai upscale error: ${falRes.status}`);
+    const result = await falRes.json();
+    res.json({ image: result.image || result.images?.[0] || null });
+  } catch (err) {
+    console.error("Upscale error:", err.message);
+    res.status(502).json({ detail: "Upscale failed. Please retry." });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Generation History: POST /v1/history/save, GET /v1/history/:wallet
+// ---------------------------------------------------------------------------
+const HISTORY_MAX = 100;
+
+app.post("/v1/history/save", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "History unavailable (Redis not configured)." });
+  const { wallet, prompt, model, style, seed, image_url, image_b64 } = req.body || {};
+  if (!wallet || !prompt) return res.status(400).json({ detail: "wallet and prompt are required." });
+  const entry = { prompt, model, style: style || null, seed: seed ?? null, image_url: image_url || null, image_b64: image_b64 || null, timestamp: Date.now() };
+  try {
+    const key = `pixelpay:history:${wallet.toLowerCase()}`;
+    await redis.lpush(key, JSON.stringify(entry));
+    await redis.ltrim(key, 0, HISTORY_MAX - 1);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("History save error:", err.message);
+    res.status(500).json({ detail: "Failed to save history." });
+  }
+});
+
+app.get("/v1/history/:wallet", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "History unavailable (Redis not configured)." });
+  try {
+    const key = `pixelpay:history:${req.params.wallet.toLowerCase()}`;
+    const items = await redis.lrange(key, 0, HISTORY_MAX - 1);
+    const history = items.map(item => typeof item === "string" ? JSON.parse(item) : item);
+    res.json({ history, total: history.length });
+  } catch (err) {
+    console.error("History list error:", err.message);
+    res.json({ history: [], total: 0 });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Health check
 // ---------------------------------------------------------------------------
 
@@ -581,7 +646,7 @@ app.get("/v1/stats", (_req, res) => {
     requests_5min: requestTimestamps.length,
     demand_multiplier: getDemandMultiplier(),
     models: Object.keys(BASE_PRICING).length,
-    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification", "reference_images", "style_presets", "prompt_enhance", "public_gallery"],
+    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification", "reference_images", "style_presets", "prompt_enhance", "public_gallery", "negative_prompt", "seed_control", "variations", "generation_history", "image_upscaler"],
   });
 });
 

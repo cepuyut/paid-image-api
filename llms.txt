@@ -56,6 +56,8 @@ Generate an image from a text prompt.
 - `image_urls` (string or array, optional): Reference image(s) for image-to-image generation. Pass a URL or base64 data URL. Model support: Nano Banana 2/Pro (up to 14), Recraft V3/FLUX Dev/SD 3.5 (1 image), Schnell/HiDream/Ideogram/Pro (text-only, not supported)
 - `style` (string, optional): Style preset. Options: `anime`, `cinematic`, `vintage`, `noir`, `cyberpunk`, `watercolor`, `oil-painting`, `pixel-art`, `minimalist`, `pop-art`. Automatically appends style keywords to prompt.
 - `enhance` (boolean, optional): If true, auto-enhance prompt with quality keywords for better results. Default: false
+- `negative_prompt` (string, optional): Things to avoid in the image (e.g. "blur, watermark, low quality, deformed")
+- `seed` (integer, optional): Random seed for reproducible results. Omit for random. The seed used is returned in the response for reuse.
 - `private` (boolean, optional): If true, image will not appear in the public gallery. Default: false
 
 **Success response** (200):
@@ -71,6 +73,7 @@ Generate an image from a text prompt.
   ],
   "prompt": "...",
   "model": "fal-ai/flux/schnell",
+  "seed": 1234567890,
   "timings": {}
 }
 ```
@@ -92,6 +95,8 @@ Generate an image from a text prompt.
 - Pricing: `GET /v1/prices`
 - Style presets: `GET /v1/styles`
 - Public gallery: `GET /v1/gallery` (JSON) or `GET /gallery` (HTML page)
+- Upscale image: `POST /v1/images/upscale` — send `{ "image_url": "..." }` to upscale 2x via fal.ai creative-upscaler
+- Generation history: `GET /v1/history/:wallet` — per-wallet generation history (last 100). `POST /v1/history/save` to save entries.
 - Health check: `GET /health`
 
 ## Links

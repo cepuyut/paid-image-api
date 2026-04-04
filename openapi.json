@@ -92,6 +92,16 @@
                     "description": "If true, automatically enhance the prompt with quality keywords for better results.",
                     "default": false
                   },
+                  "negative_prompt": {
+                    "type": "string",
+                    "description": "Things to avoid in the generated image (e.g. 'blur, watermark, low quality, deformed')."
+                  },
+                  "seed": {
+                    "type": "integer",
+                    "description": "Random seed for reproducible results. Omit for random. Returned in response for reuse.",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
                   "private": {
                     "type": "boolean",
                     "description": "If true, the generated image will not appear in the public gallery.",
@@ -131,6 +141,7 @@
                     },
                     "prompt": { "type": "string" },
                     "model": { "type": "string" },
+                    "seed": { "type": "integer", "description": "Seed used for generation. Reuse for identical results." },
                     "timings": { "type": "object" }
                   }
                 }
