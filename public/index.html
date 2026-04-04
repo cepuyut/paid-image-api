@@ -566,6 +566,49 @@
       background: #fff;
     }
 
+    /* ── Aspect Ratio Selector ── */
+    .ratio-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .ratio-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 12px;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      background: var(--bg);
+      cursor: pointer;
+      transition: all 0.15s;
+      flex: 1;
+      min-width: 80px;
+    }
+    .ratio-option:hover { border-color: var(--border-hover); }
+    .ratio-option.active { border-color: var(--white); background: var(--surface2); }
+    .ratio-icon {
+      border: 1.5px solid var(--muted);
+      border-radius: 3px;
+      transition: border-color 0.15s;
+    }
+    .ratio-option.active .ratio-icon { border-color: var(--white); }
+    .ratio-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    .ratio-option.active .ratio-label { color: var(--white); }
+
+    @media (max-width: 640px) {
+      .ratio-grid { gap: 6px; }
+      .ratio-option { min-width: 60px; padding: 8px 6px; }
+    }
+
     /* ── Reference Image Upload ── */
     .upload-area {
       border: 1px dashed var(--border2);
@@ -1070,6 +1113,38 @@
       </div>
     </div>
 
+    <!-- Aspect Ratio -->
+    <div class="field">
+      <label>Aspect Ratio</label>
+      <div class="ratio-grid" id="ratioGrid">
+        <div class="ratio-option" data-ratio="square_hd" onclick="selectRatio(this)" title="Square HD (1:1)">
+          <div class="ratio-icon" style="width:24px;height:24px;"></div>
+          <span class="ratio-label">1:1</span>
+        </div>
+        <div class="ratio-option" data-ratio="portrait_4_3" onclick="selectRatio(this)" title="Portrait 4:3">
+          <div class="ratio-icon" style="width:20px;height:26px;"></div>
+          <span class="ratio-label">4:3 P</span>
+        </div>
+        <div class="ratio-option" data-ratio="portrait_9_16" onclick="selectRatio(this)" title="Portrait 9:16">
+          <div class="ratio-icon" style="width:16px;height:28px;"></div>
+          <span class="ratio-label">9:16</span>
+        </div>
+        <div class="ratio-option active" data-ratio="landscape_4_3" onclick="selectRatio(this)" title="Landscape 4:3">
+          <div class="ratio-icon" style="width:28px;height:21px;"></div>
+          <span class="ratio-label">4:3 L</span>
+        </div>
+        <div class="ratio-option" data-ratio="landscape_16_9" onclick="selectRatio(this)" title="Landscape 16:9">
+          <div class="ratio-icon" style="width:30px;height:17px;"></div>
+          <span class="ratio-label">16:9</span>
+        </div>
+        <div class="ratio-option" data-ratio="widescreen_21_9" onclick="selectRatio(this)" title="Widescreen 21:9">
+          <div class="ratio-icon" style="width:32px;height:14px;"></div>
+          <span class="ratio-label">21:9</span>
+        </div>
+      </div>
+      <input type="hidden" id="aspect_ratio" value="landscape_4_3">
+    </div>
+
     <!-- Reference Image Upload -->
     <div class="field" id="uploadField" style="display:none">
       <label>Reference Image <span id="uploadLimit" style="font-weight:400; color:var(--muted2)"></span></label>
@@ -1433,7 +1508,8 @@ async function generatePaid() {
     // Step 1: Get 402 challenge
     document.getElementById("ps1").className = "step-indicator active";
     const selStyle = document.getElementById("style").value;
-    const reqBody = { prompt, model };
+    const selRatio = document.getElementById("aspect_ratio").value;
+    const reqBody = { prompt, model, image_size: selRatio };
     if (selStyle) reqBody.style = selStyle;
     if (enhanceEnabled) reqBody.enhance = true;
     if (uploadedImages.length > 0) reqBody.image_urls = uploadedImages;
@@ -1554,7 +1630,8 @@ async function generateDemo() {
   try {
     const model = document.getElementById("model").value;
     const selStyle = document.getElementById("style").value;
-    const demoBody = { prompt, model };
+    const selRatio = document.getElementById("aspect_ratio").value;
+    const demoBody = { prompt, model, image_size: selRatio };
     if (selStyle) demoBody.style = selStyle;
     if (enhanceEnabled) demoBody.enhance = true;
     if (uploadedImages.length > 0) demoBody.image_urls = uploadedImages;
@@ -1677,6 +1754,13 @@ let enhanceEnabled = false;
 function toggleEnhance() {
   enhanceEnabled = !enhanceEnabled;
   document.getElementById("enhanceToggle").classList.toggle("active", enhanceEnabled);
+}
+
+// ── Aspect Ratio Selector ──
+function selectRatio(el) {
+  document.querySelectorAll('.ratio-option').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('aspect_ratio').value = el.dataset.ratio;
 }
 
 // ── Reference Image Upload ──

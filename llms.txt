@@ -51,7 +51,7 @@ Generate an image from a text prompt.
 **Request body** (JSON):
 - `prompt` (string, required): Text describing the image to generate
 - `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.029, default), `fal-ai/stable-diffusion-v35-large` ($0.039), `fal-ai/flux/dev` ($0.049), `fal-ai/recraft-v3` ($0.059), `fal-ai/hidream-i1-full` ($0.079), `fal-ai/ideogram/v3` ($0.079), `fal-ai/flux-pro/v1.1` ($0.099), `fal-ai/nano-banana-2` ($0.14, premium), `fal-ai/nano-banana-pro` ($0.19, premium)
-- `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `landscape_4_3`, `landscape_16_9`, `portrait_4_3`, `portrait_16_9`
+- `image_size` (string, optional): Output size / aspect ratio. Default: `landscape_4_3`. Options: `square_hd` (1:1), `square`, `landscape_4_3` (4:3), `landscape_16_9` (16:9), `portrait_4_3` (3:4), `portrait_9_16` (9:16), `portrait_16_9`, `widescreen_21_9` (21:9)
 - `num_images` (integer, optional): Number of images, 1-4. Default: 1
 - `image_urls` (string or array, optional): Reference image(s) for image-to-image generation. Pass a URL or base64 data URL. Model support: Nano Banana 2/Pro (up to 14), Recraft V3/FLUX Dev/SD 3.5 (1 image), Schnell/HiDream/Ideogram/Pro (text-only, not supported)
 - `style` (string, optional): Style preset. Options: `anime`, `cinematic`, `vintage`, `noir`, `cyberpunk`, `watercolor`, `oil-painting`, `pixel-art`, `minimalist`, `pop-art`. Automatically appends style keywords to prompt.

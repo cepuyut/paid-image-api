@@ -66,7 +66,7 @@
                     "type": "string",
                     "description": "Output image size",
                     "default": "landscape_4_3",
-                    "enum": ["square_hd", "square", "landscape_4_3", "landscape_16_9", "portrait_4_3", "portrait_16_9"]
+                    "enum": ["square_hd", "square", "landscape_4_3", "landscape_16_9", "portrait_4_3", "portrait_16_9", "portrait_9_16", "widescreen_21_9"]
                   },
                   "num_images": {
                     "type": "integer",

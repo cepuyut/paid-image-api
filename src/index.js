@@ -450,7 +450,7 @@ app.post("/api/demo", async (req, res) => {
     });
   }
 
-  const { prompt, model, image_urls, style, enhance, private: isPrivate } = req.body || {};
+  const { prompt, model, image_size, image_urls, style, enhance, private: isPrivate } = req.body || {};
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({ detail: "A 'prompt' string is required." });
   }
@@ -479,9 +479,10 @@ app.post("/api/demo", async (req, res) => {
       return res.status(400).json({ detail: `${usedModel} supports max ${maxRef} reference image(s).` });
     }
 
+    const size = image_size || "landscape_4_3";
     const enhanced = enhancePrompt(prompt, usedModel, { style, enhance });
     const hasRefs = refs.length > 0;
-    const cacheKey = getCacheKey(enhanced, usedModel, "landscape_4_3");
+    const cacheKey = getCacheKey(enhanced, usedModel, size);
     const cached = hasRefs ? null : getCached(cacheKey);
 
     let images;
@@ -489,7 +490,7 @@ app.post("/api/demo", async (req, res) => {
       images = cached.images;
       console.log(`Demo cache hit: ${cacheKey}`);
     } else {
-      const falBody = { prompt: enhanced, image_size: "landscape_4_3", num_images: 1 };
+      const falBody = { prompt: enhanced, image_size: size, num_images: 1 };
       if (hasRefs) {
         if (maxRef === 1) { falBody.image_url = refs[0]; } else { falBody.image_urls = refs; }
       }
