@@ -73,11 +73,45 @@
       padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
     }
 
+    .gallery-card { cursor: pointer; }
+
     .empty-state {
       text-align: center; padding: 80px 20px; color: var(--muted);
     }
     .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
     .empty-state p { font-size: 15px; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      z-index: 1000; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-content {
+      background: var(--surface); border: 1px solid var(--border2); border-radius: 16px;
+      max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;
+    }
+    .modal-content img {
+      width: 100%; display: block; border-radius: 16px 16px 0 0;
+    }
+    .modal-body { padding: 20px; }
+    .modal-prompt {
+      font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 12px;
+      word-break: break-word;
+    }
+    .modal-meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .modal-actions button {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .modal-actions button:hover { border-color: var(--white); color: var(--white); }
+    .modal-close {
+      position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.6);
+      border: none; color: white; width: 36px; height: 36px; border-radius: 50%;
+      font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
 
     footer {
       text-align: center; padding: 32px 0; color: var(--muted2); font-size: 12px;
@@ -125,7 +159,27 @@
   </footer>
 </div>
 
+<!-- Image Detail Modal -->
+<div class="modal-overlay" id="imageModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <img id="modalImg" src="" alt="">
+    <div class="modal-body">
+      <div class="modal-prompt" id="modalPrompt"></div>
+      <div class="modal-meta" id="modalMeta"></div>
+      <div class="modal-actions">
+        <button onclick="downloadModalImage()">&#11015; Download</button>
+        <button onclick="copyPrompt()">&#128203; Copy Prompt</button>
+        <button onclick="openInGenerator()">&#9998; Use Prompt</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+let galleryItems = [];
+let currentModalItem = null;
+
 async function loadGallery() {
   try {
     const res = await fetch("/v1/gallery");
@@ -139,15 +193,15 @@ async function loadGallery() {
     }
     empty.style.display = "none";
 
-    grid.innerHTML = data.images.map(item => {
-      const imgSrc = item.image_url || "";
-      if (!imgSrc) return "";
+    galleryItems = data.images.filter(i => i.image_url);
+    grid.innerHTML = galleryItems.map((item, idx) => {
+      const imgSrc = item.image_url;
       const safePrompt = (item.prompt || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
       const shortModel = (item.model || "").replace("fal-ai/", "");
       const ago = timeAgo(item.timestamp);
       const styleTag = item.style ? `<span class="style-tag">${item.style}</span>` : "";
       return `
-        <div class="gallery-card">
+        <div class="gallery-card" onclick="openModal(${idx})">
           <img src="${imgSrc}" alt="${safePrompt}" loading="lazy">
           <div class="card-info">
             <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
@@ -174,8 +228,54 @@ function timeAgo(ts) {
 }
 
 loadGallery();
-// Auto-refresh every 30 seconds
 setInterval(loadGallery, 30000);
+
+function openModal(idx) {
+  const item = galleryItems[idx];
+  if (!item) return;
+  currentModalItem = item;
+  document.getElementById("modalImg").src = item.image_url;
+  document.getElementById("modalPrompt").textContent = item.prompt || "";
+  const model = (item.model || "").replace("fal-ai/", "");
+  const style = item.style ? ` · ${item.style}` : "";
+  const ago = timeAgo(item.timestamp);
+  document.getElementById("modalMeta").textContent = `${model}${style} · ${ago}`;
+  document.getElementById("imageModal").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeModal() {
+  document.getElementById("imageModal").classList.remove("open");
+  document.body.style.overflow = "";
+  currentModalItem = null;
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+function downloadModalImage() {
+  if (!currentModalItem) return;
+  const a = document.createElement("a");
+  a.href = currentModalItem.image_url;
+  a.download = "pixelpay-" + (currentModalItem.prompt || "image").replace(/[^a-z0-9]/gi, "-").slice(0, 30) + ".png";
+  a.target = "_blank";
+  a.click();
+}
+
+function copyPrompt() {
+  if (!currentModalItem) return;
+  navigator.clipboard.writeText(currentModalItem.prompt || "");
+  const el = document.querySelector(".modal-actions button:nth-child(2)");
+  el.textContent = "Copied!";
+  setTimeout(() => el.innerHTML = "&#128203; Copy Prompt", 1500);
+}
+
+function openInGenerator() {
+  if (!currentModalItem) return;
+  const params = new URLSearchParams({ prompt: currentModalItem.prompt || "" });
+  if (currentModalItem.model) params.set("model", currentModalItem.model);
+  if (currentModalItem.style) params.set("style", currentModalItem.style);
+  window.location.href = "/?" + params.toString();
+}
 </script>
 </body>
 </html>

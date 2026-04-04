@@ -1570,6 +1570,13 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
   lastResultModel = modelName;
   lastResultImgData = imgData;
 
+  // Persist result so it survives page navigation
+  try {
+    sessionStorage.setItem("pixelpay_last_result", JSON.stringify({
+      imgSrc: imgData.url || null, prompt, modelName, extraInfo, extraClass, seed
+    }));
+  } catch(_) {}
+
   if (imgSrc) {
     const seedHtml = seed != null ? `<span class="seed-badge" onclick="copySeed(${seed})" title="Click to copy seed">${copySvg} Seed: ${seed}</span>` : '';
 
@@ -1685,6 +1692,27 @@ async function loadServerConfig() {
   } catch (_) {}
 }
 loadServerConfig();
+
+// ── Restore last result after page navigation ──
+try {
+  const saved = sessionStorage.getItem("pixelpay_last_result");
+  if (saved) {
+    const r = JSON.parse(saved);
+    if (r.imgSrc) {
+      renderResult({ url: r.imgSrc }, r.prompt, r.modelName, r.extraInfo || "", r.extraClass || "", r.seed);
+    }
+  }
+} catch(_) {}
+
+// ── Auto-fill from query params (e.g. from gallery "Use Prompt") ──
+try {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("prompt")) {
+    document.getElementById("prompt").value = params.get("prompt");
+    if (params.get("model")) document.getElementById("model").value = params.get("model");
+    if (params.get("style")) document.getElementById("style").value = params.get("style");
+  }
+} catch(_) {}
 
 // ── Mint as NFT ──
 async function mintAsNFT() {
