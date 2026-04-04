@@ -913,8 +913,9 @@
       <div class="nav-links">
         <a href="/v1/prices">Pricing</a>
         <a href="/gallery">Gallery</a>
+        <a href="/marketplace">Marketplace</a>
+        <a href="/swap">Swap</a>
         <a href="/llms.txt">Docs</a>
-        <a href="https://github.com/cepuyut/paid-image-api">GitHub</a>
       </div>
       <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>
     </div>
@@ -1344,6 +1345,9 @@ const TEMPO_RPC = "https://rpc.tempo.xyz";
 const USDC_TOKEN = "0x20c000000000000000000000b9537d11c60e8b50";
 const SERVER_WALLET = "0xf48c6E46358652fC77462d56d609B8bC7f4ba82e";
 const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)", "function balanceOf(address) view returns (uint256)"];
+const NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)", "function approve(address to, uint256 tokenId)", "function setApprovalForAll(address operator, bool approved)"];
+let NFT_CONTRACT = "";
+let MARKET_CONTRACT = "";
 const DEMO_LIMIT = 1;
 const STORAGE_KEY = "demo_count";
 
@@ -1538,6 +1542,9 @@ function downloadImage(imgEl, filename) {
 
 let lastResultSeed = null;
 let lastResultImgSrc = null;
+let lastResultPrompt = null;
+let lastResultModel = null;
+let lastResultImgData = null;
 
 function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
   const result = document.getElementById("result");
@@ -1547,6 +1554,7 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
   const variantSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 5h2a2 2 0 012 2v2"/></svg>';
   const upscaleSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2h4v4M6 14H2v-4M14 2L9 7M2 14l5-5"/></svg>';
   const copySvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>';
+  const mintSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 3h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg>';
 
   let imgSrc;
   if (imgData.b64_json) {
@@ -1558,6 +1566,9 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
 
   lastResultSeed = seed ?? null;
   lastResultImgSrc = imgSrc;
+  lastResultPrompt = prompt;
+  lastResultModel = modelName;
+  lastResultImgData = imgData;
 
   if (imgSrc) {
     const seedHtml = seed != null ? `<span class="seed-badge" onclick="copySeed(${seed})" title="Click to copy seed">${copySvg} Seed: ${seed}</span>` : '';
@@ -1578,6 +1589,7 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
           ${upscaleSvg} Upscale
         </button>
         ${seed != null ? `<button class="btn-action" onclick="reuseSeed(${seed})" title="Use this seed for next generation">${copySvg} Reuse Seed</button>` : ''}
+        <button class="btn-action" id="mintBtn" onclick="mintAsNFT()" title="Mint this image as an NFT">${mintSvg} Mint NFT</button>
         ${extraClass ? `<span class="btn-action" style="cursor:default;color:var(--green);border-color:var(--green)">${extraClass === 'paid' ? 'Paid' : 'Cached'}</span>` : ''}
       </div>`;
 
@@ -1651,6 +1663,114 @@ async function upscaleImage() {
   } catch (e) {
     btn.innerHTML = 'Upscale failed';
     btn.style.color = 'var(--red)';
+  }
+}
+
+// ── Fetch NFT contract addresses on load ──
+async function loadNFTConfig() {
+  try {
+    const res = await fetch("/v1/nft/config");
+    if (res.ok) {
+      const cfg = await res.json();
+      NFT_CONTRACT = cfg.nft_contract || "";
+      MARKET_CONTRACT = cfg.marketplace_contract || "";
+    }
+  } catch (_) {}
+}
+loadNFTConfig();
+
+// ── Mint as NFT ──
+async function mintAsNFT() {
+  if (!walletConnected || !walletSigner) {
+    alert("Connect your wallet first to mint an NFT.");
+    return;
+  }
+  if (!lastResultImgSrc) return;
+  if (!NFT_CONTRACT) {
+    alert("NFT contract not configured. Please try again later.");
+    return;
+  }
+
+  const btn = document.getElementById("mintBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Uploading to IPFS...';
+
+  try {
+    // 1. Upload image + metadata to IPFS via backend
+    const uploadRes = await fetch("/v1/nft/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_data: lastResultImgSrc,
+        name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
+        description: lastResultPrompt || "Generated with PixelPay AI",
+        attributes: [
+          { trait_type: "Model", value: lastResultModel || "unknown" },
+          { trait_type: "Seed", value: String(lastResultSeed ?? "random") },
+          { trait_type: "Generator", value: "PixelPay" }
+        ]
+      })
+    });
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(() => ({}));
+      throw new Error(err.error || "IPFS upload failed");
+    }
+    const { metadata_uri } = await uploadRes.json();
+
+    // 2. Call NFT contract mint function
+    btn.innerHTML = '<span class="spinner"></span>Minting on-chain...';
+    const nftContract = new ethers.Contract(NFT_CONTRACT, NFT_ABI, walletSigner);
+    const tx = await nftContract.mint(walletAddress, metadata_uri);
+    btn.innerHTML = '<span class="spinner"></span>Confirming tx...';
+    const receipt = await tx.wait();
+
+    // Extract tokenId from Minted event
+    let tokenId = null;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = nftContract.interface.parseLog({ topics: log.topics, data: log.data });
+        if (parsed && parsed.name === "Minted") {
+          tokenId = parsed.args.tokenId.toString();
+          break;
+        }
+      } catch (_) {}
+    }
+
+    // 3. Record mint in backend
+    if (tokenId != null) {
+      await fetch("/v1/nft/mint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tokenId,
+          creator: walletAddress,
+          owner: walletAddress,
+          metadata_uri,
+          name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
+          image_url: lastResultImgSrc.startsWith("data:") ? null : lastResultImgSrc,
+          model: lastResultModel || "unknown",
+          tx_hash: receipt.hash
+        })
+      }).catch(() => {});
+    }
+
+    btn.innerHTML = '&#10003; Minted!';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    if (tokenId != null) {
+      btn.title = `Token #${tokenId} minted successfully`;
+    }
+  } catch (e) {
+    console.error("Mint error:", e);
+    btn.innerHTML = 'Mint failed';
+    btn.style.color = 'var(--red)';
+    btn.style.borderColor = 'var(--red)';
+    btn.disabled = false;
+    setTimeout(() => {
+      btn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 3h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg> Mint NFT';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 3000);
   }
 }
 

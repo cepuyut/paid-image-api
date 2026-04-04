@@ -630,6 +630,259 @@ app.get("/v1/history/:wallet", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// IPFS Upload via Pinata: POST /v1/nft/upload
+// ---------------------------------------------------------------------------
+const PINATA_JWT = process.env.PINATA_JWT || "";
+
+app.post("/v1/nft/upload", async (req, res) => {
+  if (!PINATA_JWT) return res.status(503).json({ detail: "IPFS not configured (PINATA_JWT missing)." });
+  const { image_b64, content_type, metadata } = req.body || {};
+
+  try {
+    let imageIpfsHash;
+
+    // Upload image (base64 → binary → Pinata)
+    if (image_b64) {
+      const imgBuf = Buffer.from(image_b64, "base64");
+      const ext = (content_type || "image/png").split("/")[1] || "png";
+      const boundary = "----PinataFormBoundary" + Date.now();
+      const fileName = `pixelpay-${Date.now()}.${ext}`;
+
+      const bodyParts = [
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${content_type || "image/png"}\r\n\r\n`,
+      ];
+      const bodyEnd = `\r\n--${boundary}--\r\n`;
+
+      const body = Buffer.concat([
+        Buffer.from(bodyParts[0]),
+        imgBuf,
+        Buffer.from(bodyEnd),
+      ]);
+
+      const pinRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${PINATA_JWT}`,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        body,
+      });
+      if (!pinRes.ok) throw new Error(`Pinata image upload: ${pinRes.status}`);
+      const pinData = await pinRes.json();
+      imageIpfsHash = pinData.IpfsHash;
+    }
+
+    // Upload metadata JSON
+    if (metadata && imageIpfsHash) {
+      metadata.image = `ipfs://${imageIpfsHash}`;
+    }
+    const metaRes = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${PINATA_JWT}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pinataContent: metadata || {} }),
+    });
+    if (!metaRes.ok) throw new Error(`Pinata metadata upload: ${metaRes.status}`);
+    const metaData = await metaRes.json();
+
+    res.json({
+      image_ipfs: imageIpfsHash ? `ipfs://${imageIpfsHash}` : null,
+      image_gateway: imageIpfsHash ? `https://gateway.pinata.cloud/ipfs/${imageIpfsHash}` : null,
+      metadata_ipfs: `ipfs://${metaData.IpfsHash}`,
+      metadata_gateway: `https://gateway.pinata.cloud/ipfs/${metaData.IpfsHash}`,
+      metadata_uri: `ipfs://${metaData.IpfsHash}`,
+    });
+  } catch (err) {
+    console.error("IPFS upload error:", err.message);
+    res.status(502).json({ detail: "IPFS upload failed: " + err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// NFT Registry: track mints and listings in Redis
+// ---------------------------------------------------------------------------
+const NFT_CONTRACT = process.env.NFT_CONTRACT_ADDRESS || "";
+const MARKET_CONTRACT = process.env.MARKETPLACE_CONTRACT_ADDRESS || "";
+
+// Record a mint
+app.post("/v1/nft/mint", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  const { tokenId, wallet, prompt, model, style, seed, image_url, metadata_uri, tx_hash } = req.body || {};
+  if (tokenId == null || !wallet) return res.status(400).json({ detail: "tokenId and wallet required." });
+
+  const entry = {
+    tokenId: Number(tokenId), wallet: wallet.toLowerCase(), prompt, model,
+    style: style || null, seed: seed ?? null, image_url, metadata_uri,
+    tx_hash, creator: wallet.toLowerCase(), timestamp: Date.now(),
+  };
+  try {
+    await redis.set(`pixelpay:nft:${tokenId}`, JSON.stringify(entry));
+    await redis.lpush(`pixelpay:nft:by_owner:${wallet.toLowerCase()}`, tokenId);
+    await redis.lpush(`pixelpay:nft:by_creator:${wallet.toLowerCase()}`, tokenId);
+    await redis.lpush("pixelpay:nft:all", tokenId);
+    await redis.incr("pixelpay:nft:counter");
+    res.json({ ok: true, nft: entry });
+  } catch (err) {
+    console.error("NFT mint record error:", err.message);
+    res.status(500).json({ detail: "Failed to record mint." });
+  }
+});
+
+// Get NFT by tokenId
+app.get("/v1/nft/:tokenId", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  try {
+    const data = await redis.get(`pixelpay:nft:${req.params.tokenId}`);
+    if (!data) return res.status(404).json({ detail: "NFT not found." });
+    const nft = typeof data === "string" ? JSON.parse(data) : data;
+    // Check if listed
+    const listingData = await redis.get(`pixelpay:nft:listing:${req.params.tokenId}`);
+    const listing = listingData ? (typeof listingData === "string" ? JSON.parse(listingData) : listingData) : null;
+    res.json({ nft, listing });
+  } catch (err) {
+    res.status(500).json({ detail: "Failed to fetch NFT." });
+  }
+});
+
+// Get all NFTs by owner
+app.get("/v1/nft/by-owner/:wallet", async (req, res) => {
+  if (!redis) return res.json({ nfts: [] });
+  try {
+    const ids = await redis.lrange(`pixelpay:nft:by_owner:${req.params.wallet.toLowerCase()}`, 0, 199);
+    const nfts = [];
+    for (const id of ids) {
+      const data = await redis.get(`pixelpay:nft:${id}`);
+      if (data) nfts.push(typeof data === "string" ? JSON.parse(data) : data);
+    }
+    res.json({ nfts, total: nfts.length });
+  } catch (err) {
+    res.json({ nfts: [], total: 0 });
+  }
+});
+
+// Get all NFTs by creator
+app.get("/v1/nft/by-creator/:wallet", async (req, res) => {
+  if (!redis) return res.json({ nfts: [] });
+  try {
+    const ids = await redis.lrange(`pixelpay:nft:by_creator:${req.params.wallet.toLowerCase()}`, 0, 199);
+    const nfts = [];
+    for (const id of ids) {
+      const data = await redis.get(`pixelpay:nft:${id}`);
+      if (data) nfts.push(typeof data === "string" ? JSON.parse(data) : data);
+    }
+    res.json({ nfts, total: nfts.length });
+  } catch (err) {
+    res.json({ nfts: [], total: 0 });
+  }
+});
+
+// Record a listing
+app.post("/v1/nft/list", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  const { tokenId, seller, price } = req.body || {};
+  if (tokenId == null || !seller || !price) return res.status(400).json({ detail: "tokenId, seller, price required." });
+  const listing = { tokenId: Number(tokenId), seller: seller.toLowerCase(), price, listedAt: Date.now() };
+  try {
+    await redis.set(`pixelpay:nft:listing:${tokenId}`, JSON.stringify(listing));
+    await redis.lpush("pixelpay:nft:listings", tokenId);
+    res.json({ ok: true, listing });
+  } catch (err) {
+    res.status(500).json({ detail: "Failed to record listing." });
+  }
+});
+
+// Get all active listings
+app.get("/v1/nft/listings", async (req, res) => {
+  if (!redis) return res.json({ listings: [] });
+  try {
+    const ids = await redis.lrange("pixelpay:nft:listings", 0, 99);
+    const listings = [];
+    for (const id of ids) {
+      const ld = await redis.get(`pixelpay:nft:listing:${id}`);
+      if (!ld) continue;
+      const listing = typeof ld === "string" ? JSON.parse(ld) : ld;
+      const nd = await redis.get(`pixelpay:nft:${id}`);
+      const nft = nd ? (typeof nd === "string" ? JSON.parse(nd) : nd) : null;
+      listings.push({ ...listing, nft });
+    }
+    res.json({ listings, total: listings.length });
+  } catch (err) {
+    res.json({ listings: [], total: 0 });
+  }
+});
+
+// Record a sale (remove listing)
+app.post("/v1/nft/buy", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  const { tokenId, buyer, tx_hash } = req.body || {};
+  if (tokenId == null || !buyer) return res.status(400).json({ detail: "tokenId and buyer required." });
+  try {
+    const ld = await redis.get(`pixelpay:nft:listing:${tokenId}`);
+    const listing = ld ? (typeof ld === "string" ? JSON.parse(ld) : ld) : null;
+    // Record sale
+    const sale = { tokenId: Number(tokenId), buyer: buyer.toLowerCase(), seller: listing?.seller, price: listing?.price, tx_hash, timestamp: Date.now() };
+    await redis.lpush("pixelpay:nft:sales", JSON.stringify(sale));
+    // Remove listing
+    await redis.del(`pixelpay:nft:listing:${tokenId}`);
+    await redis.lrem("pixelpay:nft:listings", 1, tokenId);
+    // Update owner
+    const nd = await redis.get(`pixelpay:nft:${tokenId}`);
+    if (nd) {
+      const nft = typeof nd === "string" ? JSON.parse(nd) : nd;
+      const oldOwner = nft.wallet;
+      nft.wallet = buyer.toLowerCase();
+      await redis.set(`pixelpay:nft:${tokenId}`, JSON.stringify(nft));
+      await redis.lpush(`pixelpay:nft:by_owner:${buyer.toLowerCase()}`, tokenId);
+      if (oldOwner) await redis.lrem(`pixelpay:nft:by_owner:${oldOwner}`, 1, tokenId);
+    }
+    res.json({ ok: true, sale });
+  } catch (err) {
+    res.status(500).json({ detail: "Failed to record sale." });
+  }
+});
+
+// Cancel a listing
+app.delete("/v1/nft/listing/:tokenId", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  try {
+    await redis.del(`pixelpay:nft:listing:${req.params.tokenId}`);
+    await redis.lrem("pixelpay:nft:listings", 1, req.params.tokenId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ detail: "Failed to cancel listing." });
+  }
+});
+
+// Recent activity (mints + sales)
+app.get("/v1/nft/activity", async (_req, res) => {
+  if (!redis) return res.json({ activity: [] });
+  try {
+    const sales = await redis.lrange("pixelpay:nft:sales", 0, 19);
+    const activity = sales.map(s => typeof s === "string" ? JSON.parse(s) : s);
+    res.json({ activity, total: activity.length });
+  } catch (err) {
+    res.json({ activity: [], total: 0 });
+  }
+});
+
+// NFT contract info
+app.get("/v1/nft/config", (_req, res) => {
+  res.json({ nft_contract: NFT_CONTRACT, marketplace_contract: MARKET_CONTRACT });
+});
+
+// Serve marketplace page
+app.get("/marketplace", (_req, res) => {
+  res.sendFile(join(ROOT, "public", "marketplace.html"));
+});
+
+// Serve swap page
+app.get("/swap", (_req, res) => {
+  res.sendFile(join(ROOT, "public", "swap.html"));
+});
+
+// ---------------------------------------------------------------------------
 // Health check
 // ---------------------------------------------------------------------------
 
@@ -644,7 +897,7 @@ app.get("/v1/stats", (_req, res) => {
     requests_5min: requestTimestamps.length,
     demand_multiplier: getDemandMultiplier(),
     models: Object.keys(BASE_PRICING).length,
-    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification", "reference_images", "style_presets", "prompt_enhance", "public_gallery", "negative_prompt", "seed_control", "variations", "generation_history", "image_upscaler"],
+    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification", "reference_images", "style_presets", "prompt_enhance", "public_gallery", "negative_prompt", "seed_control", "variations", "generation_history", "image_upscaler", "nft_minting", "nft_marketplace", "ipfs_upload"],
   });
 });
 
