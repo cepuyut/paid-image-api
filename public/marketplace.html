@@ -369,7 +369,7 @@ let listTokenId = null; // for list modal
 // ── Load config ──
 async function loadConfig() {
   try {
-    const res = await fetch("/v1/nft/config");
+    const res = await fetch("/pixelpay/nft-config");
     if (res.ok) {
       const cfg = await res.json();
       NFT_CONTRACT = cfg.nft_contract || "";
@@ -516,7 +516,7 @@ async function loadStats() {
   try {
     const [listingsRes, configRes, activityRes] = await Promise.all([
       fetch("/v1/nft/listings"),
-      fetch("/v1/nft/config"),
+      fetch("/pixelpay/nft-config"),
       fetch("/v1/nft/activity")
     ]);
     const listingsData = await listingsRes.json();

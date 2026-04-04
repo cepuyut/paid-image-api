@@ -19,10 +19,19 @@ if (!WALLET_PRIVATE_KEY) {
   console.error("WALLET_PRIVATE_KEY is required for MPP client payments");
   process.exit(1);
 }
+const walletAccount = privateKeyToAccount(WALLET_PRIVATE_KEY);
+const DERIVED_WALLET_ADDRESS = walletAccount.address;
+
+// Override WALLET_ADDRESS env so mpp.js uses the same address that pays fal.ai
+if (!process.env.WALLET_ADDRESS || process.env.WALLET_ADDRESS.toLowerCase() !== DERIVED_WALLET_ADDRESS.toLowerCase()) {
+  console.log(`Syncing WALLET_ADDRESS: ${process.env.WALLET_ADDRESS || '(unset)'} → ${DERIVED_WALLET_ADDRESS}`);
+  process.env.WALLET_ADDRESS = DERIVED_WALLET_ADDRESS;
+}
+
 Mppx.create({
-  methods: [tempo({ account: privateKeyToAccount(WALLET_PRIVATE_KEY) })],
+  methods: [tempo({ account: walletAccount })],
 });
-console.log("MPP client initialized — fal.ai payments via Tempo wallet");
+console.log(`MPP client initialized — wallet ${DERIVED_WALLET_ADDRESS}`);
 
 const FAL_MPP_BASE = "https://fal.mpp.tempo.xyz";
 
@@ -222,6 +231,11 @@ app.use(express.json({ limit: "50mb" }));
 
 // Serve landing page
 app.use(express.static(join(ROOT, "public")));
+
+// Server config (wallet address derived from private key)
+app.get("/pixelpay/config", (_req, res) => {
+  res.json({ wallet_address: DERIVED_WALLET_ADDRESS });
+});
 
 // ---------------------------------------------------------------------------
 // MPP Discovery: GET /openapi.json
@@ -868,7 +882,7 @@ app.get("/v1/nft/activity", async (_req, res) => {
 });
 
 // NFT contract info
-app.get("/v1/nft/config", (_req, res) => {
+app.get("/pixelpay/nft-config", (_req, res) => {
   res.json({ nft_contract: NFT_CONTRACT, marketplace_contract: MARKET_CONTRACT });
 });
 

@@ -1343,7 +1343,7 @@ res = requests.<span class="fn">post</span>(
 const TEMPO_CHAIN_ID = 4217;
 const TEMPO_RPC = "https://rpc.tempo.xyz";
 const USDC_TOKEN = "0x20c000000000000000000000b9537d11c60e8b50";
-const SERVER_WALLET = "0xf48c6E46358652fC77462d56d609B8bC7f4ba82e";
+let SERVER_WALLET = "0xf48c6E46358652fC77462d56d609B8bC7f4ba82e"; // fallback, overridden by /v1/config
 const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)", "function balanceOf(address) view returns (uint256)"];
 const NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)", "function approve(address to, uint256 tokenId)", "function setApprovalForAll(address operator, bool approved)"];
 let NFT_CONTRACT = "";
@@ -1666,18 +1666,25 @@ async function upscaleImage() {
   }
 }
 
-// ── Fetch NFT contract addresses on load ──
-async function loadNFTConfig() {
+// ── Load server config on startup ──
+async function loadServerConfig() {
   try {
-    const res = await fetch("/v1/nft/config");
-    if (res.ok) {
-      const cfg = await res.json();
-      NFT_CONTRACT = cfg.nft_contract || "";
-      MARKET_CONTRACT = cfg.marketplace_contract || "";
+    const [cfgRes, nftRes] = await Promise.all([
+      fetch("/pixelpay/config").catch(() => null),
+      fetch("/pixelpay/nft-config").catch(() => null),
+    ]);
+    if (cfgRes && cfgRes.ok) {
+      const cfg = await cfgRes.json();
+      if (cfg.wallet_address) SERVER_WALLET = cfg.wallet_address;
+    }
+    if (nftRes && nftRes.ok) {
+      const nft = await nftRes.json();
+      NFT_CONTRACT = nft.nft_contract || "";
+      MARKET_CONTRACT = nft.marketplace_contract || "";
     }
   } catch (_) {}
 }
-loadNFTConfig();
+loadServerConfig();
 
 // ── Mint as NFT ──
 async function mintAsNFT() {
@@ -1834,6 +1841,7 @@ async function generatePaid() {
     // Decode request to get amount
     const requestJson = JSON.parse(b64urlDecode(challenge.request));
     const amount = BigInt(requestJson.amount);
+    const recipient = requestJson.recipient || SERVER_WALLET;
     const amountUsd = (Number(amount) / 1_000_000).toFixed(2);
 
     // Check balance
@@ -1846,7 +1854,7 @@ async function generatePaid() {
     btn.innerHTML = '<span class="spinner"></span>Approve $' + amountUsd + ' USDC...';
 
     const usdc = new ethers.Contract(USDC_TOKEN, ERC20_ABI, walletSigner);
-    const tx = await usdc.transfer(SERVER_WALLET, amount);
+    const tx = await usdc.transfer(recipient, amount);
 
     btn.innerHTML = '<span class="spinner"></span>Confirming tx...';
     const receipt = await tx.wait();
