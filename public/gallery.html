@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23fff'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='%23000'>P</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -134,11 +135,12 @@
       <div class="logo-icon">P</div>
       <div class="logo-text">PixelPay</div>
     </a>
-    <div class="nav-links">
+    <div class="nav-links" style="display:flex;align-items:center;gap:4px;">
       <a href="/">Generate</a>
       <a href="/v1/prices">Pricing</a>
       <a href="/marketplace">Marketplace</a>
       <a href="/swap">Swap</a>
+      <button id="walletBtn" onclick="connectWallet()" style="background:#fff;color:#000;border:none;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px;font-family:inherit;">Connect</button>
     </div>
   </nav>
 
@@ -171,6 +173,7 @@
         <button onclick="downloadModalImage()">&#11015; Download</button>
         <button onclick="copyPrompt()">&#128203; Copy Prompt</button>
         <button onclick="openInGenerator()">&#9998; Use Prompt</button>
+        <button id="modalMintBtn" onclick="mintFromGallery()">&#9734; Mint NFT</button>
       </div>
     </div>
   </div>
@@ -276,6 +279,74 @@ function openInGenerator() {
   if (currentModalItem.style) params.set("style", currentModalItem.style);
   window.location.href = "/?" + params.toString();
 }
+
+// ── Wallet Connection ──
+const TEMPO_CHAIN = { chainId: "0x1079", chainName: "Tempo", rpcUrls: ["https://rpc.tempo.xyz"], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] };
+let walletAddress = null, walletSigner = null, NFT_CONTRACT = "", NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)"];
+
+async function connectWallet() {
+  if (!window.ethereum) { alert("Install MetaMask or a Web3 wallet."); return; }
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1079" }] }); }
+    catch(e) { if (e.code === 4902) await window.ethereum.request({ method: "wallet_addEthereumChain", params: [TEMPO_CHAIN] }); }
+    walletSigner = await provider.getSigner();
+    walletAddress = await walletSigner.getAddress();
+    document.getElementById("walletBtn").textContent = walletAddress.slice(0,6) + "..." + walletAddress.slice(-4);
+    document.getElementById("walletBtn").style.background = "#111";
+    document.getElementById("walletBtn").style.color = "#0f0";
+    document.getElementById("walletBtn").style.border = "1px solid #333";
+  } catch(e) { console.error("Wallet connect error:", e); }
+}
+
+// Load NFT config
+fetch("/pixelpay/nft-config").then(r=>r.json()).then(c=>{ NFT_CONTRACT = c.nft_contract || ""; }).catch(()=>{});
+
+async function mintFromGallery() {
+  if (!currentModalItem) return;
+  if (!walletAddress || !walletSigner) { alert("Connect your wallet first."); return; }
+  if (!NFT_CONTRACT) { alert("NFT contract not configured."); return; }
+  const btn = document.getElementById("modalMintBtn");
+  btn.disabled = true; btn.textContent = "Uploading to IPFS...";
+  try {
+    // Upload image to IPFS
+    const uploadRes = await fetch("/v1/nft/upload", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_url: currentModalItem.image_url,
+        metadata: { name: (currentModalItem.prompt || "PixelPay NFT").slice(0,50), description: currentModalItem.prompt || "", attributes: [{ trait_type: "Model", value: currentModalItem.model || "" }, { trait_type: "Style", value: currentModalItem.style || "none" }] }
+      })
+    });
+    const upload = await uploadRes.json();
+    if (!upload.metadata_uri) throw new Error(upload.detail || "IPFS upload failed");
+    btn.textContent = "Minting on-chain...";
+    // Mint NFT
+    const contract = new ethers.Contract(NFT_CONTRACT, NFT_ABI, walletSigner);
+    const tx = await contract.mint(walletAddress, upload.metadata_uri);
+    btn.textContent = "Confirming tx...";
+    const receipt = await tx.wait();
+    // Get tokenId from Transfer event
+    let tokenId = null;
+    for (const log of receipt.logs) { try { const p = contract.interface.parseLog(log); if (p && p.name === "Transfer") { tokenId = p.args[2].toString(); break; } } catch(_){} }
+    if (!tokenId) { const supply = await contract.totalSupply(); tokenId = (supply - 1n).toString(); }
+    // Record mint
+    await fetch("/v1/nft/mint", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tokenId, wallet: walletAddress, prompt: currentModalItem.prompt, model: currentModalItem.model, style: currentModalItem.style, image_url: currentModalItem.image_url, metadata_uri: upload.metadata_uri, tx_hash: receipt.hash })
+    }).catch(()=>{});
+    btn.textContent = "Minted! #" + tokenId;
+    btn.style.color = "#0f0"; btn.style.borderColor = "#0f0";
+  } catch(e) {
+    console.error("Mint error:", e);
+    btn.textContent = "Mint failed";
+    btn.style.color = "#f44"; btn.style.borderColor = "#f44";
+    setTimeout(() => { btn.textContent = "☆ Mint NFT"; btn.style.color = ""; btn.style.borderColor = ""; btn.disabled = false; }, 3000);
+  }
+}
+
+// Auto-connect if wallet was previously connected
+if (localStorage.getItem("pixelpay_wallet") && window.ethereum) connectWallet();
 </script>
 </body>
 </html>
