@@ -5,3 +5,5 @@ node_modules/
 *.jpeg
 *.log
 .DS_Store
+artifacts/
+cache/
