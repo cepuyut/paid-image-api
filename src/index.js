@@ -43,8 +43,6 @@ const BASE_PRICING = {
   "fal-ai/flux-pro/v1.1":       { base: 99000,  tier: "pro", maxImages: 0 },
   // Recraft V3 (SVG + raster)
   "fal-ai/recraft-v3":          { base: 59000,  tier: "recraft", maxImages: 1 },
-  // Stable Diffusion 3.5
-  "fal-ai/stable-diffusion-v35-large": { base: 39000, tier: "sd35", maxImages: 1 },
   // HiDream (high quality)
   "fal-ai/hidream-i1-full":     { base: 79000,  tier: "hidream", maxImages: 0 },
   // Ideogram V3 (text-in-image)

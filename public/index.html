@@ -923,13 +923,13 @@
   <div class="hero">
     <div class="hero-badge"><span class="dot"></span> Live on Tempo</div>
     <h1>AI Images.<br>Pay per pixel.</h1>
-    <p class="hero-sub">Generate images from 9 models. No API keys, no signup. Pay with USDC on Tempo via MPP.</p>
+    <p class="hero-sub">Generate images from 8 models. No API keys, no signup. Pay with USDC on Tempo via MPP.</p>
   </div>
 
   <!-- Stats -->
   <div class="stats">
     <div class="stat">
-      <div class="stat-value">9</div>
+      <div class="stat-value">8</div>
       <div class="stat-label">Models</div>
     </div>
     <div class="stat">
@@ -977,7 +977,7 @@
   </div>
 
   <button class="expand-btn" id="expandPricing" onclick="toggleAllModels()">
-    <span id="expandText">View all 9 models</span>
+    <span id="expandText">View all 8 models</span>
     <svg id="expandArrow" width="14" height="14" viewBox="0 0 16 16" fill="none" style="transition:transform 0.2s"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
 
@@ -992,12 +992,7 @@
       <div class="model-price">$0.029</div>
       <div class="model-quality">Quick drafts</div>
     </div>
-    <div class="pricing-row">
-      <div class="model-name">SD 3.5</div>
-      <div class="model-price">$0.039</div>
-      <div class="model-quality">General use</div>
-    </div>
-    <div class="pricing-row">
+<div class="pricing-row">
       <div class="model-name">Dev <span class="tag">POPULAR</span></div>
       <div class="model-price">$0.049</div>
       <div class="model-quality">All-around</div>
@@ -1079,11 +1074,7 @@
               <div class="item-left"><span class="item-name">Schnell</span><span class="item-tier">Fast</span></div>
               <span class="item-price">$0.029</span>
             </div>
-            <div class="dropdown-item" data-value="fal-ai/stable-diffusion-v35-large" data-label="SD 3.5" data-price="$0.039" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">SD 3.5</span><span class="item-tier">Balanced</span></div>
-              <span class="item-price">$0.039</span>
-            </div>
-            <div class="dropdown-item active" data-value="fal-ai/flux/dev" data-label="Dev" data-price="$0.049" onclick="selectModel(this)">
+<div class="dropdown-item active" data-value="fal-ai/flux/dev" data-label="Dev" data-price="$0.049" onclick="selectModel(this)">
               <div class="item-left"><span class="item-name">Dev</span><span class="item-tier">Popular</span></div>
               <span class="item-price">$0.049</span>
             </div>
@@ -1914,7 +1905,7 @@ function toggleAllModels() {
   const arrow = document.getElementById("expandArrow");
   const open = table.style.display === "none";
   table.style.display = open ? "block" : "none";
-  text.textContent = open ? "Hide models" : "View all 9 models";
+  text.textContent = open ? "Hide models" : "View all 8 models";
   arrow.style.transform = open ? "rotate(180deg)" : "";
   btn.classList.toggle("open", open);
 }
@@ -1963,7 +1954,6 @@ const MODEL_MAX_IMAGES = {
   "fal-ai/flux/dev": 1,
   "fal-ai/flux-pro/v1.1": 0,
   "fal-ai/recraft-v3": 1,
-  "fal-ai/stable-diffusion-v35-large": 1,
   "fal-ai/hidream-i1-full": 0,
   "fal-ai/ideogram/v3": 0,
   "fal-ai/nano-banana-2": 14,
