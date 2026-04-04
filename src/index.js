@@ -883,7 +883,10 @@ app.get("/v1/nft/activity", async (_req, res) => {
 
 // NFT contract info
 app.get("/pixelpay/nft-config", (_req, res) => {
-  res.json({ nft_contract: NFT_CONTRACT, marketplace_contract: MARKET_CONTRACT });
+  res.json({
+    nft_contract: process.env.NFT_CONTRACT_ADDRESS || NFT_CONTRACT,
+    marketplace_contract: process.env.MARKETPLACE_CONTRACT_ADDRESS || MARKET_CONTRACT,
+  });
 });
 
 // Serve marketplace page
