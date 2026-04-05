@@ -464,25 +464,25 @@ async function loadTab(tab) {
 
 // ── Listings ──
 async function loadListings() {
+  if (isLoadingListings) return;
+  isLoadingListings = true;
   const grid = document.getElementById("listingsGrid");
-  const empty = document.getElementById("listingsEmpty");
   grid.innerHTML = '<div class="grid-loading"><div class="spinner"></div><p>Loading...</p></div>';
   try {
     const res = await fetch("/v1/nft/listings");
-    if (!res.ok) throw new Error("Failed to load");
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     if (!data.listings || data.listings.length === 0) {
-      grid.innerHTML = "";
-      grid.appendChild(empty);
-      empty.style.display = "";
+      grid.innerHTML = '<div class="empty-state"><div class="icon">&#9633;</div><p>No NFTs listed for sale yet.</p></div>';
       return;
     }
-    empty.style.display = "none";
     grid.innerHTML = data.listings.map(item => renderCard(item.nft, item)).join("");
   } catch (e) {
     console.error("Load listings error:", e);
     grid.innerHTML = '<div class="empty-state"><div class="icon">&#9633;</div><p>Failed to load. Please refresh.</p></div>';
     showToast("Failed to load listings", "error");
+  } finally {
+    isLoadingListings = false;
   }
 }
 
@@ -514,18 +514,15 @@ async function loadMyNFTs() {
 // ── Activity ──
 async function loadActivity() {
   const list = document.getElementById("activityList");
-  const empty = document.getElementById("activityEmpty");
   try {
     const res = await fetch("/v1/nft/activity");
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     const sales = data.sales || data.activity || [];
     if (sales.length === 0) {
-      list.innerHTML = "";
-      list.appendChild(empty);
-      empty.style.display = "";
+      list.innerHTML = '<div class="empty-state"><div class="icon">&#9633;</div><p>No sales activity yet.</p></div>';
       return;
     }
-    empty.style.display = "none";
     list.innerHTML = sales.map(sale => {
       const shortBuyer = sale.buyer ? sale.buyer.slice(0, 6) + "..." + sale.buyer.slice(-4) : "?";
       const shortSeller = sale.seller ? sale.seller.slice(0, 6) + "..." + sale.seller.slice(-4) : "?";
@@ -542,6 +539,7 @@ async function loadActivity() {
     }).join("");
   } catch (e) {
     console.error("Load activity error:", e);
+    list.innerHTML = '<div class="empty-state"><div class="icon">&#9633;</div><p>Failed to load activity.</p></div>';
   }
 }
 
@@ -810,17 +808,18 @@ function shortAddr(addr) {
 }
 
 // ── Init ──
+let isLoadingListings = false;
 async function init() {
   await loadConfig();
-  loadListings();
+  await loadListings();
   loadStats();
 
-  // Auto-reconnect wallet
+  // Auto-reconnect wallet (don't reload listings again if already loaded)
   if (window.ethereum) {
     try {
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (accounts.length > 0) {
-        handleWallet();
+        await handleWallet();
       }
     } catch (_) {}
   }
