@@ -274,17 +274,11 @@ async function loadMyGallery() {
 
 function renderGrid(items, emptyMsg) {
   const grid = document.getElementById("galleryGrid");
-  const empty = document.getElementById("emptyState");
-  const emptyText = document.getElementById("emptyText");
 
   if (!items || items.length === 0) {
-    emptyText.textContent = emptyMsg;
-    empty.style.display = "block";
-    grid.innerHTML = "";
-    grid.appendChild(empty);
+    grid.innerHTML = `<div class="empty-state"><div class="icon">&#9633;</div><p>${emptyMsg}</p></div>`;
     return;
   }
-  empty.style.display = "none";
 
   grid.innerHTML = items.map((item, idx) => {
     const safePrompt = (item.prompt || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
