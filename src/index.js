@@ -881,7 +881,16 @@ app.get("/v1/nft/by-creator/:wallet", async (req, res) => {
   }
 });
 
-// Get NFT by tokenId (dynamic route MUST be after static routes)
+// NFT stats (MUST be before /:tokenId)
+app.get("/v1/nft/stats", async (_req, res) => {
+  if (!redis) return res.json({ minted: 0 });
+  try {
+    const count = await redis.get("pixelpay:nft:counter");
+    res.json({ minted: Number(count) || 0 });
+  } catch(_) { res.json({ minted: 0 }); }
+});
+
+// Get NFT by tokenId (dynamic route MUST be after ALL static routes)
 app.get("/v1/nft/:tokenId", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   try {
@@ -986,14 +995,7 @@ app.delete("/v1/nft/listing/:tokenId", async (req, res) => {
   }
 });
 
-// NFT stats
-app.get("/v1/nft/stats", async (_req, res) => {
-  if (!redis) return res.json({ minted: 0 });
-  try {
-    const count = await redis.get("pixelpay:nft:counter");
-    res.json({ minted: Number(count) || 0 });
-  } catch(_) { res.json({ minted: 0 }); }
-});
+// NFT stats — MOVED: see before /:tokenId route
 
 // NFT contract info
 app.get("/pixelpay/nft-config", (_req, res) => {
