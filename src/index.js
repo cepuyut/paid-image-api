@@ -46,6 +46,14 @@ const PXP_ABI = parseAbi([
   "function totalSupply() view returns (uint256)",
 ]);
 const PATHUSD = "0x20C0000000000000000000000000000000000000";
+const USDC_TOKEN_ADDR = "0x20c000000000000000000000b9537d11c60e8b50";
+const MARKETPLACE_BUY_ABI = parseAbi(["function buy(uint256 tokenId) external"]);
+const NFT_TRANSFER_ABI = parseAbi(["function transferFrom(address from, address to, uint256 tokenId)"]);
+const USDC_ABI = parseAbi([
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)",
+]);
 const tempoChain = defineChain({
   id: 4217, name: "Tempo",
   nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 },
@@ -1030,6 +1038,112 @@ app.post("/v1/nft/buy", async (req, res) => {
   }
 });
 
+// Buy NFT with PXP tokens (20% discount, backend mediates on-chain)
+app.post("/v1/nft/buy-pxp", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  if (!PXP_TOKEN || !MARKET_CONTRACT || !NFT_CONTRACT) return res.status(503).json({ detail: "PXP/marketplace/NFT not configured." });
+  const { tokenId, buyer, pxp_tx_hash } = req.body || {};
+  if (tokenId == null || !buyer || !pxp_tx_hash) return res.status(400).json({ detail: "tokenId, buyer, and pxp_tx_hash required." });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(buyer)) return res.status(400).json({ detail: "Invalid buyer address." });
+
+  // Acquire lock to prevent double-buy race condition
+  const lockKey = `pixelpay:nft:buying:${tokenId}`;
+  const locked = await redis.set(lockKey, "1", { ex: 60, nx: true });
+  if (!locked) return res.status(409).json({ detail: "Purchase already in progress for this NFT." });
+
+  try {
+    const ld = await redis.get(`pixelpay:nft:listing:${tokenId}`);
+    if (!ld) return res.status(404).json({ detail: "Listing not found." });
+    const listing = typeof ld === "string" ? JSON.parse(ld) : ld;
+    if (listing.seller === buyer.toLowerCase()) return res.status(400).json({ detail: "Cannot buy your own listing." });
+
+    const usdcPrice = BigInt(listing.price);
+    // PXP price: 20% discount, 100 PXP = $1. pxp = usdc * 0.8 * 100 / 1e6 * 1e18 = usdc * 80 * 1e12
+    const pxpPrice = usdcPrice * 80n * 10n**12n;
+
+    // Verify PXP transfer actually happened on-chain
+    try {
+      const txReceipt = await pxpPublicClient.getTransactionReceipt({ hash: pxp_tx_hash });
+      if (!txReceipt || txReceipt.status !== "success") {
+        return res.status(400).json({ detail: "PXP transfer not confirmed on-chain." });
+      }
+    } catch (verifyErr) {
+      return res.status(400).json({ detail: "Could not verify PXP transfer: " + verifyErr.message });
+    }
+
+    // Check backend USDC balance
+    const usdcBal = await pxpPublicClient.readContract({
+      address: USDC_TOKEN_ADDR, abi: USDC_ABI,
+      functionName: "balanceOf", args: [walletAccount.address],
+    });
+    if (usdcBal < usdcPrice) return res.status(400).json({ detail: "Insufficient treasury USDC. Try regular USDC purchase." });
+
+    // Approve USDC for marketplace if needed
+    const allowance = await pxpPublicClient.readContract({
+      address: USDC_TOKEN_ADDR, abi: USDC_ABI,
+      functionName: "allowance", args: [walletAccount.address, MARKET_CONTRACT],
+    });
+    if (allowance < usdcPrice) {
+      const appHash = await pxpWalletClient.writeContract({
+        address: USDC_TOKEN_ADDR, abi: USDC_ABI,
+        functionName: "approve", args: [MARKET_CONTRACT, usdcPrice * 10n],
+        feeToken: PATHUSD,
+      });
+      await pxpPublicClient.waitForTransactionReceipt({ hash: appHash });
+    }
+
+    // Buy on marketplace (USDC → seller, NFT → backend wallet)
+    const buyHash = await pxpWalletClient.writeContract({
+      address: MARKET_CONTRACT, abi: MARKETPLACE_BUY_ABI,
+      functionName: "buy", args: [BigInt(tokenId)],
+      feeToken: PATHUSD,
+    });
+    await pxpPublicClient.waitForTransactionReceipt({ hash: buyHash });
+
+    // Transfer NFT from backend wallet to buyer
+    let nftHash;
+    try {
+      nftHash = await pxpWalletClient.writeContract({
+        address: NFT_CONTRACT, abi: NFT_TRANSFER_ABI,
+        functionName: "transferFrom", args: [walletAccount.address, buyer, BigInt(tokenId)],
+        feeToken: PATHUSD,
+      });
+      await pxpPublicClient.waitForTransactionReceipt({ hash: nftHash });
+    } catch (transferErr) {
+      console.error(`PXP buy: NFT transfer failed after marketplace buy! tokenId=${tokenId} buyer=${buyer} buyTx=${buyHash}`);
+      return res.status(500).json({ detail: "NFT purchased but transfer failed. Contact support with tx: " + buyHash });
+    }
+
+    // Update Redis (same as regular buy)
+    const nd = await redis.get(`pixelpay:nft:${tokenId}`);
+    const nft = nd ? (typeof nd === "string" ? JSON.parse(nd) : nd) : null;
+    const sale = {
+      tokenId: Number(tokenId), buyer: buyer.toLowerCase(), seller: listing.seller,
+      price: listing.price, payment: "pxp", pxp_amount: pxpPrice.toString(),
+      tx_hash: pxp_tx_hash, buy_tx_hash: buyHash, timestamp: Date.now(),
+      image_url: nft?.image_url || null, name: nft?.prompt || null,
+    };
+    await redis.lpush("pixelpay:nft:sales", JSON.stringify(sale));
+    await redis.del(`pixelpay:nft:listing:${tokenId}`);
+    await redis.lrem("pixelpay:nft:listings", 1, tokenId);
+    if (nft) {
+      const oldOwner = nft.wallet;
+      nft.wallet = buyer.toLowerCase();
+      await redis.set(`pixelpay:nft:${tokenId}`, JSON.stringify(nft));
+      await redis.lpush(`pixelpay:nft:by_owner:${buyer.toLowerCase()}`, tokenId);
+      if (oldOwner) await redis.lrem(`pixelpay:nft:by_owner:${oldOwner}`, 1, tokenId);
+    }
+    if (listing?.seller) mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
+    console.log(`PXP buy: #${tokenId} buyer=${buyer.slice(0,8)}.. PXP=${Number(pxpPrice/10n**18n)} buy_tx=${buyHash.slice(0,10)}`);
+    res.json({ ok: true, sale, pxp_price: pxpPrice.toString(), buy_tx: buyHash, nft_tx: nftHash });
+  } catch (err) {
+    console.error("PXP buy error:", err.message);
+    res.status(500).json({ detail: "PXP purchase failed: " + err.message });
+  } finally {
+    await redis.del(lockKey);
+  }
+});
+
 // Cancel a listing (requires seller query param for validation)
 app.delete("/v1/nft/listing/:tokenId", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
@@ -1089,6 +1203,9 @@ app.get("/pixelpay/nft-config", (_req, res) => {
     nft_contract: process.env.NFT_CONTRACT_ADDRESS || NFT_CONTRACT,
     marketplace_contract: process.env.MARKETPLACE_CONTRACT_ADDRESS || MARKET_CONTRACT,
     pxp_token: process.env.PXP_TOKEN_ADDRESS || "",
+    treasury_wallet: DERIVED_WALLET_ADDRESS,
+    pxp_rate: 100, // 100 PXP = $1
+    pxp_discount: 20, // 20% discount
     pxp_rewards: { generate: 10, mint_nft: 50, first_sale: 100, publish: 5 },
   });
 });

@@ -148,18 +148,34 @@
     .modal-attr-label { color: var(--muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
     .modal-attr-value { color: var(--text); font-weight: 500; margin-top: 2px; }
     .modal-price-row {
-      display: flex; align-items: center; justify-content: space-between;
       padding: 16px 0; border-top: 1px solid var(--border);
     }
     .modal-price { font-size: 24px; font-weight: 800; color: var(--green); }
     .modal-price-label { font-size: 11px; color: var(--muted); }
-    .btn-buy {
-      background: var(--white); color: #000; border: none; padding: 12px 28px;
-      border-radius: 10px; font-size: 14px; font-weight: 700; font-family: inherit;
-      cursor: pointer; transition: all 0.2s;
+    .buy-options { display: flex; gap: 10px; margin-top: 14px; }
+    .buy-option {
+      flex: 1; padding: 14px; border-radius: 12px; cursor: pointer;
+      border: 1px solid var(--border2); background: var(--surface2);
+      transition: all 0.2s; text-align: center; font-family: inherit;
+      position: relative; overflow: hidden;
     }
-    .btn-buy:hover { opacity: 0.9; }
-    .btn-buy:disabled { opacity: 0.4; cursor: not-allowed; }
+    .buy-option:hover { border-color: var(--border-hover); transform: translateY(-1px); }
+    .buy-option:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .buy-option .pay-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+    .buy-option .pay-amount { font-size: 18px; font-weight: 800; color: var(--white); }
+    .buy-option .pay-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .buy-option.pxp {
+      background: linear-gradient(135deg, #0d1117, #112030);
+      border-color: rgba(0, 212, 123, 0.2);
+    }
+    .buy-option.pxp:hover { border-color: rgba(0, 212, 123, 0.5); }
+    .buy-option.pxp .pay-amount { color: #00d47b; }
+    .buy-option.pxp .discount-tag {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(0, 212, 123, 0.15); color: #00d47b;
+      font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
     .btn-list {
       background: var(--surface2); color: var(--white); border: 1px solid var(--border2);
       padding: 12px 28px; border-radius: 10px; font-size: 14px; font-weight: 700;
@@ -267,7 +283,7 @@
 
   <div class="page-header">
     <h1>NFT Marketplace</h1>
-    <p>Buy and sell AI-generated art as NFTs. Powered by USDC on Tempo.</p>
+    <p>Buy and sell AI-generated art as NFTs. Pay with USDC or PXP (20% off) on Tempo.</p>
     <div class="header-stats">
       <div class="stat">
         <span class="stat-value" id="statListings">-</span>
@@ -398,6 +414,12 @@ const MARKET_ABI = [
 
 let NFT_CONTRACT = "";
 let MARKET_CONTRACT = "";
+let PXP_TOKEN_ADDR = "";
+let TREASURY_WALLET = "";
+const PXP_ERC20_ABI = [
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function balanceOf(address) view returns (uint256)"
+];
 let walletConnected = false;
 let walletAddress = null;
 let walletSigner = null;
@@ -412,6 +434,8 @@ async function loadConfig() {
       const cfg = await res.json();
       NFT_CONTRACT = cfg.nft_contract || "";
       MARKET_CONTRACT = cfg.marketplace_contract || "";
+      PXP_TOKEN_ADDR = cfg.pxp_token || "";
+      TREASURY_WALLET = cfg.treasury_wallet || "";
     }
   } catch (_) {}
 }
@@ -640,9 +664,23 @@ async function openNFT(tokenId) {
           <div><div class="modal-price">$${priceUsd}</div><div class="modal-price-label">Listed price</div></div>
           <button class="btn-cancel-listing" onclick="cancelListing('${tokenId}')">Cancel Listing</button>`;
       } else {
+        const pxpAmount = (Number(listing.price) / 1e6 * 0.8 * 100).toFixed(0);
+        const originalPxp = (Number(listing.price) / 1e6 * 100).toFixed(0);
         actions.innerHTML = `
-          <div><div class="modal-price">$${priceUsd}</div><div class="modal-price-label">Price in USDC</div></div>
-          <button class="btn-buy" id="buyBtn" onclick="buyNFT('${tokenId}', '${listing.price}')">Buy Now</button>`;
+          <div><div class="modal-price">$${priceUsd}</div><div class="modal-price-label">Choose payment method</div></div>
+          <div class="buy-options">
+            <button class="buy-option" id="buyBtn" onclick="buyNFT('${tokenId}', '${listing.price}')">
+              <div class="pay-label">Pay with USDC</div>
+              <div class="pay-amount">$${priceUsd}</div>
+              <div class="pay-sub">Stablecoin</div>
+            </button>
+            ${PXP_TOKEN_ADDR ? `<button class="buy-option pxp" id="buyPxpBtn" onclick="buyWithPXP('${tokenId}', '${listing.price}')">
+              <span class="discount-tag">-20%</span>
+              <div class="pay-label">Pay with PXP</div>
+              <div class="pay-amount">${pxpAmount} PXP</div>
+              <div class="pay-sub"><s>${originalPxp}</s> &rarr; ${pxpAmount}</div>
+            </button>` : ''}
+          </div>`;
       }
     } else if (isOwner) {
       actions.innerHTML = `
@@ -760,8 +798,7 @@ async function buyNFT(tokenId, priceStr) {
       body: JSON.stringify({ tokenId, buyer: walletAddress, price: priceStr, tx_hash: receipt.hash })
     }).catch(() => {});
 
-    btn.innerHTML = '&#10003; Purchased!';
-    btn.style.color = 'var(--green)';
+    btn.innerHTML = '<div class="pay-label" style="color:var(--green)">&#10003; Purchased!</div>';
     showToast("NFT purchased successfully!", "success");
     setTimeout(() => {
       closeModal();
@@ -770,9 +807,69 @@ async function buyNFT(tokenId, priceStr) {
     }, 1500);
   } catch (e) {
     console.error("Buy error:", e);
-    btn.innerHTML = "Buy Now";
+    const p = (Number(priceStr) / 1e6).toFixed(2);
+    btn.innerHTML = `<div class="pay-label">Pay with USDC</div><div class="pay-amount">$${p}</div><div class="pay-sub">Stablecoin</div>`;
     btn.disabled = false;
     showToast("Purchase failed: " + (e.reason || e.message), "error");
+  }
+}
+
+// ── Buy with PXP (20% discount) ──
+async function buyWithPXP(tokenId, priceStr) {
+  if (!walletConnected || !walletSigner || !PXP_TOKEN_ADDR || !TREASURY_WALLET) {
+    alert("Connect your wallet first."); return;
+  }
+  const btn = document.getElementById("buyPxpBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Checking PXP balance...';
+  try {
+    const usdcPrice = BigInt(priceStr);
+    // 20% discount: pxpAmount = usdcPrice * 0.8 * 100 / 1e6 * 1e18 = usdcPrice * 80 * 1e12
+    const pxpAmount = usdcPrice * 80n * 10n**12n;
+
+    // Check PXP balance
+    const pxpContract = new ethers.Contract(PXP_TOKEN_ADDR, PXP_ERC20_ABI, walletSigner);
+    const bal = await pxpContract.balanceOf(walletAddress);
+    if (bal < pxpAmount) {
+      const needed = Number(pxpAmount / 10n**18n);
+      const have = Number(bal / 10n**18n);
+      showToast(`Insufficient PXP. Need ${needed}, have ${have}`, "error");
+      btn.innerHTML = "Insufficient PXP";
+      btn.disabled = false;
+      return;
+    }
+
+    // Transfer PXP to treasury
+    btn.innerHTML = '<span class="spinner"></span>Sending PXP to treasury...';
+    const txPxp = await pxpContract.transfer(TREASURY_WALLET, pxpAmount);
+    btn.innerHTML = '<span class="spinner"></span>Confirming PXP transfer...';
+    const receipt = await txPxp.wait();
+
+    // Call backend to execute marketplace buy + NFT transfer
+    btn.innerHTML = '<span class="spinner"></span>Processing purchase...';
+    const resp = await fetch("/v1/nft/buy-pxp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tokenId, buyer: walletAddress, pxp_tx_hash: receipt.hash })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || "Purchase failed");
+
+    btn.innerHTML = '<div class="pay-label" style="color:#00d47b">&#10003; Purchased!</div>';
+    showToast("NFT purchased with PXP! 20% saved!", "success");
+    refreshPXP(walletAddress);
+    setTimeout(() => {
+      closeModal();
+      loadTab(currentTab);
+      loadStats();
+    }, 1500);
+  } catch (e) {
+    console.error("PXP buy error:", e);
+    const pxpAmt = (Number(priceStr) / 1e6 * 0.8 * 100).toFixed(0);
+    const origPxp = (Number(priceStr) / 1e6 * 100).toFixed(0);
+    btn.innerHTML = `<span class="discount-tag">-20%</span><div class="pay-label">Pay with PXP</div><div class="pay-amount">${pxpAmt} PXP</div><div class="pay-sub"><s>${origPxp}</s> &rarr; ${pxpAmt}</div>`;
+    btn.disabled = false;
+    showToast("PXP purchase failed: " + (e.reason || e.message), "error");
   }
 }
 
