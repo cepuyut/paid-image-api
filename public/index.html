@@ -1345,7 +1345,7 @@ const TEMPO_RPC = "https://rpc.tempo.xyz";
 const USDC_TOKEN = "0x20c000000000000000000000b9537d11c60e8b50";
 let SERVER_WALLET = "0xf48c6E46358652fC77462d56d609B8bC7f4ba82e"; // fallback, overridden by /v1/config
 const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)", "function balanceOf(address) view returns (uint256)"];
-const NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)", "function approve(address to, uint256 tokenId)", "function setApprovalForAll(address operator, bool approved)"];
+const NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)", "function approve(address to, uint256 tokenId)", "function setApprovalForAll(address operator, bool approved)", "event Minted(uint256 indexed tokenId, address indexed creator, string tokenURI)", "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"];
 let NFT_CONTRACT = "";
 let MARKET_CONTRACT = "";
 const DEMO_LIMIT = 1;
@@ -1759,16 +1759,20 @@ async function mintAsNFT() {
     btn.innerHTML = '<span class="spinner"></span>Confirming tx...';
     const receipt = await tx.wait();
 
-    // Extract tokenId from Minted event
+    // Extract tokenId from Minted or Transfer event
     let tokenId = null;
     for (const log of receipt.logs) {
       try {
         const parsed = nftContract.interface.parseLog({ topics: log.topics, data: log.data });
-        if (parsed && parsed.name === "Minted") {
-          tokenId = parsed.args.tokenId.toString();
+        if (parsed && (parsed.name === "Minted" || parsed.name === "Transfer")) {
+          tokenId = (parsed.args.tokenId || parsed.args[2]).toString();
           break;
         }
       } catch (_) {}
+    }
+    // Fallback: use totalSupply - 1
+    if (tokenId == null) {
+      try { const supply = await nftContract.totalSupply(); tokenId = (supply - 1n).toString(); } catch(_) {}
     }
 
     // 3. Record mint in backend
@@ -1778,12 +1782,11 @@ async function mintAsNFT() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tokenId,
-          creator: walletAddress,
-          owner: walletAddress,
-          metadata_uri,
-          name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
-          image_url: lastResultImgSrc.startsWith("data:") ? null : lastResultImgSrc,
+          wallet: walletAddress,
+          prompt: lastResultPrompt,
           model: lastResultModel || "unknown",
+          image_url: lastResultImgSrc.startsWith("data:") ? null : lastResultImgSrc,
+          metadata_uri,
           tx_hash: receipt.hash
         })
       }).catch(() => {});

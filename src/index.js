@@ -938,6 +938,15 @@ app.delete("/v1/nft/listing/:tokenId", async (req, res) => {
   }
 });
 
+// NFT stats
+app.get("/v1/nft/stats", async (_req, res) => {
+  if (!redis) return res.json({ minted: 0 });
+  try {
+    const count = await redis.get("pixelpay:nft:counter");
+    res.json({ minted: Number(count) || 0 });
+  } catch(_) { res.json({ minted: 0 }); }
+});
+
 // NFT contract info
 app.get("/pixelpay/nft-config", (_req, res) => {
   res.json({
