@@ -816,7 +816,8 @@ app.get("/v1/nft/listings", async (req, res) => {
       if (!ld) continue;
       const listing = typeof ld === "string" ? JSON.parse(ld) : ld;
       const nd = await redis.get(`pixelpay:nft:${id}`);
-      const nft = nd ? (typeof nd === "string" ? JSON.parse(nd) : nd) : null;
+      if (!nd) continue; // skip listings with missing NFT data
+      const nft = typeof nd === "string" ? JSON.parse(nd) : nd;
       listings.push({ ...listing, nft });
     }
     res.json({ listings, total: listings.length });
@@ -889,8 +890,19 @@ app.post("/v1/nft/list", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const { tokenId, seller, price } = req.body || {};
   if (tokenId == null || !seller || !price) return res.status(400).json({ detail: "tokenId, seller, price required." });
-  const listing = { tokenId: Number(tokenId), seller: seller.toLowerCase(), price, listedAt: Date.now() };
   try {
+    // Verify seller owns this NFT
+    const nd = await redis.get(`pixelpay:nft:${tokenId}`);
+    if (!nd) return res.status(404).json({ detail: "NFT not found." });
+    const nft = typeof nd === "string" ? JSON.parse(nd) : nd;
+    if (nft.wallet?.toLowerCase() !== seller.toLowerCase()) {
+      return res.status(403).json({ detail: "You don't own this NFT." });
+    }
+    // Check not already listed
+    const existing = await redis.get(`pixelpay:nft:listing:${tokenId}`);
+    if (existing) return res.status(409).json({ detail: "NFT already listed." });
+
+    const listing = { tokenId: Number(tokenId), seller: seller.toLowerCase(), price, listedAt: Date.now() };
     await redis.set(`pixelpay:nft:listing:${tokenId}`, JSON.stringify(listing));
     await redis.lpush("pixelpay:nft:listings", tokenId);
     res.json({ ok: true, listing });
@@ -903,17 +915,34 @@ app.post("/v1/nft/list", async (req, res) => {
 app.post("/v1/nft/buy", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const { tokenId, buyer, tx_hash } = req.body || {};
-  if (tokenId == null || !buyer) return res.status(400).json({ detail: "tokenId and buyer required." });
+  if (tokenId == null || !buyer || !tx_hash) return res.status(400).json({ detail: "tokenId, buyer, and tx_hash required." });
   try {
+    // Verify listing exists
     const ld = await redis.get(`pixelpay:nft:listing:${tokenId}`);
-    const listing = ld ? (typeof ld === "string" ? JSON.parse(ld) : ld) : null;
-    const sale = { tokenId: Number(tokenId), buyer: buyer.toLowerCase(), seller: listing?.seller, price: listing?.price, tx_hash, timestamp: Date.now() };
+    if (!ld) return res.status(404).json({ detail: "Listing not found." });
+    const listing = typeof ld === "string" ? JSON.parse(ld) : ld;
+
+    // Prevent self-buy
+    if (listing.seller === buyer.toLowerCase()) {
+      return res.status(400).json({ detail: "Cannot buy your own listing." });
+    }
+
+    // Record sale with NFT metadata for activity feed
+    const nd = await redis.get(`pixelpay:nft:${tokenId}`);
+    const nft = nd ? (typeof nd === "string" ? JSON.parse(nd) : nd) : null;
+    const sale = {
+      tokenId: Number(tokenId), buyer: buyer.toLowerCase(), seller: listing.seller,
+      price: listing.price, tx_hash, timestamp: Date.now(),
+      image_url: nft?.image_url || null, name: nft?.prompt || null,
+    };
     await redis.lpush("pixelpay:nft:sales", JSON.stringify(sale));
+
+    // Remove listing
     await redis.del(`pixelpay:nft:listing:${tokenId}`);
     await redis.lrem("pixelpay:nft:listings", 1, tokenId);
-    const nd = await redis.get(`pixelpay:nft:${tokenId}`);
-    if (nd) {
-      const nft = typeof nd === "string" ? JSON.parse(nd) : nd;
+
+    // Transfer ownership in backend
+    if (nft) {
       const oldOwner = nft.wallet;
       nft.wallet = buyer.toLowerCase();
       await redis.set(`pixelpay:nft:${tokenId}`, JSON.stringify(nft));
@@ -926,10 +955,18 @@ app.post("/v1/nft/buy", async (req, res) => {
   }
 });
 
-// Cancel a listing
+// Cancel a listing (requires seller query param for validation)
 app.delete("/v1/nft/listing/:tokenId", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  const seller = req.query.seller;
   try {
+    const ld = await redis.get(`pixelpay:nft:listing:${req.params.tokenId}`);
+    if (!ld) return res.status(404).json({ detail: "Listing not found." });
+    const listing = typeof ld === "string" ? JSON.parse(ld) : ld;
+    // Verify the caller is the seller
+    if (seller && listing.seller !== seller.toLowerCase()) {
+      return res.status(403).json({ detail: "Only the seller can cancel." });
+    }
     await redis.del(`pixelpay:nft:listing:${req.params.tokenId}`);
     await redis.lrem("pixelpay:nft:listings", 1, req.params.tokenId);
     res.json({ ok: true });

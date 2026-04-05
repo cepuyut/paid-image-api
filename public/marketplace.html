@@ -744,7 +744,7 @@ async function cancelListing(tokenId) {
     const tx = await marketContract.cancel(tokenId);
     await tx.wait();
 
-    await fetch("/v1/nft/listing/" + tokenId, { method: "DELETE" }).catch(() => {});
+    await fetch("/v1/nft/listing/" + tokenId + "?seller=" + walletAddress, { method: "DELETE" }).catch(() => {});
 
     closeModal();
     loadTab(currentTab);
