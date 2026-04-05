@@ -995,7 +995,38 @@ app.delete("/v1/nft/listing/:tokenId", async (req, res) => {
   }
 });
 
-// NFT stats — MOVED: see before /:tokenId route
+// User profile: owned NFTs, created NFTs, transaction history
+app.get("/v1/user/:wallet/profile", async (req, res) => {
+  if (!redis) return res.json({ owned: [], created: [], history: [] });
+  const wallet = req.params.wallet.toLowerCase();
+  try {
+    // Owned NFTs
+    const ownedIds = await redis.lrange(`pixelpay:nft:by_owner:${wallet}`, 0, 99);
+    const owned = [];
+    for (const id of ownedIds) {
+      const d = await redis.get(`pixelpay:nft:${id}`);
+      if (d) owned.push(typeof d === "string" ? JSON.parse(d) : d);
+    }
+    // Created NFTs
+    const createdIds = await redis.lrange(`pixelpay:nft:by_creator:${wallet}`, 0, 99);
+    const created = [];
+    for (const id of createdIds) {
+      const d = await redis.get(`pixelpay:nft:${id}`);
+      if (d) created.push(typeof d === "string" ? JSON.parse(d) : d);
+    }
+    // Transaction history (sales involving this wallet)
+    const allSales = await redis.lrange("pixelpay:nft:sales", 0, 99);
+    const history = allSales
+      .map(s => typeof s === "string" ? JSON.parse(s) : s)
+      .filter(s => s.buyer === wallet || s.seller === wallet)
+      .map(s => ({ ...s, type: s.buyer === wallet ? "buy" : "sell" }));
+    // Gallery count
+    const galleryCount = await redis.llen(`pixelpay:user_gallery:${wallet}`);
+    res.json({ owned, created, history, galleryCount, total_owned: owned.length, total_created: created.length });
+  } catch (err) {
+    res.status(500).json({ detail: "Failed to load profile." });
+  }
+});
 
 // NFT contract info
 app.get("/pixelpay/nft-config", (_req, res) => {
@@ -1013,6 +1044,11 @@ app.get("/marketplace", (_req, res) => {
 // Serve swap page
 app.get("/swap", (_req, res) => {
   res.sendFile(join(ROOT, "public", "swap.html"));
+});
+
+// Serve profile page
+app.get("/profile", (_req, res) => {
+  res.sendFile(join(ROOT, "public", "profile.html"));
 });
 
 // ---------------------------------------------------------------------------

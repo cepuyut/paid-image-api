@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — PixelPay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23fff'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='%23000'>P</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #000000; --surface: #0a0a0a; --surface2: #111111; --surface3: #161616;
+      --border: #1a1a1a; --border2: #262626; --border-hover: #333333;
+      --text: #fafafa; --text2: #e5e5e5; --muted: #737373; --muted2: #525252;
+      --white: #ffffff; --green: #00d47b; --green-dim: #00d47b18;
+      --red: #ff4444; --radius: 10px;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 0; border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--white); }
+    .logo-icon {
+      width: 32px; height: 32px; background: var(--white); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 17px; color: #000;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
+    .nav-right { display: flex; align-items: center; gap: 4px; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
+      padding: 6px 12px; border-radius: 6px; transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--white); }
+    .nav-links a.active { color: var(--white); }
+    .btn-wallet {
+      background: var(--white); color: #000; border: none; padding: 8px 16px;
+      border-radius: 10px; font-size: 13px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.2s; margin-left: 8px;
+    }
+    .btn-wallet:hover { opacity: 0.9; }
+    .btn-wallet.connected { background: var(--surface2); color: var(--green); border: 1px solid var(--border2); }
+
+    /* Profile header */
+    .profile-header {
+      padding: 48px 0 32px; display: flex; align-items: center; gap: 24px;
+    }
+    .profile-avatar {
+      width: 80px; height: 80px; background: var(--surface2); border: 2px solid var(--border2);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800; color: var(--green); flex-shrink: 0;
+    }
+    .profile-info h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; }
+    .profile-address {
+      font-size: 13px; color: var(--muted); font-family: monospace;
+      cursor: pointer; transition: color 0.15s;
+    }
+    .profile-address:hover { color: var(--white); }
+    .profile-stats {
+      display: flex; gap: 24px; margin-top: 8px;
+    }
+    .profile-stat { display: flex; flex-direction: column; }
+    .profile-stat-value { font-size: 18px; font-weight: 700; color: var(--white); }
+    .profile-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+    .tab {
+      padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+      background: none; border-top: none; border-left: none; border-right: none; font-family: inherit;
+    }
+    .tab:hover { color: var(--text2); }
+    .tab.active { color: var(--white); border-bottom-color: var(--white); }
+
+    /* NFT grid */
+    .nft-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px; padding-bottom: 32px;
+    }
+    .nft-card {
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      background: var(--surface); transition: border-color 0.2s; cursor: pointer;
+    }
+    .nft-card:hover { border-color: var(--border2); }
+    .nft-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--surface2); }
+    .nft-card .info { padding: 10px 12px; }
+    .nft-card .name {
+      font-size: 13px; font-weight: 600; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .nft-card .meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* History */
+    .history-item {
+      display: flex; align-items: center; gap: 14px; padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-item img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+    .history-info { flex: 1; min-width: 0; }
+    .history-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-detail { font-size: 11px; color: var(--muted); }
+    .history-right { text-align: right; flex-shrink: 0; }
+    .history-price { font-size: 14px; font-weight: 700; }
+    .history-price.buy { color: var(--red); }
+    .history-price.sell { color: var(--green); }
+    .history-type {
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .history-type.buy { background: rgba(255,68,68,0.1); color: var(--red); }
+    .history-type.sell { background: var(--green-dim); color: var(--green); }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+    .grid-loading { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--muted); }
+    .grid-loading .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border2); border-top-color: var(--white); border-radius: 50%; animation: spin 0.6s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .connect-prompt {
+      text-align: center; padding: 100px 20px;
+    }
+    .connect-prompt h2 { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .connect-prompt p { color: var(--muted); margin-bottom: 24px; }
+    .connect-prompt button {
+      background: var(--white); color: #000; border: none; padding: 12px 32px;
+      border-radius: 10px; font-size: 15px; font-weight: 700; font-family: inherit;
+      cursor: pointer;
+    }
+
+    /* Toast */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+      padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 500;
+      animation: toastIn 0.3s ease; min-width: 240px; max-width: 360px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.success { border-color: var(--green); }
+    .toast.error { border-color: var(--red); }
+    .toast-icon { font-size: 16px; flex-shrink: 0; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-8px); } }
+
+    footer {
+      text-align: center; padding: 32px 0; color: var(--muted2); font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--white); }
+
+    @media (max-width: 640px) {
+      .profile-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .profile-stats { gap: 16px; }
+      .nft-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .nav-links a:not(.active) { display: none; }
+      .toast-container { left: 16px; right: 16px; }
+      .toast { min-width: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <nav>
+    <a href="/" class="logo">
+      <div class="logo-icon">P</div>
+      <div class="logo-text">PixelPay</div>
+    </a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/">Generate</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/marketplace">Marketplace</a>
+        <a href="/swap">Swap</a>
+      </div>
+      <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>
+    </div>
+  </nav>
+
+  <!-- Connect prompt (shown when no wallet) -->
+  <div id="connectPrompt" class="connect-prompt">
+    <h2>Your Profile</h2>
+    <p>Connect your wallet to view your NFTs, creations, and transaction history.</p>
+    <button onclick="handleWallet()">Connect Wallet</button>
+  </div>
+
+  <!-- Profile content (shown when wallet connected) -->
+  <div id="profileContent" style="display:none">
+    <div class="profile-header">
+      <div class="profile-avatar" id="profileAvatar">P</div>
+      <div class="profile-info">
+        <h1 id="profileName">PixelPay User</h1>
+        <div class="profile-address" id="profileAddress" onclick="copyAddress()" title="Click to copy">0x...</div>
+        <div class="profile-stats">
+          <div class="profile-stat">
+            <span class="profile-stat-value" id="statOwned">0</span>
+            <span class="profile-stat-label">Owned</span>
+          </div>
+          <div class="profile-stat">
+            <span class="profile-stat-value" id="statCreated">0</span>
+            <span class="profile-stat-label">Created</span>
+          </div>
+          <div class="profile-stat">
+            <span class="profile-stat-value" id="statGallery">0</span>
+            <span class="profile-stat-label">Gallery</span>
+          </div>
+          <div class="profile-stat">
+            <span class="profile-stat-value" id="statTxns">0</span>
+            <span class="profile-stat-label">Trades</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('owned')">Owned</button>
+      <button class="tab" onclick="switchTab('created')">Created</button>
+      <button class="tab" onclick="switchTab('history')">History</button>
+    </div>
+
+    <div id="ownedTab">
+      <div class="nft-grid" id="ownedGrid">
+        <div class="grid-loading"><div class="spinner"></div><p>Loading...</p></div>
+      </div>
+    </div>
+
+    <div id="createdTab" style="display:none">
+      <div class="nft-grid" id="createdGrid"></div>
+    </div>
+
+    <div id="historyTab" style="display:none">
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <footer>
+    PixelPay &mdash; Built on <a href="https://tempo.xyz">Tempo</a> with <a href="https://mpp.dev">MPP</a> &middot; <a href="https://x.com/PixelPayAPI">@PixelPayAPI</a>
+  </footer>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const TEMPO_CHAIN_ID = 4217;
+const TEMPO_RPC = "https://rpc.tempo.xyz";
+let walletConnected = false;
+let walletAddress = null;
+let profileData = null;
+let currentTab = "owned";
+
+function showToast(msg, type = "info") {
+  const c = document.getElementById("toastContainer");
+  const icon = type === "success" ? "&#10003;" : type === "error" ? "&#10007;" : "&#8505;";
+  const t = document.createElement("div");
+  t.className = "toast " + type;
+  t.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.animation = "toastOut 0.3s ease forwards"; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+// ── Wallet ──
+async function handleWallet() {
+  if (walletConnected) return;
+  if (!window.ethereum) { alert("Install a Web3 wallet (e.g. MetaMask) to continue."); return; }
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const net = await provider.getNetwork();
+    if (Number(net.chainId) !== TEMPO_CHAIN_ID) {
+      try {
+        await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16) }] });
+      } catch (e) {
+        if (e.code === 4902) {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16), chainName: "Tempo", rpcUrls: [TEMPO_RPC], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 } }]
+          });
+        }
+      }
+    }
+    const signer = await provider.getSigner();
+    walletAddress = await signer.getAddress();
+    walletConnected = true;
+    const btn = document.getElementById("walletBtn");
+    btn.textContent = walletAddress.slice(0, 6) + "..." + walletAddress.slice(-4);
+    btn.classList.add("connected");
+    showProfile();
+  } catch (e) {
+    console.error("Wallet error:", e);
+    showToast("Failed to connect wallet", "error");
+  }
+}
+
+function showProfile() {
+  document.getElementById("connectPrompt").style.display = "none";
+  document.getElementById("profileContent").style.display = "";
+  document.getElementById("profileAddress").textContent = walletAddress;
+  document.getElementById("profileAvatar").textContent = walletAddress.slice(2, 4).toUpperCase();
+  loadProfile();
+}
+
+async function copyAddress() {
+  await navigator.clipboard.writeText(walletAddress);
+  showToast("Address copied!", "success");
+}
+
+// ── Load profile ──
+async function loadProfile() {
+  try {
+    const res = await fetch(`/v1/user/${walletAddress}/profile`);
+    if (!res.ok) throw new Error("Failed");
+    profileData = await res.json();
+
+    document.getElementById("statOwned").textContent = profileData.total_owned || 0;
+    document.getElementById("statCreated").textContent = profileData.total_created || 0;
+    document.getElementById("statGallery").textContent = profileData.galleryCount || 0;
+    document.getElementById("statTxns").textContent = profileData.history?.length || 0;
+
+    renderTab();
+  } catch (e) {
+    console.error("Profile error:", e);
+    showToast("Failed to load profile", "error");
+  }
+}
+
+// ── Tabs ──
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll(".tab").forEach((t, i) => {
+    t.classList.toggle("active", ["owned", "created", "history"][i] === tab);
+  });
+  document.getElementById("ownedTab").style.display = tab === "owned" ? "" : "none";
+  document.getElementById("createdTab").style.display = tab === "created" ? "" : "none";
+  document.getElementById("historyTab").style.display = tab === "history" ? "" : "none";
+  renderTab();
+}
+
+function renderTab() {
+  if (!profileData) return;
+  if (currentTab === "owned") renderNFTGrid("ownedGrid", profileData.owned, "You don't own any NFTs yet.");
+  else if (currentTab === "created") renderNFTGrid("createdGrid", profileData.created, "You haven't created any NFTs yet.");
+  else if (currentTab === "history") renderHistory();
+}
+
+function renderNFTGrid(gridId, nfts, emptyMsg) {
+  const grid = document.getElementById(gridId);
+  if (!nfts || nfts.length === 0) {
+    grid.innerHTML = `<div class="empty-state"><div class="icon">&#9633;</div><p>${emptyMsg}</p></div>`;
+    return;
+  }
+  grid.innerHTML = nfts.map(nft => {
+    const name = (nft.prompt || nft.name || "NFT #" + nft.tokenId).slice(0, 50).replace(/</g, "&lt;");
+    const model = nft.model ? nft.model.replace("fal-ai/", "") : "";
+    return `<div class="nft-card" onclick="window.location.href='/marketplace'">
+      <img src="${nft.image_url || ''}" alt="${name}" loading="lazy" onerror="this.style.background='var(--surface3)'">
+      <div class="info">
+        <div class="name" title="${name}">#${nft.tokenId || '?'} ${name}</div>
+        <div class="meta">${model}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderHistory() {
+  const list = document.getElementById("historyList");
+  const history = profileData.history || [];
+  if (history.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">&#9633;</div><p>No transaction history yet.</p></div>';
+    return;
+  }
+  list.innerHTML = history.map(tx => {
+    const name = (tx.name || "NFT #" + tx.tokenId).replace(/</g, "&lt;");
+    const price = tx.price ? "$" + (Number(tx.price) / 1e6).toFixed(2) : "";
+    const counterparty = tx.type === "buy"
+      ? "from " + shortAddr(tx.seller)
+      : "to " + shortAddr(tx.buyer);
+    const ago = timeAgo(tx.timestamp);
+    return `<div class="history-item">
+      <img src="${tx.image_url || ''}" alt="" onerror="this.style.display='none'">
+      <div class="history-info">
+        <div class="history-name">${name}</div>
+        <div class="history-detail">${counterparty} &middot; ${ago}</div>
+      </div>
+      <div class="history-right">
+        <div class="history-price ${tx.type}">${tx.type === "buy" ? "-" : "+"}${price}</div>
+        <span class="history-type ${tx.type}">${tx.type === "buy" ? "Bought" : "Sold"}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function shortAddr(addr) {
+  if (!addr) return "?";
+  return addr.slice(0, 6) + "..." + addr.slice(-4);
+}
+
+function timeAgo(ts) {
+  if (!ts) return "";
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + "h ago";
+  const days = Math.floor(hrs / 24);
+  return days + "d ago";
+}
+
+// ── Init ──
+async function init() {
+  if (window.ethereum) {
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      if (accounts.length > 0) { await handleWallet(); }
+    } catch (_) {}
+  }
+}
+init();
+</script>
+</body>
+</html>
