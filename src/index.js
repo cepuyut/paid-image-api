@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
+import { createWalletClient, createPublicClient, http, defineChain, parseAbi } from "viem";
 import { Mppx, tempo } from "mppx/client";
 import { Redis } from "@upstash/redis";
 
@@ -34,6 +35,50 @@ Mppx.create({
 console.log(`MPP client initialized — wallet ${DERIVED_WALLET_ADDRESS}`);
 
 const FAL_MPP_BASE = "https://fal.mpp.tempo.xyz";
+
+// ---------------------------------------------------------------------------
+// PXP Token — reward minting via backend wallet
+// ---------------------------------------------------------------------------
+const PXP_TOKEN = process.env.PXP_TOKEN_ADDRESS || "";
+const PXP_ABI = parseAbi([
+  "function mint(address to, uint256 amount)",
+  "function balanceOf(address) view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+]);
+const PATHUSD = "0x20C0000000000000000000000000000000000000";
+const tempoChain = defineChain({
+  id: 4217, name: "Tempo",
+  nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 },
+  rpcUrls: { default: { http: ["https://rpc.tempo.xyz"] } },
+});
+const pxpPublicClient = createPublicClient({ chain: tempoChain, transport: http() });
+const pxpWalletClient = createWalletClient({ chain: tempoChain, transport: http(), account: walletAccount });
+
+// Reward amounts (18 decimals)
+const PXP_REWARDS = {
+  generate: 10n * 10n**18n,       // 10 PXP per generate
+  mint_nft: 50n * 10n**18n,       // 50 PXP per NFT mint
+  first_sale: 100n * 10n**18n,    // 100 PXP per first sale
+  publish: 5n * 10n**18n,         // 5 PXP per gallery publish
+};
+
+async function mintPXP(toAddress, amount, reason) {
+  if (!PXP_TOKEN || !toAddress) return null;
+  try {
+    const hash = await pxpWalletClient.writeContract({
+      address: PXP_TOKEN,
+      abi: PXP_ABI,
+      functionName: "mint",
+      args: [toAddress, amount],
+      feeToken: PATHUSD,
+    });
+    console.log(`PXP reward: ${Number(amount / 10n**18n)} PXP → ${toAddress.slice(0,8)}... (${reason}) tx:${hash.slice(0,10)}`);
+    return hash;
+  } catch (err) {
+    console.error("PXP mint error:", err.message);
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Config
@@ -416,6 +461,8 @@ app.post("/v1/images/generate", async (req, res) => {
       if (imgUrl) {
         gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, wallet: reqWallet || null, timestamp: Date.now() }, !isPrivate);
       }
+      // PXP reward for generating
+      if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "generate").catch(() => {});
     }
 
     trackRequest();
@@ -569,6 +616,8 @@ app.post("/api/demo", async (req, res) => {
       if (img0.url) {
         gallerySave({ prompt, model: usedModel, style: style || null, image_url: img0.url, wallet: reqWallet || null, timestamp: Date.now() }, !isPrivate);
       }
+      // PXP reward for generating
+      if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "generate").catch(() => {});
     }
 
     res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, ...(usedSeed != null ? { seed: usedSeed } : {}), ...(style ? { style } : {}), cached: !!cached });
@@ -604,6 +653,8 @@ app.post("/v1/gallery/publish", async (req, res) => {
     const entry = { prompt, model, style: style || null, image_url, seed: seed || null, wallet: wallet.toLowerCase(), timestamp: Date.now() };
     await redis.lpush(GALLERY_KEY, JSON.stringify(entry));
     await redis.ltrim(GALLERY_KEY, 0, MAX_GALLERY - 1);
+    // PXP reward for publishing
+    mintPXP(wallet.toLowerCase(), PXP_REWARDS.publish, "publish").catch(() => {});
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ detail: "Failed to publish." });
@@ -809,6 +860,8 @@ app.post("/v1/nft/mint", async (req, res) => {
     await redis.lpush(`pixelpay:nft:by_creator:${wallet.toLowerCase()}`, tokenId);
     await redis.lpush("pixelpay:nft:all", tokenId);
     await redis.incr("pixelpay:nft:counter");
+    // PXP reward for minting NFT
+    mintPXP(wallet.toLowerCase(), PXP_REWARDS.mint_nft, "mint_nft").catch(() => {});
     res.json({ ok: true, nft: entry });
   } catch (err) {
     console.error("NFT mint record error:", err.message);
@@ -969,6 +1022,8 @@ app.post("/v1/nft/buy", async (req, res) => {
       await redis.lpush(`pixelpay:nft:by_owner:${buyer.toLowerCase()}`, tokenId);
       if (oldOwner) await redis.lrem(`pixelpay:nft:by_owner:${oldOwner}`, 1, tokenId);
     }
+    // PXP reward for seller (first sale bonus)
+    if (listing?.seller) mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
     res.json({ ok: true, sale });
   } catch (err) {
     res.status(500).json({ detail: "Failed to record sale." });
@@ -1033,7 +1088,41 @@ app.get("/pixelpay/nft-config", (_req, res) => {
   res.json({
     nft_contract: process.env.NFT_CONTRACT_ADDRESS || NFT_CONTRACT,
     marketplace_contract: process.env.MARKETPLACE_CONTRACT_ADDRESS || MARKET_CONTRACT,
+    pxp_token: process.env.PXP_TOKEN_ADDRESS || "",
+    pxp_rewards: { generate: 10, mint_nft: 50, first_sale: 100, publish: 5 },
   });
+});
+
+// PXP balance for a wallet
+app.get("/v1/pxp/balance/:wallet", async (req, res) => {
+  if (!PXP_TOKEN) return res.json({ balance: "0", formatted: "0" });
+  try {
+    const bal = await pxpPublicClient.readContract({
+      address: PXP_TOKEN, abi: PXP_ABI,
+      functionName: "balanceOf", args: [req.params.wallet],
+    });
+    const formatted = (Number(bal) / 1e18).toFixed(2);
+    res.json({ balance: bal.toString(), formatted });
+  } catch (err) {
+    res.json({ balance: "0", formatted: "0" });
+  }
+});
+
+// PXP token info
+app.get("/v1/pxp/info", async (_req, res) => {
+  if (!PXP_TOKEN) return res.json({ address: "", totalSupply: "0" });
+  try {
+    const supply = await pxpPublicClient.readContract({
+      address: PXP_TOKEN, abi: PXP_ABI, functionName: "totalSupply",
+    });
+    res.json({
+      address: PXP_TOKEN, name: "PixelPay Token", symbol: "PXP",
+      maxSupply: "21000000", totalSupply: (Number(supply) / 1e18).toFixed(2),
+      rewards: { generate: 10, mint_nft: 50, first_sale: 100, publish: 5 },
+    });
+  } catch (err) {
+    res.json({ address: PXP_TOKEN, totalSupply: "0" });
+  }
 });
 
 // Serve marketplace page
