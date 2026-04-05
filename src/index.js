@@ -711,20 +711,31 @@ const PINATA_JWT = process.env.PINATA_JWT || "";
 
 app.post("/v1/nft/upload", async (req, res) => {
   if (!PINATA_JWT) return res.status(503).json({ detail: "IPFS not configured (PINATA_JWT missing)." });
-  const { image_b64, content_type, metadata } = req.body || {};
+  const { image_b64, image_url, content_type, metadata } = req.body || {};
 
   try {
     let imageIpfsHash;
+    let imgBuf;
+    let imgContentType = content_type || "image/png";
 
-    // Upload image (base64 → binary → Pinata)
+    // Get image buffer from base64 or URL
     if (image_b64) {
-      const imgBuf = Buffer.from(image_b64, "base64");
-      const ext = (content_type || "image/png").split("/")[1] || "png";
+      imgBuf = Buffer.from(image_b64, "base64");
+    } else if (image_url) {
+      const imgRes = await fetch(image_url);
+      if (!imgRes.ok) throw new Error(`Failed to fetch image: ${imgRes.status}`);
+      imgContentType = imgRes.headers.get("content-type") || imgContentType;
+      imgBuf = Buffer.from(await imgRes.arrayBuffer());
+    }
+
+    // Upload image to Pinata
+    if (imgBuf) {
+      const ext = imgContentType.split("/")[1] || "png";
       const boundary = "----PinataFormBoundary" + Date.now();
       const fileName = `pixelpay-${Date.now()}.${ext}`;
 
       const bodyParts = [
-        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${content_type || "image/png"}\r\n\r\n`,
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${imgContentType}\r\n\r\n`,
       ];
       const bodyEnd = `\r\n--${boundary}--\r\n`;
 
