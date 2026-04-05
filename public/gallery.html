@@ -138,9 +138,30 @@
     footer a { color: var(--muted); text-decoration: none; }
     footer a:hover { color: var(--white); }
 
+    /* Toast */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+      padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 500;
+      animation: toastIn 0.3s ease; min-width: 240px; max-width: 360px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.success { border-color: var(--green); }
+    .toast.error { border-color: var(--red, #ff4444); }
+    .toast-icon { font-size: 16px; flex-shrink: 0; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-8px); } }
+
+    /* Loading */
+    .grid-loading { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--muted); }
+    .grid-loading .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border2); border-top-color: var(--white); border-radius: 50%; animation: spin 0.6s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     @media (max-width: 640px) {
       .page-header h1 { font-size: 28px; }
       .gallery-grid { grid-template-columns: 1fr; }
+      .toast-container { left: 16px; right: 16px; }
+      .toast { min-width: auto; }
     }
   </style>
 </head>
@@ -202,6 +223,8 @@
   </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script>
 let galleryItems = [];
 let publicItems = [];
@@ -209,6 +232,21 @@ let currentModalItem = null;
 let currentModalIdx = -1;
 let currentTab = "my";
 let publicImageUrls = new Set();
+
+// ── Toast ──
+function showToast(msg, type = "info") {
+  const c = document.getElementById("toastContainer");
+  const icon = type === "success" ? "&#10003;" : type === "error" ? "&#10007;" : "&#8505;";
+  const t = document.createElement("div");
+  t.className = "toast " + type;
+  t.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.animation = "toastOut 0.3s ease forwards"; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+function showGridLoading() {
+  document.getElementById("galleryGrid").innerHTML = '<div class="grid-loading"><div class="spinner"></div><p>Loading...</p></div>';
+}
 
 // ── Wallet ──
 const TEMPO_CHAIN = { chainId: "0x1079", chainName: "Tempo", rpcUrls: ["https://rpc.tempo.xyz"], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] };
@@ -228,7 +266,10 @@ async function connectWallet() {
     btn.style.background = "#111"; btn.style.color = "#0f0"; btn.style.border = "1px solid #333";
     localStorage.setItem("pixelpay_wallet", walletAddress);
     loadMyGallery();
-  } catch(e) { console.error("Wallet connect error:", e); }
+  } catch(e) {
+    console.error("Wallet connect error:", e);
+    showToast("Failed to connect wallet", "error");
+  }
 }
 
 fetch("/pixelpay/nft-config").then(r=>r.json()).then(c=>{ NFT_CONTRACT = c.nft_contract || ""; }).catch(()=>{});
@@ -248,28 +289,42 @@ function switchTab(tab) {
 
 // ── Load galleries ──
 async function loadPublicGallery() {
+  showGridLoading();
   try {
     const res = await fetch("/v1/gallery");
+    if (!res.ok) throw new Error("Failed to load");
     const data = await res.json();
     publicItems = (data.images || []).filter(i => i.image_url);
     publicImageUrls = new Set(publicItems.map(i => i.image_url));
     renderGrid(publicItems, "No public images yet. Be the first to publish!");
-  } catch(e) { console.error("Public gallery error:", e); }
+  } catch(e) {
+    console.error("Public gallery error:", e);
+    renderGrid([], "Failed to load gallery. Please refresh.");
+    showToast("Failed to load public gallery", "error");
+  }
 }
 
 async function loadMyGallery() {
   if (!walletAddress) return;
+  showGridLoading();
   try {
-    // Load public list to know which are published
-    const pubRes = await fetch("/v1/gallery");
-    const pubData = await pubRes.json();
-    publicImageUrls = new Set((pubData.images || []).filter(i => i.wallet?.toLowerCase() === walletAddress.toLowerCase()).map(i => i.image_url));
-
-    const res = await fetch(`/v1/gallery/my/${walletAddress}`);
+    const [pubRes, res] = await Promise.all([
+      fetch("/v1/gallery"),
+      fetch(`/v1/gallery/my/${walletAddress}`)
+    ]);
+    if (pubRes.ok) {
+      const pubData = await pubRes.json();
+      publicImageUrls = new Set((pubData.images || []).filter(i => i.wallet?.toLowerCase() === walletAddress.toLowerCase()).map(i => i.image_url));
+    }
+    if (!res.ok) throw new Error("Failed to load");
     const data = await res.json();
     galleryItems = (data.images || []).filter(i => i.image_url);
     renderGrid(galleryItems, "No images yet. Generate your first image!");
-  } catch(e) { console.error("My gallery error:", e); }
+  } catch(e) {
+    console.error("My gallery error:", e);
+    renderGrid([], "Failed to load gallery. Please refresh.");
+    showToast("Failed to load your gallery", "error");
+  }
 }
 
 function renderGrid(items, emptyMsg) {
@@ -412,8 +467,10 @@ async function togglePublish() {
     }
     // Re-render grid to update badges
     if (currentTab === "my") renderGrid(galleryItems, "");
+    showToast(isPublished ? "Removed from public gallery" : "Published to public gallery", "success");
   } catch(e) {
     btn.textContent = "Error";
+    showToast("Failed to " + (isPublished ? "unpublish" : "publish"), "error");
     setTimeout(() => { btn.textContent = isPublished ? "\ud83c\udf10 Unpublish" : "\ud83c\udf10 Publish"; }, 2000);
   }
   btn.disabled = false;
@@ -450,10 +507,12 @@ async function mintFromGallery() {
     }).catch(()=>{});
     btn.textContent = "Minted! #" + tokenId;
     btn.style.color = "#0f0"; btn.style.borderColor = "#0f0";
+    showToast("NFT minted successfully! Token #" + tokenId, "success");
   } catch(e) {
     console.error("Mint error:", e);
     btn.textContent = "Mint failed";
     btn.style.color = "#f44"; btn.style.borderColor = "#f44";
+    showToast("Mint failed: " + (e.reason || e.message || "Unknown error"), "error");
     setTimeout(() => { btn.textContent = "\u2606 Mint NFT"; btn.style.color = ""; btn.style.borderColor = ""; btn.disabled = false; }, 3000);
   }
 }
