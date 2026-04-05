@@ -44,6 +44,11 @@
     }
     .nav-links a:hover { color: var(--white); }
     .nav-links a.active { color: var(--white); }
+    .pxp-badge {
+      background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #00d47b44;
+      color: #00d47b; padding: 6px 12px; border-radius: 8px; font-size: 12px;
+      font-weight: 600; font-family: inherit; white-space: nowrap;
+    }
     .btn-wallet {
       background: var(--white); color: #000; border: none; padding: 8px 16px;
       border-radius: 10px; font-size: 13px; font-weight: 600; font-family: inherit;
@@ -255,6 +260,7 @@
         <a href="/marketplace" class="active">Marketplace</a>
         <a href="/swap">Swap</a>
       </div>
+      <span class="pxp-badge" id="pxpBal" style="display:none">0 PXP</span>
       <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>
     </div>
   </nav>
@@ -437,6 +443,7 @@ async function handleWallet() {
     const btn = document.getElementById("walletBtn");
     btn.textContent = walletAddress.slice(0, 6) + "..." + walletAddress.slice(-4);
     btn.classList.add("connected");
+    refreshPXP(walletAddress);
     // Reload current tab
     loadTab(currentTab);
   } catch (e) {
@@ -805,6 +812,17 @@ function timeAgo(ts) {
 function shortAddr(addr) {
   if (!addr) return "?";
   return addr.slice(0, 6) + "..." + addr.slice(-4);
+}
+
+async function refreshPXP(addr) {
+  try {
+    const r = await fetch("/v1/pxp/balance/" + addr);
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById("pxpBal");
+    el.textContent = d.formatted + " PXP";
+    el.style.display = "";
+  } catch(_){}
 }
 
 // ── Init ──

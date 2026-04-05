@@ -102,6 +102,11 @@
       gap: 6px;
     }
     .btn-wallet:hover { opacity: 0.85; }
+    .pxp-badge {
+      background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #00d47b44;
+      color: #00d47b; padding: 6px 12px; border-radius: 8px; font-size: 12px;
+      font-weight: 600; font-family: inherit; white-space: nowrap;
+    }
     .btn-wallet.connected {
       background: var(--surface2);
       color: var(--white);
@@ -917,6 +922,7 @@
         <a href="/swap">Swap</a>
         <a href="/llms.txt">Docs</a>
       </div>
+      <span class="pxp-badge" id="pxpBal" style="display:none" title="PXP Token Balance">0 PXP</span>
       <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>
     </div>
   </nav>
@@ -1435,6 +1441,7 @@ async function connectWallet(silent) {
     document.getElementById("modeHint").innerHTML = '<span class="wallet-mode">Wallet connected</span> &middot; Unlimited';
 
     await refreshBalance(provider, address);
+    refreshPXP(address);
 
     document.getElementById("walletBanner").style.display = "flex";
     document.getElementById("bannerAddr").textContent = shortAddr;
@@ -1475,6 +1482,17 @@ async function refreshBalance(provider, address) {
     document.getElementById("bannerBalance").textContent = "Balance unavailable";
     console.error("Balance error:", err);
   }
+}
+
+async function refreshPXP(address) {
+  try {
+    const res = await fetch("/v1/pxp/balance/" + address);
+    if (!res.ok) return;
+    const data = await res.json();
+    const el = document.getElementById("pxpBal");
+    el.textContent = data.formatted + " PXP";
+    el.style.display = "";
+  } catch (_) {}
 }
 
 // ── Parse WWW-Authenticate header ──
