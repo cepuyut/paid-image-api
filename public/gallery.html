@@ -30,9 +30,7 @@
     }
     .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--white); }
     .logo-icon {
-      width: 32px; height: 32px;
-      background: var(--white);
-      border-radius: 8px;
+      width: 32px; height: 32px; background: var(--white); border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
       font-weight: 800; font-size: 17px; color: #000;
     }
@@ -43,9 +41,23 @@
     }
     .nav-links a:hover { color: var(--white); }
 
-    .page-header { padding: 48px 0 32px; text-align: center; }
+    .page-header { padding: 48px 0 16px; text-align: center; }
     .page-header h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.04em; color: var(--white); margin-bottom: 8px; }
     .page-header p { color: var(--muted); font-size: 15px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; padding-top: 16px; }
+    .tab {
+      padding: 10px 20px; font-size: 14px; font-weight: 600; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
+      background: none; border-top: none; border-left: none; border-right: none; font-family: inherit;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--white); border-bottom-color: var(--white); }
+    .tab .badge {
+      background: var(--surface2); border: 1px solid var(--border2); padding: 1px 6px;
+      border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 6px;
+    }
 
     .gallery-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -53,7 +65,7 @@
     }
     .gallery-card {
       border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
-      background: var(--surface); transition: border-color 0.2s;
+      background: var(--surface); transition: border-color 0.2s; cursor: pointer; position: relative;
     }
     .gallery-card:hover { border-color: var(--border2); }
     .gallery-card img {
@@ -69,15 +81,19 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-top: 6px; font-size: 11px; color: var(--muted);
     }
-    .gallery-card .card-meta .style-tag {
+    .card-meta .style-tag {
       background: var(--surface2); border: 1px solid var(--border2);
       padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
     }
-
-    .gallery-card { cursor: pointer; }
+    .public-badge {
+      position: absolute; top: 8px; right: 8px; background: rgba(0,212,123,0.9);
+      color: #000; font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: 4px; text-transform: uppercase;
+    }
 
     .empty-state {
       text-align: center; padding: 80px 20px; color: var(--muted);
+      grid-column: 1 / -1;
     }
     .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
     .empty-state p { font-size: 15px; }
@@ -92,14 +108,9 @@
       background: var(--surface); border: 1px solid var(--border2); border-radius: 16px;
       max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;
     }
-    .modal-content img {
-      width: 100%; display: block; border-radius: 16px 16px 0 0;
-    }
+    .modal-content img { width: 100%; display: block; border-radius: 16px 16px 0 0; }
     .modal-body { padding: 20px; }
-    .modal-prompt {
-      font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 12px;
-      word-break: break-word;
-    }
+    .modal-prompt { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; word-break: break-word; }
     .modal-meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .modal-actions button {
@@ -108,10 +119,16 @@
       cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
     .modal-actions button:hover { border-color: var(--white); color: var(--white); }
+    .modal-actions button.published { border-color: var(--green); color: var(--green); }
     .modal-close {
       position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.6);
       border: none; color: white; width: 36px; height: 36px; border-radius: 50%;
       font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+
+    .btn-wallet {
+      background: #fff; color: #000; border: none; padding: 8px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer; margin-left: 8px; font-family: inherit;
     }
 
     footer {
@@ -140,19 +157,24 @@
       <a href="/v1/prices">Pricing</a>
       <a href="/marketplace">Marketplace</a>
       <a href="/swap">Swap</a>
-      <button id="walletBtn" onclick="connectWallet()" style="background:#fff;color:#000;border:none;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px;font-family:inherit;">Connect</button>
+      <button id="walletBtn" onclick="connectWallet()" class="btn-wallet">Connect</button>
     </div>
   </nav>
 
   <div class="page-header">
-    <h1>Public Gallery</h1>
-    <p>Recent generations from the PixelPay community. Set <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:13px;">private: true</code> to opt out.</p>
+    <h1>Gallery</h1>
+    <p>Your images are private by default. Publish your favorites to the public gallery.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('my')" id="tabMy">My Gallery</button>
+    <button class="tab" onclick="switchTab('public')" id="tabPublic">Public Gallery</button>
   </div>
 
   <div class="gallery-grid" id="galleryGrid">
     <div class="empty-state" id="emptyState">
       <div class="icon">&#9633;</div>
-      <p>No images yet. Be the first to generate!</p>
+      <p id="emptyText">Connect your wallet to see your images.</p>
     </div>
   </div>
 
@@ -174,6 +196,7 @@
         <button onclick="copyPrompt()">&#128203; Copy Prompt</button>
         <button onclick="openInGenerator()">&#9998; Use Prompt</button>
         <button id="modalMintBtn" onclick="mintFromGallery()">&#9734; Mint NFT</button>
+        <button id="modalPublishBtn" onclick="togglePublish()" style="display:none">&#127758; Publish</button>
       </div>
     </div>
   </div>
@@ -181,43 +204,108 @@
 
 <script>
 let galleryItems = [];
+let publicItems = [];
 let currentModalItem = null;
+let currentModalIdx = -1;
+let currentTab = "my";
+let publicImageUrls = new Set();
 
-async function loadGallery() {
+// ── Wallet ──
+const TEMPO_CHAIN = { chainId: "0x1079", chainName: "Tempo", rpcUrls: ["https://rpc.tempo.xyz"], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] };
+let walletAddress = null, walletSigner = null, NFT_CONTRACT = "", NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)"];
+
+async function connectWallet() {
+  if (!window.ethereum) { alert("Install MetaMask or a Web3 wallet."); return; }
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1079" }] }); }
+    catch(e) { if (e.code === 4902) await window.ethereum.request({ method: "wallet_addEthereumChain", params: [TEMPO_CHAIN] }); }
+    walletSigner = await provider.getSigner();
+    walletAddress = await walletSigner.getAddress();
+    const btn = document.getElementById("walletBtn");
+    btn.textContent = walletAddress.slice(0,6) + "..." + walletAddress.slice(-4);
+    btn.style.background = "#111"; btn.style.color = "#0f0"; btn.style.border = "1px solid #333";
+    localStorage.setItem("pixelpay_wallet", walletAddress);
+    loadMyGallery();
+  } catch(e) { console.error("Wallet connect error:", e); }
+}
+
+fetch("/pixelpay/nft-config").then(r=>r.json()).then(c=>{ NFT_CONTRACT = c.nft_contract || ""; }).catch(()=>{});
+
+// ── Tabs ──
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById("tabMy").classList.toggle("active", tab === "my");
+  document.getElementById("tabPublic").classList.toggle("active", tab === "public");
+  if (tab === "my") {
+    if (walletAddress) loadMyGallery();
+    else renderGrid([], "Connect your wallet to see your images.");
+  } else {
+    loadPublicGallery();
+  }
+}
+
+// ── Load galleries ──
+async function loadPublicGallery() {
   try {
     const res = await fetch("/v1/gallery");
     const data = await res.json();
-    const grid = document.getElementById("galleryGrid");
-    const empty = document.getElementById("emptyState");
+    publicItems = (data.images || []).filter(i => i.image_url);
+    publicImageUrls = new Set(publicItems.map(i => i.image_url));
+    renderGrid(publicItems, "No public images yet. Be the first to publish!");
+  } catch(e) { console.error("Public gallery error:", e); }
+}
 
-    if (!data.images || data.images.length === 0) {
-      empty.style.display = "block";
-      return;
-    }
-    empty.style.display = "none";
+async function loadMyGallery() {
+  if (!walletAddress) return;
+  try {
+    // Load public list to know which are published
+    const pubRes = await fetch("/v1/gallery");
+    const pubData = await pubRes.json();
+    publicImageUrls = new Set((pubData.images || []).filter(i => i.wallet?.toLowerCase() === walletAddress.toLowerCase()).map(i => i.image_url));
 
-    galleryItems = data.images.filter(i => i.image_url);
-    grid.innerHTML = galleryItems.map((item, idx) => {
-      const imgSrc = item.image_url;
-      const safePrompt = (item.prompt || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-      const shortModel = (item.model || "").replace("fal-ai/", "");
-      const ago = timeAgo(item.timestamp);
-      const styleTag = item.style ? `<span class="style-tag">${item.style}</span>` : "";
-      return `
-        <div class="gallery-card" onclick="openModal(${idx})">
-          <img src="${imgSrc}" alt="${safePrompt}" loading="lazy">
-          <div class="card-info">
-            <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
-            <div class="card-meta">
-              <span>${shortModel} &middot; ${ago}</span>
-              ${styleTag}
-            </div>
-          </div>
-        </div>`;
-    }).join("");
-  } catch (err) {
-    console.error("Gallery load error:", err);
+    const res = await fetch(`/v1/gallery/my/${walletAddress}`);
+    const data = await res.json();
+    galleryItems = (data.images || []).filter(i => i.image_url);
+    renderGrid(galleryItems, "No images yet. Generate your first image!");
+  } catch(e) { console.error("My gallery error:", e); }
+}
+
+function renderGrid(items, emptyMsg) {
+  const grid = document.getElementById("galleryGrid");
+  const empty = document.getElementById("emptyState");
+  const emptyText = document.getElementById("emptyText");
+
+  if (!items || items.length === 0) {
+    emptyText.textContent = emptyMsg;
+    empty.style.display = "block";
+    grid.innerHTML = "";
+    grid.appendChild(empty);
+    return;
   }
+  empty.style.display = "none";
+
+  grid.innerHTML = items.map((item, idx) => {
+    const safePrompt = (item.prompt || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    const shortModel = (item.model || "").replace("fal-ai/", "");
+    const ago = timeAgo(item.timestamp);
+    const styleTag = item.style ? `<span class="style-tag">${item.style}</span>` : "";
+    const isPublished = currentTab === "my" && publicImageUrls.has(item.image_url);
+    const pubBadge = isPublished ? '<div class="public-badge">Public</div>' : '';
+    return `
+      <div class="gallery-card" onclick="openModal(${idx})">
+        ${pubBadge}
+        <img src="${item.image_url}" alt="${safePrompt}" loading="lazy">
+        <div class="card-info">
+          <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
+          <div class="card-meta">
+            <span>${shortModel} &middot; ${ago}</span>
+            ${styleTag}
+          </div>
+        </div>
+      </div>`;
+  }).join("");
 }
 
 function timeAgo(ts) {
@@ -230,19 +318,36 @@ function timeAgo(ts) {
   return Math.floor(hrs / 24) + "d ago";
 }
 
-loadGallery();
-setInterval(loadGallery, 30000);
-
+// ── Modal ──
 function openModal(idx) {
-  const item = galleryItems[idx];
+  const items = currentTab === "my" ? galleryItems : publicItems;
+  const item = items[idx];
   if (!item) return;
   currentModalItem = item;
+  currentModalIdx = idx;
   document.getElementById("modalImg").src = item.image_url;
   document.getElementById("modalPrompt").textContent = item.prompt || "";
   const model = (item.model || "").replace("fal-ai/", "");
-  const style = item.style ? ` · ${item.style}` : "";
+  const style = item.style ? ` \u00b7 ${item.style}` : "";
   const ago = timeAgo(item.timestamp);
-  document.getElementById("modalMeta").textContent = `${model}${style} · ${ago}`;
+  document.getElementById("modalMeta").textContent = `${model}${style} \u00b7 ${ago}`;
+
+  // Show publish button only in My Gallery tab
+  const pubBtn = document.getElementById("modalPublishBtn");
+  if (currentTab === "my" && walletAddress) {
+    pubBtn.style.display = "";
+    const isPublished = publicImageUrls.has(item.image_url);
+    pubBtn.textContent = isPublished ? "\ud83c\udf10 Unpublish" : "\ud83c\udf10 Publish";
+    pubBtn.classList.toggle("published", isPublished);
+  } else {
+    pubBtn.style.display = "none";
+  }
+
+  // Reset mint button
+  const mintBtn = document.getElementById("modalMintBtn");
+  mintBtn.textContent = "\u2606 Mint NFT";
+  mintBtn.style.color = ""; mintBtn.style.borderColor = ""; mintBtn.disabled = false;
+
   document.getElementById("imageModal").classList.add("open");
   document.body.style.overflow = "hidden";
 }
@@ -280,29 +385,47 @@ function openInGenerator() {
   window.location.href = "/?" + params.toString();
 }
 
-// ── Wallet Connection ──
-const TEMPO_CHAIN = { chainId: "0x1079", chainName: "Tempo", rpcUrls: ["https://rpc.tempo.xyz"], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] };
-let walletAddress = null, walletSigner = null, NFT_CONTRACT = "", NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)"];
-
-async function connectWallet() {
-  if (!window.ethereum) { alert("Install MetaMask or a Web3 wallet."); return; }
+// ── Publish / Unpublish ──
+async function togglePublish() {
+  if (!currentModalItem || !walletAddress) return;
+  const btn = document.getElementById("modalPublishBtn");
+  const isPublished = publicImageUrls.has(currentModalItem.image_url);
+  btn.disabled = true;
+  btn.textContent = isPublished ? "Unpublishing..." : "Publishing...";
   try {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    await window.ethereum.request({ method: "eth_requestAccounts" });
-    try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1079" }] }); }
-    catch(e) { if (e.code === 4902) await window.ethereum.request({ method: "wallet_addEthereumChain", params: [TEMPO_CHAIN] }); }
-    walletSigner = await provider.getSigner();
-    walletAddress = await walletSigner.getAddress();
-    document.getElementById("walletBtn").textContent = walletAddress.slice(0,6) + "..." + walletAddress.slice(-4);
-    document.getElementById("walletBtn").style.background = "#111";
-    document.getElementById("walletBtn").style.color = "#0f0";
-    document.getElementById("walletBtn").style.border = "1px solid #333";
-  } catch(e) { console.error("Wallet connect error:", e); }
+    const endpoint = isPublished ? "/v1/gallery/unpublish" : "/v1/gallery/publish";
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_url: currentModalItem.image_url,
+        wallet: walletAddress,
+        prompt: currentModalItem.prompt,
+        model: currentModalItem.model,
+        style: currentModalItem.style,
+        seed: currentModalItem.seed
+      })
+    });
+    if (!res.ok) throw new Error("Failed");
+    if (isPublished) {
+      publicImageUrls.delete(currentModalItem.image_url);
+      btn.textContent = "\ud83c\udf10 Publish";
+      btn.classList.remove("published");
+    } else {
+      publicImageUrls.add(currentModalItem.image_url);
+      btn.textContent = "\ud83c\udf10 Unpublish";
+      btn.classList.add("published");
+    }
+    // Re-render grid to update badges
+    if (currentTab === "my") renderGrid(galleryItems, "");
+  } catch(e) {
+    btn.textContent = "Error";
+    setTimeout(() => { btn.textContent = isPublished ? "\ud83c\udf10 Unpublish" : "\ud83c\udf10 Publish"; }, 2000);
+  }
+  btn.disabled = false;
 }
 
-// Load NFT config
-fetch("/pixelpay/nft-config").then(r=>r.json()).then(c=>{ NFT_CONTRACT = c.nft_contract || ""; }).catch(()=>{});
-
+// ── Mint NFT ──
 async function mintFromGallery() {
   if (!currentModalItem) return;
   if (!walletAddress || !walletSigner) { alert("Connect your wallet first."); return; }
@@ -310,7 +433,6 @@ async function mintFromGallery() {
   const btn = document.getElementById("modalMintBtn");
   btn.disabled = true; btn.textContent = "Uploading to IPFS...";
   try {
-    // Upload image to IPFS
     const uploadRes = await fetch("/v1/nft/upload", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -321,16 +443,13 @@ async function mintFromGallery() {
     const upload = await uploadRes.json();
     if (!upload.metadata_uri) throw new Error(upload.detail || "IPFS upload failed");
     btn.textContent = "Minting on-chain...";
-    // Mint NFT
     const contract = new ethers.Contract(NFT_CONTRACT, NFT_ABI, walletSigner);
     const tx = await contract.mint(walletAddress, upload.metadata_uri);
     btn.textContent = "Confirming tx...";
     const receipt = await tx.wait();
-    // Get tokenId from Transfer event
     let tokenId = null;
     for (const log of receipt.logs) { try { const p = contract.interface.parseLog(log); if (p && p.name === "Transfer") { tokenId = p.args[2].toString(); break; } } catch(_){} }
     if (!tokenId) { const supply = await contract.totalSupply(); tokenId = (supply - 1n).toString(); }
-    // Record mint
     await fetch("/v1/nft/mint", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tokenId, wallet: walletAddress, prompt: currentModalItem.prompt, model: currentModalItem.model, style: currentModalItem.style, image_url: currentModalItem.image_url, metadata_uri: upload.metadata_uri, tx_hash: receipt.hash })
@@ -341,12 +460,20 @@ async function mintFromGallery() {
     console.error("Mint error:", e);
     btn.textContent = "Mint failed";
     btn.style.color = "#f44"; btn.style.borderColor = "#f44";
-    setTimeout(() => { btn.textContent = "☆ Mint NFT"; btn.style.color = ""; btn.style.borderColor = ""; btn.disabled = false; }, 3000);
+    setTimeout(() => { btn.textContent = "\u2606 Mint NFT"; btn.style.color = ""; btn.style.borderColor = ""; btn.disabled = false; }, 3000);
   }
 }
 
-// Auto-connect if wallet was previously connected
-if (localStorage.getItem("pixelpay_wallet") && window.ethereum) connectWallet();
+// ── Init ──
+async function init() {
+  if (localStorage.getItem("pixelpay_wallet") && window.ethereum) {
+    await connectWallet();
+  } else {
+    // Default to public tab if not connected
+    switchTab("public");
+  }
+}
+init();
 </script>
 </body>
 </html>

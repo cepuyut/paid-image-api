@@ -1850,6 +1850,7 @@ async function generatePaid() {
     if (adv.negative_prompt) reqBody.negative_prompt = adv.negative_prompt;
     if (adv.seed != null) reqBody.seed = adv.seed;
     if (uploadedImages.length > 0) reqBody.image_urls = uploadedImages;
+    if (walletAddress) reqBody.wallet = walletAddress;
     const challengeRes = await fetch("/v1/images/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1976,6 +1977,7 @@ async function generateDemo() {
     if (adv.negative_prompt) demoBody.negative_prompt = adv.negative_prompt;
     if (adv.seed != null) demoBody.seed = adv.seed;
     if (uploadedImages.length > 0) demoBody.image_urls = uploadedImages;
+    if (walletAddress) demoBody.wallet = walletAddress;
     const res = await fetch("/api/demo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

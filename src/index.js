@@ -180,6 +180,7 @@ function enhancePrompt(prompt, model, { style, enhance } = {}) {
 // ---------------------------------------------------------------------------
 const MAX_GALLERY = 50;
 const GALLERY_KEY = "pixelpay:gallery";
+const MAX_USER_GALLERY = 100;
 
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
@@ -188,11 +189,21 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 if (redis) console.log("Redis gallery connected (Upstash)");
 else console.warn("Gallery: UPSTASH_REDIS_REST_URL/TOKEN not set — gallery disabled");
 
-async function gallerySave(entry) {
+async function gallerySave(entry, isPublic = false) {
   if (!redis) return;
   try {
-    await redis.lpush(GALLERY_KEY, JSON.stringify(entry));
-    await redis.ltrim(GALLERY_KEY, 0, MAX_GALLERY - 1);
+    const data = JSON.stringify(entry);
+    // Always save to user's personal gallery
+    if (entry.wallet) {
+      const userKey = `pixelpay:user_gallery:${entry.wallet.toLowerCase()}`;
+      await redis.lpush(userKey, data);
+      await redis.ltrim(userKey, 0, MAX_USER_GALLERY - 1);
+    }
+    // Only save to public gallery if explicitly public
+    if (isPublic) {
+      await redis.lpush(GALLERY_KEY, data);
+      await redis.ltrim(GALLERY_KEY, 0, MAX_GALLERY - 1);
+    }
   } catch (err) { console.error("Gallery save error:", err.message); }
 }
 
@@ -202,6 +213,14 @@ async function galleryList() {
     const items = await redis.lrange(GALLERY_KEY, 0, MAX_GALLERY - 1);
     return items.map(item => typeof item === "string" ? JSON.parse(item) : item);
   } catch (err) { console.error("Gallery list error:", err.message); return []; }
+}
+
+async function userGalleryList(wallet) {
+  if (!redis || !wallet) return [];
+  try {
+    const items = await redis.lrange(`pixelpay:user_gallery:${wallet.toLowerCase()}`, 0, MAX_USER_GALLERY - 1);
+    return items.map(item => typeof item === "string" ? JSON.parse(item) : item);
+  } catch (err) { console.error("User gallery list error:", err.message); return []; }
 }
 
 // ---------------------------------------------------------------------------
@@ -264,7 +283,7 @@ app.get("/llms.txt", (_req, res) => {
 
 app.post("/v1/images/generate", async (req, res) => {
   const authHeader = req.get("Authorization");
-  const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate } = req.body || {};
+  const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
 
   // Determine price from requested model + batch discount
   const count = Math.min(Math.max(num_images || 1, 1), 4);
@@ -391,11 +410,11 @@ app.post("/v1/images/generate", async (req, res) => {
       if (count === 1 && !hasRefs && images.length > 0) setCache(cacheKey, images, usedModel);
     }
 
-    // Save to gallery (unless private)
-    if (!isPrivate && images.length > 0 && !cached) {
+    // Save to user's personal gallery (always) and public gallery (only if not private)
+    if (images.length > 0 && !cached) {
       const imgUrl = images[0].url || null;
       if (imgUrl) {
-        gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, timestamp: Date.now() });
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, wallet: reqWallet || null, timestamp: Date.now() }, !isPrivate);
       }
     }
 
@@ -466,7 +485,7 @@ app.post("/api/demo", async (req, res) => {
     });
   }
 
-  const { prompt, model, image_size, image_urls, style, enhance, negative_prompt, seed, private: isPrivate } = req.body || {};
+  const { prompt, model, image_size, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({ detail: "A 'prompt' string is required." });
   }
@@ -544,11 +563,11 @@ app.post("/api/demo", async (req, res) => {
       }
     }
 
-    // Save to gallery (unless private)
-    if (!isPrivate && images.length > 0 && !cached) {
+    // Save to user's personal gallery (always) and public gallery (only if not private)
+    if (images.length > 0 && !cached) {
       const img0 = images[0];
       if (img0.url) {
-        gallerySave({ prompt, model: usedModel, style: style || null, image_url: img0.url, timestamp: Date.now() });
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: img0.url, wallet: reqWallet || null, timestamp: Date.now() }, !isPrivate);
       }
     }
 
@@ -567,6 +586,48 @@ app.get("/v1/gallery", async (_req, res) => {
   res.set("Cache-Control", "no-cache");
   const images = await galleryList();
   res.json({ images, total: images.length, max: MAX_GALLERY });
+});
+
+// User's personal gallery
+app.get("/v1/gallery/my/:wallet", async (req, res) => {
+  res.set("Cache-Control", "no-cache");
+  const images = await userGalleryList(req.params.wallet);
+  res.json({ images, total: images.length });
+});
+
+// Publish an image to public gallery
+app.post("/v1/gallery/publish", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  const { image_url, wallet, prompt, model, style, seed } = req.body || {};
+  if (!image_url || !wallet) return res.status(400).json({ detail: "image_url and wallet required." });
+  try {
+    const entry = { prompt, model, style: style || null, image_url, seed: seed || null, wallet: wallet.toLowerCase(), timestamp: Date.now() };
+    await redis.lpush(GALLERY_KEY, JSON.stringify(entry));
+    await redis.ltrim(GALLERY_KEY, 0, MAX_GALLERY - 1);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ detail: "Failed to publish." });
+  }
+});
+
+// Unpublish an image from public gallery
+app.post("/v1/gallery/unpublish", async (req, res) => {
+  if (!redis) return res.status(503).json({ detail: "Redis not configured." });
+  const { image_url, wallet } = req.body || {};
+  if (!image_url || !wallet) return res.status(400).json({ detail: "image_url and wallet required." });
+  try {
+    const items = await redis.lrange(GALLERY_KEY, 0, MAX_GALLERY - 1);
+    for (const item of items) {
+      const parsed = typeof item === "string" ? JSON.parse(item) : item;
+      if (parsed.image_url === image_url && parsed.wallet?.toLowerCase() === wallet.toLowerCase()) {
+        await redis.lrem(GALLERY_KEY, 1, typeof item === "string" ? item : JSON.stringify(item));
+        break;
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ detail: "Failed to unpublish." });
+  }
 });
 
 // ---------------------------------------------------------------------------
