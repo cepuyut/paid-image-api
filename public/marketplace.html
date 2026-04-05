@@ -444,7 +444,7 @@ async function loadListings() {
       return;
     }
     empty.style.display = "none";
-    grid.innerHTML = data.listings.map(item => renderCard(item.nft, item.listing)).join("");
+    grid.innerHTML = data.listings.map(item => renderCard(item.nft, item)).join("");
   } catch (e) {
     console.error("Load listings error:", e);
   }
@@ -485,14 +485,15 @@ async function loadActivity() {
   try {
     const res = await fetch("/v1/nft/activity");
     const data = await res.json();
-    if (!data.sales || data.sales.length === 0) {
+    const sales = data.sales || data.activity || [];
+    if (sales.length === 0) {
       list.innerHTML = "";
       list.appendChild(empty);
       empty.style.display = "";
       return;
     }
     empty.style.display = "none";
-    list.innerHTML = data.sales.map(sale => {
+    list.innerHTML = sales.map(sale => {
       const shortBuyer = sale.buyer ? sale.buyer.slice(0, 6) + "..." + sale.buyer.slice(-4) : "?";
       const shortSeller = sale.seller ? sale.seller.slice(0, 6) + "..." + sale.seller.slice(-4) : "?";
       const price = sale.price ? "$" + (Number(sale.price) / 1e6).toFixed(2) : "";
@@ -514,38 +515,31 @@ async function loadActivity() {
 // ── Stats ──
 async function loadStats() {
   try {
-    const [listingsRes, configRes, activityRes] = await Promise.all([
+    const [listingsRes, activityRes, statsRes] = await Promise.all([
       fetch("/v1/nft/listings"),
-      fetch("/pixelpay/nft-config"),
-      fetch("/v1/nft/activity")
+      fetch("/v1/nft/activity"),
+      fetch("/v1/nft/stats")
     ]);
     const listingsData = await listingsRes.json();
     const activityData = await activityRes.json();
+    const statsData = await statsRes.json();
 
     document.getElementById("statListings").textContent = listingsData.listings?.length || 0;
-
-    // Estimate minted from counter
-    const allRes = await fetch("/v1/nft/listings");
-    const all = await allRes.json();
-    // Use activity + listings as rough count; backend has counter
-    const totalSales = activityData.sales?.length || 0;
-    const totalListings = listingsData.listings?.length || 0;
+    document.getElementById("statMinted").textContent = statsData.minted || 0;
 
     let volume = 0;
-    if (activityData.sales) {
-      for (const s of activityData.sales) {
-        volume += Number(s.price || 0);
-      }
+    const sales = activityData.sales || activityData.activity || [];
+    for (const s of sales) {
+      volume += Number(s.price || 0);
     }
     document.getElementById("statVolume").textContent = volume > 0 ? "$" + (volume / 1e6).toFixed(2) : "$0";
-    document.getElementById("statMinted").textContent = totalSales + totalListings;
   } catch (_) {}
 }
 
 // ── Render card ──
 function renderCard(nft, listing) {
   if (!nft) return "";
-  const name = (nft.name || "NFT #" + nft.tokenId).replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  const name = (nft.name || nft.prompt || "NFT #" + nft.tokenId).slice(0, 60).replace(/</g, "&lt;").replace(/"/g, "&quot;");
   const img = nft.image_url || "";
   const shortCreator = nft.creator ? nft.creator.slice(0, 6) + "..." + nft.creator.slice(-4) : "";
   const model = nft.model ? nft.model.replace("fal-ai/", "") : "";
@@ -582,10 +576,11 @@ async function openNFT(tokenId) {
 
     document.getElementById("modalImg").src = nft.image_url || "";
     document.getElementById("modalTokenId").textContent = "#" + tokenId;
-    document.getElementById("modalTitle").textContent = nft.name || "NFT #" + tokenId;
-    const shortCreator = nft.creator ? nft.creator.slice(0, 6) + "..." + nft.creator.slice(-4) : "?";
+    document.getElementById("modalTitle").textContent = (nft.name || nft.prompt || "NFT #" + tokenId).slice(0, 60);
+    const creator = nft.creator || nft.wallet || "";
+    const shortCreator = creator ? creator.slice(0, 6) + "..." + creator.slice(-4) : "?";
     document.getElementById("modalCreator").textContent = "Created by " + shortCreator;
-    document.getElementById("modalDesc").textContent = nft.name || "";
+    document.getElementById("modalDesc").textContent = nft.prompt || nft.name || "";
 
     // Attributes
     const attrs = [];
@@ -597,7 +592,8 @@ async function openNFT(tokenId) {
 
     // Actions
     const actions = document.getElementById("modalActions");
-    const isOwner = walletConnected && walletAddress && nft.owner && nft.owner.toLowerCase() === walletAddress.toLowerCase();
+    const nftOwner = nft.owner || nft.wallet || "";
+    const isOwner = walletConnected && walletAddress && nftOwner && nftOwner.toLowerCase() === walletAddress.toLowerCase();
 
     if (listing) {
       const priceUsd = (Number(listing.price) / 1e6).toFixed(2);

@@ -830,8 +830,8 @@ app.get("/v1/nft/activity", async (_req, res) => {
   if (!redis) return res.json({ activity: [] });
   try {
     const sales = await redis.lrange("pixelpay:nft:sales", 0, 19);
-    const activity = sales.map(s => typeof s === "string" ? JSON.parse(s) : s);
-    res.json({ activity, total: activity.length });
+    const parsed = sales.map(s => typeof s === "string" ? JSON.parse(s) : s);
+    res.json({ sales: parsed, activity: parsed, total: parsed.length });
   } catch (err) {
     res.json({ activity: [], total: 0 });
   }
