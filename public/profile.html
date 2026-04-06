@@ -289,7 +289,7 @@ async function handleWallet() {
   if (walletConnected) return;
   if (!window.ethereum) { alert("Install a Web3 wallet (e.g. MetaMask) to continue."); return; }
   try {
-    const provider = new ethers.BrowserProvider(window.ethereum);
+    let provider = new ethers.BrowserProvider(window.ethereum);
     await provider.send("eth_requestAccounts", []);
     const net = await provider.getNetwork();
     if (Number(net.chainId) !== TEMPO_CHAIN_ID) {
@@ -299,10 +299,11 @@ async function handleWallet() {
         if (e.code === 4902) {
           await window.ethereum.request({
             method: "wallet_addEthereumChain",
-            params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16), chainName: "Tempo", rpcUrls: [TEMPO_RPC], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 } }]
+            params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16), chainName: "Tempo", rpcUrls: [TEMPO_RPC], nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 } }]
           });
         }
       }
+      provider = new ethers.BrowserProvider(window.ethereum);
     }
     const signer = await provider.getSigner();
     walletAddress = await signer.getAddress();

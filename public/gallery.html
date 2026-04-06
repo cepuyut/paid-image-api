@@ -249,13 +249,16 @@ let currentModalIdx = -1;
 let currentTab = "my";
 let publicImageUrls = new Set();
 
+// ── Helpers ──
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
 // ── Toast ──
 function showToast(msg, type = "info") {
   const c = document.getElementById("toastContainer");
   const icon = type === "success" ? "&#10003;" : type === "error" ? "&#10007;" : "&#8505;";
   const t = document.createElement("div");
   t.className = "toast " + type;
-  t.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`;
+  t.innerHTML = `<span class="toast-icon">${icon}</span>${esc(msg)}`;
   c.appendChild(t);
   setTimeout(() => { t.style.animation = "toastOut 0.3s ease forwards"; setTimeout(() => t.remove(), 300); }, 3000);
 }
@@ -265,7 +268,7 @@ function showGridLoading() {
 }
 
 // ── Wallet ──
-const TEMPO_CHAIN = { chainId: "0x1079", chainName: "Tempo", rpcUrls: ["https://rpc.tempo.xyz"], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] };
+const TEMPO_CHAIN = { chainId: "0x1079", chainName: "Tempo", rpcUrls: ["https://rpc.tempo.xyz"], nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] };
 let walletAddress = null, walletSigner = null, NFT_CONTRACT = "", NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)"];
 
 async function connectWallet() {
@@ -356,13 +359,14 @@ function renderGrid(items, emptyMsg) {
     const safePrompt = (item.prompt || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
     const shortModel = (item.model || "").replace("fal-ai/", "");
     const ago = timeAgo(item.timestamp);
-    const styleTag = item.style ? `<span class="style-tag">${item.style}</span>` : "";
+    const styleTag = item.style ? `<span class="style-tag">${esc(item.style)}</span>` : "";
+    const safeUrl = esc(item.image_url || "");
     const isPublished = currentTab === "my" && publicImageUrls.has(item.image_url);
     const pubBadge = isPublished ? '<div class="public-badge">Public</div>' : '';
     return `
       <div class="gallery-card" onclick="openModal(${idx})">
         ${pubBadge}
-        <img src="${item.image_url}" alt="${safePrompt}" loading="lazy">
+        <img src="${safeUrl}" alt="${safePrompt}" loading="lazy">
         <div class="card-info">
           <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
           <div class="card-meta">

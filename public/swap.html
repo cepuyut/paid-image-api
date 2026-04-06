@@ -283,12 +283,14 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
 function showToast(msg, type = "info") {
   const c = document.getElementById("toastContainer");
   const icon = type === "success" ? "&#10003;" : type === "error" ? "&#10007;" : "&#8505;";
   const t = document.createElement("div");
   t.className = "toast " + type;
-  t.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`;
+  t.innerHTML = `<span class="toast-icon">${icon}</span>${esc(msg)}`;
   c.appendChild(t);
   setTimeout(() => { t.style.animation = "toastOut 0.3s ease forwards"; setTimeout(() => t.remove(), 300); }, 3000);
 }
@@ -355,7 +357,7 @@ async function handleWallet() {
         if (e.code === 4902) {
           await window.ethereum.request({
             method: "wallet_addEthereumChain",
-            params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16), chainName: "Tempo", rpcUrls: [TEMPO_RPC], nativeCurrency: { name: "TEMPO", symbol: "TEMPO", decimals: 18 } }]
+            params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16), chainName: "Tempo", rpcUrls: [TEMPO_RPC], nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 } }]
           });
         }
       }
@@ -410,9 +412,11 @@ function formatAmount(amount, decimals = 6) {
 }
 
 function parseAmount(str, decimals = 6) {
-  const val = parseFloat(str);
-  if (isNaN(val) || val <= 0) return 0n;
-  return BigInt(Math.round(val * Math.pow(10, decimals)));
+  if (!str || isNaN(Number(str)) || Number(str) <= 0) return 0n;
+  // String-based parsing to avoid floating point precision loss
+  const [whole = "0", frac = ""] = str.split(".");
+  const paddedFrac = (frac + "0".repeat(decimals)).slice(0, decimals);
+  return BigInt(whole + paddedFrac);
 }
 
 // ── Set max ──
@@ -493,6 +497,7 @@ async function fetchQuote() {
 
     // Rate
     const inVal = parseFloat(amountIn);
+    if (!inVal) return;
     const rate = outVal / inVal;
     const tokenInSym = TOKENS.find(t => t.address.toLowerCase() === tokenInAddr.toLowerCase())?.symbol || "?";
     const tokenOutSym = TOKENS.find(t => t.address.toLowerCase() === tokenOutAddr.toLowerCase())?.symbol || "?";

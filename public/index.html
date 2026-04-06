@@ -1273,9 +1273,9 @@
     <h2 class="section-title">Quick start</h2>
     <p class="section-desc">Works with any HTTP client. Or just connect your wallet above.</p>
     <div class="tabs">
-      <div class="tab active" onclick="showTab('curl')">curl</div>
-      <div class="tab" onclick="showTab('node')">Node.js</div>
-      <div class="tab" onclick="showTab('python')">Python</div>
+      <div class="tab active" onclick="showTab('curl', this)">curl</div>
+      <div class="tab" onclick="showTab('node', this)">Node.js</div>
+      <div class="tab" onclick="showTab('python', this)">Python</div>
     </div>
     <pre id="code-curl"><code><span class="cm"># Step 1: Get payment challenge</span>
 curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
@@ -1396,7 +1396,7 @@ async function connectWallet(silent) {
             chainId: "0x" + TEMPO_CHAIN_ID.toString(16),
             chainName: "Tempo",
             rpcUrls: [TEMPO_RPC],
-            nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+            nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 },
             blockExplorerUrls: ["https://explorer.tempo.xyz"]
           }]
         });
@@ -2068,11 +2068,11 @@ function toggleAllModels() {
   btn.classList.toggle("open", open);
 }
 
-function showTab(lang) {
-  document.querySelectorAll("pre[id^='code-']").forEach(el => el.style.display = "none");
-  document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
+function showTab(lang, el) {
+  document.querySelectorAll("pre[id^='code-']").forEach(e => e.style.display = "none");
+  document.querySelectorAll(".tabs .tab").forEach(e => e.classList.remove("active"));
   document.getElementById("code-" + lang).style.display = "block";
-  event.target.classList.add("active");
+  if (el) el.classList.add("active");
 }
 
 // ── Style Dropdown ──

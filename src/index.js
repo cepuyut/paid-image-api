@@ -1,9 +1,11 @@
 import express from "express";
 import { createHmac } from "node:crypto";
 import { createChallenge, verifyCredential, createReceipt } from "./mpp.js";
-import { readFileSync } from "node:fs";
+import { readFileSync, readFile } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { promisify } from "node:util";
+const readFileAsync = promisify(readFile);
 import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, createPublicClient, http, defineChain, parseAbi } from "viem";
 import { Mppx, tempo } from "mppx/client";
@@ -144,7 +146,12 @@ function getPricing(model) {
 }
 
 function trackRequest() {
-  requestTimestamps.push(Date.now());
+  const now = Date.now();
+  requestTimestamps.push(now);
+  // Clean old timestamps to prevent unbounded growth
+  while (requestTimestamps.length && requestTimestamps[0] < now - REQUEST_WINDOW_MS) {
+    requestTimestamps.shift();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -298,6 +305,11 @@ function autoSelectModel(prompt, maxBudget) {
 // fal.ai via MPP (no API key needed — paid via Tempo wallet)
 console.log("fal.ai backend loaded via MPP (cache + prompt enhancement + smart routing)");
 
+// Pre-read static files at startup (avoid blocking readFileSync in handlers)
+let openApiDoc, llmsTxt;
+try { openApiDoc = JSON.parse(readFileSync(join(ROOT, "openapi.json"), "utf8")); } catch { openApiDoc = null; }
+try { llmsTxt = readFileSync(join(ROOT, "llms.txt"), "utf8"); } catch { llmsTxt = null; }
+
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 
@@ -314,9 +326,9 @@ app.get("/pixelpay/config", (_req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get("/openapi.json", (_req, res) => {
-  const doc = JSON.parse(readFileSync(join(ROOT, "openapi.json"), "utf8"));
+  if (!openApiDoc) return res.status(404).json({ detail: "openapi.json not found." });
   res.set("Cache-Control", "max-age=300");
-  res.json(doc);
+  res.json(openApiDoc);
 });
 
 // ---------------------------------------------------------------------------
@@ -324,10 +336,10 @@ app.get("/openapi.json", (_req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get("/llms.txt", (_req, res) => {
-  const txt = readFileSync(join(ROOT, "llms.txt"), "utf8");
+  if (!llmsTxt) return res.status(404).send("llms.txt not found.");
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.set("Cache-Control", "max-age=300");
-  res.send(txt);
+  res.send(llmsTxt);
 });
 
 // ---------------------------------------------------------------------------
@@ -338,9 +350,10 @@ app.post("/v1/images/generate", async (req, res) => {
   const authHeader = req.get("Authorization");
   const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
 
-  // Determine price from requested model + batch discount
+  // Resolve model first so pricing matches the actual model used
+  const resolvedModel = (!model || model === "auto") ? autoSelectModel(prompt || "") : model;
   const count = Math.min(Math.max(num_images || 1, 1), 4);
-  const perImage = getPricing(model);
+  const perImage = getPricing(resolvedModel);
   const batchDiscount = count >= 4 ? 0.80 : count >= 3 ? 0.90 : 1.0;
   const totalPrice = String(Math.round(Number(perImage.price) * count * batchDiscount));
   const totalUsd = (Number(totalPrice) / 1_000_000).toFixed(2);
@@ -384,8 +397,7 @@ app.post("/v1/images/generate", async (req, res) => {
 
   // --- Call fal.ai (with cache, enhancement, smart routing) ---
   try {
-    // Smart model routing: "auto" or missing → auto-select based on prompt
-    const usedModel = (!model || model === "auto") ? autoSelectModel(prompt) : model;
+    const usedModel = resolvedModel;
     if (!BASE_PRICING[usedModel]) {
       return res.status(400).json({
         type: "https://paymentauth.org/problems/bad-request",
@@ -560,9 +572,14 @@ app.post("/api/demo", async (req, res) => {
   try {
     const usedModel = (!model || model === "auto") ? autoSelectModel(prompt) : (model || DEFAULT_MODEL);
 
-    // Block premium models from free demo
+    // Validate model exists
     const modelInfo = BASE_PRICING[usedModel];
-    if (modelInfo && modelInfo.premium) {
+    if (!modelInfo) {
+      return res.status(400).json({ detail: `Model '${usedModel}' is not supported. Use: auto, ${Object.keys(BASE_PRICING).join(", ")}` });
+    }
+
+    // Block premium models from free demo
+    if (modelInfo.premium) {
       return res.status(403).json({ detail: `${usedModel} is a Premium model. Connect a wallet to use it.` });
     }
 
@@ -609,8 +626,10 @@ app.post("/api/demo", async (req, res) => {
       // Convert fal.ai URLs to base64 to avoid CORS/expiry issues
       const falImages = result.images || [];
       images = [];
+      let firstImageUrl = null;
       for (const img of falImages) {
         if (img.url) {
+          if (!firstImageUrl) firstImageUrl = img.url;
           try {
             const imgResp = await fetch(img.url);
             const buf = Buffer.from(await imgResp.arrayBuffer());
@@ -619,6 +638,11 @@ app.post("/api/demo", async (req, res) => {
         } else { images.push(img); }
       }
       if (!hasRefs && images.length > 0) setCache(cacheKey, images, usedModel);
+
+      // Save to gallery using original URL (before base64 conversion)
+      if (firstImageUrl && !isPrivate) {
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: firstImageUrl, wallet: reqWallet || null, timestamp: Date.now() }, true);
+      }
     }
 
     // Only count non-cached as demo usage (cached = free)
@@ -626,12 +650,7 @@ app.post("/api/demo", async (req, res) => {
       await incDemoCount(ip, today);
     }
 
-    // Save to user's personal gallery (always) and public gallery (only if not private)
     if (images.length > 0 && !cached) {
-      const img0 = images[0];
-      if (img0.url) {
-        gallerySave({ prompt, model: usedModel, style: style || null, image_url: img0.url, wallet: reqWallet || null, timestamp: Date.now() }, !isPrivate);
-      }
       // PXP reward for generating
       if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "generate").catch(() => {});
     }
@@ -720,6 +739,20 @@ app.get("/v1/styles", (_req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/v1/images/upscale", async (req, res) => {
+  // Rate limit upscale (3 per IP per day) to prevent abuse
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  const today = new Date().toISOString().slice(0, 10);
+  const UPSCALE_LIMIT = 3;
+  if (redis) {
+    const upKey = `pixelpay:upscale:${ip}:${today}`;
+    const upCount = await redis.get(upKey);
+    if (upCount && Number(upCount) >= UPSCALE_LIMIT) {
+      return res.status(429).json({ detail: `Upscale limit reached (${UPSCALE_LIMIT}/day). Connect a wallet for paid access.` });
+    }
+    await redis.incr(upKey);
+    await redis.expire(upKey, 86400);
+  }
+
   const { image_url } = req.body || {};
   if (!image_url) {
     return res.status(400).json({ detail: "An 'image_url' string is required (URL or base64 data URL)." });
@@ -746,9 +779,10 @@ const HISTORY_MAX = 100;
 
 app.post("/v1/history/save", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "History unavailable (Redis not configured)." });
-  const { wallet, prompt, model, style, seed, image_url, image_b64 } = req.body || {};
+  const { wallet, prompt, model, style, seed, image_url } = req.body || {};
   if (!wallet || !prompt) return res.status(400).json({ detail: "wallet and prompt are required." });
-  const entry = { prompt, model, style: style || null, seed: seed ?? null, image_url: image_url || null, image_b64: image_b64 || null, timestamp: Date.now() };
+  // Don't store base64 images in Redis — only store URLs to save storage
+  const entry = { prompt, model, style: style || null, seed: seed ?? null, image_url: image_url || null, timestamp: Date.now() };
   try {
     const key = `pixelpay:history:${wallet.toLowerCase()}`;
     await redis.lpush(key, JSON.stringify(entry));
@@ -781,6 +815,10 @@ const PINATA_JWT = process.env.PINATA_JWT || "";
 app.post("/v1/nft/upload", async (req, res) => {
   if (!PINATA_JWT) return res.status(503).json({ detail: "IPFS not configured (PINATA_JWT missing)." });
   const { image_b64, image_url, content_type, metadata } = req.body || {};
+
+  if (!image_b64 && !image_url) {
+    return res.status(400).json({ detail: "Either image_b64 or image_url is required." });
+  }
 
   try {
     let imageIpfsHash;
@@ -1018,6 +1056,14 @@ app.post("/v1/nft/buy", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const { tokenId, buyer, tx_hash } = req.body || {};
   if (tokenId == null || !buyer || !tx_hash) return res.status(400).json({ detail: "tokenId, buyer, and tx_hash required." });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(buyer)) return res.status(400).json({ detail: "Invalid buyer address." });
+  if (!/^0x[0-9a-fA-F]{64}$/.test(tx_hash)) return res.status(400).json({ detail: "Invalid tx_hash." });
+
+  // Acquire lock to prevent double-buy race condition
+  const lockKey = `pixelpay:nft:buying:${tokenId}`;
+  const locked = await redis.set(lockKey, "1", { ex: 60, nx: true });
+  if (!locked) return res.status(409).json({ detail: "Purchase already in progress for this NFT." });
+
   try {
     // Verify listing exists
     const ld = await redis.get(`pixelpay:nft:listing:${tokenId}`);
@@ -1029,6 +1075,16 @@ app.post("/v1/nft/buy", async (req, res) => {
       return res.status(400).json({ detail: "Cannot buy your own listing." });
     }
 
+    // Verify on-chain transaction actually succeeded
+    try {
+      const txReceipt = await pxpPublicClient.getTransactionReceipt({ hash: tx_hash });
+      if (!txReceipt || txReceipt.status !== "success") {
+        return res.status(400).json({ detail: "Transaction not confirmed on-chain." });
+      }
+    } catch (verifyErr) {
+      return res.status(400).json({ detail: "Could not verify transaction: " + verifyErr.message });
+    }
+
     // Record sale with NFT metadata for activity feed
     const nd = await redis.get(`pixelpay:nft:${tokenId}`);
     const nft = nd ? (typeof nd === "string" ? JSON.parse(nd) : nd) : null;
@@ -1038,6 +1094,7 @@ app.post("/v1/nft/buy", async (req, res) => {
       image_url: nft?.image_url || null, name: nft?.prompt || null,
     };
     await redis.lpush("pixelpay:nft:sales", JSON.stringify(sale));
+    await redis.ltrim("pixelpay:nft:sales", 0, 499);
 
     // Remove listing
     await redis.del(`pixelpay:nft:listing:${tokenId}`);
@@ -1051,11 +1108,19 @@ app.post("/v1/nft/buy", async (req, res) => {
       await redis.lpush(`pixelpay:nft:by_owner:${buyer.toLowerCase()}`, tokenId);
       if (oldOwner) await redis.lrem(`pixelpay:nft:by_owner:${oldOwner}`, 1, tokenId);
     }
-    // PXP reward for seller (first sale bonus)
-    if (listing?.seller) mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
+    // PXP reward for seller (sale bonus)
+    if (listing?.seller) {
+      const hasBonus = await redis.get(`pixelpay:nft:first_sale:${listing.seller}`);
+      if (!hasBonus) {
+        mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
+        await redis.set(`pixelpay:nft:first_sale:${listing.seller}`, "1");
+      }
+    }
     res.json({ ok: true, sale });
   } catch (err) {
     res.status(500).json({ detail: "Failed to record sale." });
+  } finally {
+    await redis.del(lockKey);
   }
 });
 
@@ -1082,11 +1147,29 @@ app.post("/v1/nft/buy-pxp", async (req, res) => {
     // PXP price: 20% discount, 100 PXP = $1. pxp = usdc * 0.8 * 100 / 1e6 * 1e18 = usdc * 80 * 1e12
     const pxpPrice = usdcPrice * 80n * 10n**12n;
 
-    // Verify PXP transfer actually happened on-chain
+    // Verify PXP transfer actually happened on-chain with correct amount/recipient
     try {
       const txReceipt = await pxpPublicClient.getTransactionReceipt({ hash: pxp_tx_hash });
       if (!txReceipt || txReceipt.status !== "success") {
         return res.status(400).json({ detail: "PXP transfer not confirmed on-chain." });
+      }
+      // Verify Transfer event: from=buyer, to=treasury, amount>=pxpPrice
+      const transferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"; // Transfer(address,address,uint256)
+      const pxpLower = PXP_TOKEN.toLowerCase();
+      const treasuryPadded = "0x" + walletAccount.address.slice(2).toLowerCase().padStart(64, "0");
+      const buyerPadded = "0x" + buyer.toLowerCase().slice(2).padStart(64, "0");
+      const matchingLog = txReceipt.logs.find(log =>
+        log.address.toLowerCase() === pxpLower &&
+        log.topics[0] === transferTopic &&
+        log.topics[1]?.toLowerCase() === buyerPadded &&
+        log.topics[2]?.toLowerCase() === treasuryPadded
+      );
+      if (!matchingLog) {
+        return res.status(400).json({ detail: "PXP transfer not sent from buyer to treasury." });
+      }
+      const transferredAmount = BigInt(matchingLog.data);
+      if (transferredAmount < pxpPrice) {
+        return res.status(400).json({ detail: `Insufficient PXP transferred. Expected ${pxpPrice}, got ${transferredAmount}.` });
       }
     } catch (verifyErr) {
       return res.status(400).json({ detail: "Could not verify PXP transfer: " + verifyErr.message });
@@ -1145,6 +1228,7 @@ app.post("/v1/nft/buy-pxp", async (req, res) => {
       image_url: nft?.image_url || null, name: nft?.prompt || null,
     };
     await redis.lpush("pixelpay:nft:sales", JSON.stringify(sale));
+    await redis.ltrim("pixelpay:nft:sales", 0, 499);
     await redis.del(`pixelpay:nft:listing:${tokenId}`);
     await redis.lrem("pixelpay:nft:listings", 1, tokenId);
     if (nft) {
@@ -1154,7 +1238,14 @@ app.post("/v1/nft/buy-pxp", async (req, res) => {
       await redis.lpush(`pixelpay:nft:by_owner:${buyer.toLowerCase()}`, tokenId);
       if (oldOwner) await redis.lrem(`pixelpay:nft:by_owner:${oldOwner}`, 1, tokenId);
     }
-    if (listing?.seller) mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
+    // PXP reward for seller (first sale bonus — only once)
+    if (listing?.seller) {
+      const hasBonus = await redis.get(`pixelpay:nft:first_sale:${listing.seller}`);
+      if (!hasBonus) {
+        mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
+        await redis.set(`pixelpay:nft:first_sale:${listing.seller}`, "1");
+      }
+    }
     console.log(`PXP buy: #${tokenId} buyer=${buyer.slice(0,8)}.. PXP=${Number(pxpPrice/10n**18n)} buy_tx=${buyHash.slice(0,10)}`);
     res.json({ ok: true, sale, pxp_price: pxpPrice.toString(), buy_tx: buyHash, nft_tx: nftHash });
   } catch (err) {
@@ -1242,7 +1333,11 @@ app.get("/v1/pxp/balance/:wallet", async (req, res) => {
       address: PXP_TOKEN, abi: PXP_ABI,
       functionName: "balanceOf", args: [req.params.wallet],
     });
-    const formatted = (Number(bal) / 1e18).toFixed(2);
+    // String-based division to avoid Number precision loss for large balances
+    const balStr = bal.toString();
+    const whole = balStr.length > 18 ? balStr.slice(0, balStr.length - 18) : "0";
+    const frac = balStr.padStart(18, "0").slice(-18).slice(0, 2);
+    const formatted = `${whole}.${frac}`;
     res.json({ balance: bal.toString(), formatted });
   } catch (err) {
     res.json({ balance: "0", formatted: "0" });
@@ -1258,7 +1353,8 @@ app.get("/v1/pxp/info", async (_req, res) => {
     });
     res.json({
       address: PXP_TOKEN, name: "PixelPay Token", symbol: "PXP",
-      maxSupply: "21000000", totalSupply: (Number(supply) / 1e18).toFixed(2),
+      maxSupply: "21000000",
+      totalSupply: (() => { const s = supply.toString(); const w = s.length > 18 ? s.slice(0, s.length - 18) : "0"; const f = s.padStart(18, "0").slice(-18).slice(0, 2); return `${w}.${f}`; })(),
       rewards: { generate: 10, mint_nft: 50, first_sale: 100, publish: 5 },
     });
   } catch (err) {
