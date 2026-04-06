@@ -50,6 +50,11 @@
     }
     .btn-wallet:hover { opacity: 0.9; }
     .btn-wallet.connected { background: var(--surface2); color: var(--green); border: 1px solid var(--border2); }
+    .pxp-badge {
+      background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #00d47b44;
+      color: #00d47b; padding: 6px 12px; border-radius: 8px; font-size: 12px;
+      font-weight: 600; font-family: inherit; white-space: nowrap;
+    }
 
     /* Profile header */
     .profile-header {
@@ -184,6 +189,7 @@
         <a href="/marketplace">Marketplace</a>
         <a href="/swap">Swap</a>
       </div>
+      <span class="pxp-badge" id="pxpBal" style="display:none">0 PXP</span>
       <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>
     </div>
   </nav>
@@ -219,6 +225,10 @@
             <span class="profile-stat-value" id="statTxns">0</span>
             <span class="profile-stat-label">Trades</span>
           </div>
+          <div class="profile-stat">
+            <span class="profile-stat-value" id="statPxp" style="color:var(--green)">0</span>
+            <span class="profile-stat-label">PXP</span>
+          </div>
         </div>
       </div>
     </div>
@@ -252,6 +262,9 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function sanitizeId(id) { return String(id).replace(/[^0-9]/g, ""); }
+
 const TEMPO_CHAIN_ID = 4217;
 const TEMPO_RPC = "https://rpc.tempo.xyz";
 let walletConnected = false;
@@ -264,7 +277,7 @@ function showToast(msg, type = "info") {
   const icon = type === "success" ? "&#10003;" : type === "error" ? "&#10007;" : "&#8505;";
   const t = document.createElement("div");
   t.className = "toast " + type;
-  t.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`;
+  t.innerHTML = `<span class="toast-icon">${icon}</span>${esc(msg)}`;
   c.appendChild(t);
   setTimeout(() => { t.style.animation = "toastOut 0.3s ease forwards"; setTimeout(() => t.remove(), 300); }, 3000);
 }
@@ -302,11 +315,24 @@ async function handleWallet() {
   }
 }
 
+async function refreshPXP(addr) {
+  try {
+    const r = await fetch("/v1/pxp/balance/" + addr);
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById("pxpBal");
+    el.textContent = d.formatted + " PXP";
+    el.style.display = "";
+    document.getElementById("statPxp").textContent = d.formatted;
+  } catch(_){}
+}
+
 function showProfile() {
   document.getElementById("connectPrompt").style.display = "none";
   document.getElementById("profileContent").style.display = "";
   document.getElementById("profileAddress").textContent = walletAddress;
   document.getElementById("profileAvatar").textContent = walletAddress.slice(2, 4).toUpperCase();
+  refreshPXP(walletAddress);
   loadProfile();
 }
 
@@ -356,21 +382,28 @@ function renderTab() {
 function renderNFTGrid(gridId, nfts, emptyMsg) {
   const grid = document.getElementById(gridId);
   if (!nfts || nfts.length === 0) {
-    grid.innerHTML = `<div class="empty-state"><div class="icon">&#9633;</div><p>${emptyMsg}</p></div>`;
+    grid.innerHTML = `<div class="empty-state"><div class="icon">&#9633;</div><p>${esc(emptyMsg)}</p></div>`;
     return;
   }
   grid.innerHTML = nfts.map(nft => {
-    const name = (nft.prompt || nft.name || "NFT #" + nft.tokenId).slice(0, 50).replace(/</g, "&lt;");
-    const model = nft.model ? nft.model.replace("fal-ai/", "") : "";
-    return `<div class="nft-card" onclick="window.location.href='/marketplace'">
-      <img src="${nft.image_url || ''}" alt="${name}" loading="lazy" onerror="this.style.background='var(--surface3)'">
+    const name = esc((nft.prompt || nft.name || "NFT #" + nft.tokenId).slice(0, 50));
+    const model = nft.model ? esc(nft.model.replace("fal-ai/", "")) : "";
+    const tid = sanitizeId(nft.tokenId || "0");
+    const img = esc(nft.image_url || "");
+    return `<div class="nft-card" data-token-id="${tid}">
+      <img src="${img}" alt="${name}" loading="lazy" onerror="this.style.background='var(--surface3)'">
       <div class="info">
-        <div class="name" title="${name}">#${nft.tokenId || '?'} ${name}</div>
+        <div class="name" title="${name}">#${tid} ${name}</div>
         <div class="meta">${model}</div>
       </div>
     </div>`;
   }).join("");
 }
+
+document.addEventListener("click", function(e) {
+  const card = e.target.closest(".nft-card[data-token-id]");
+  if (card) window.location.href = "/marketplace#nft-" + sanitizeId(card.dataset.tokenId);
+});
 
 function renderHistory() {
   const list = document.getElementById("historyList");
@@ -380,21 +413,24 @@ function renderHistory() {
     return;
   }
   list.innerHTML = history.map(tx => {
-    const name = (tx.name || "NFT #" + tx.tokenId).replace(/</g, "&lt;");
+    const name = esc((tx.name || "NFT #" + tx.tokenId));
     const price = tx.price ? "$" + (Number(tx.price) / 1e6).toFixed(2) : "";
+    const pxpPaid = tx.payment === "pxp" && tx.pxp_amount ? " (" + (Number(tx.pxp_amount) / 1e18).toFixed(0) + " PXP)" : "";
     const counterparty = tx.type === "buy"
-      ? "from " + shortAddr(tx.seller)
-      : "to " + shortAddr(tx.buyer);
-    const ago = timeAgo(tx.timestamp);
+      ? "from " + esc(shortAddr(tx.seller))
+      : "to " + esc(shortAddr(tx.buyer));
+    const ago = esc(timeAgo(tx.timestamp));
+    const img = esc(tx.image_url || "");
+    const t = tx.type === "buy" ? "buy" : "sell";
     return `<div class="history-item">
-      <img src="${tx.image_url || ''}" alt="" onerror="this.style.display='none'">
+      <img src="${img}" alt="" onerror="this.style.display='none'">
       <div class="history-info">
         <div class="history-name">${name}</div>
         <div class="history-detail">${counterparty} &middot; ${ago}</div>
       </div>
       <div class="history-right">
-        <div class="history-price ${tx.type}">${tx.type === "buy" ? "-" : "+"}${price}</div>
-        <span class="history-type ${tx.type}">${tx.type === "buy" ? "Bought" : "Sold"}</span>
+        <div class="history-price ${t}">${t === "buy" ? "-" : "+"}${price}${pxpPaid}</div>
+        <span class="history-type ${t}">${t === "buy" ? "Bought" : "Sold"}</span>
       </div>
     </div>`;
   }).join("");

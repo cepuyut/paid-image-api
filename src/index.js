@@ -526,15 +526,27 @@ app.get("/v1/prices", (_req, res) => {
 // ---------------------------------------------------------------------------
 
 const DEMO_LIMIT = 1; // per IP per day
-const demoUsage = new Map(); // ip -> { date, count }
+
+async function getDemoCount(ip, today) {
+  if (!redis) return 0;
+  const key = `pixelpay:demo:${ip}:${today}`;
+  const count = await redis.get(key);
+  return count ? Number(count) : 0;
+}
+async function incDemoCount(ip, today) {
+  if (!redis) return;
+  const key = `pixelpay:demo:${ip}:${today}`;
+  await redis.incr(key);
+  await redis.expire(key, 86400); // expire after 24h
+}
 
 app.post("/api/demo", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
   const today = new Date().toISOString().slice(0, 10);
 
-  // Rate limit
-  const usage = demoUsage.get(ip);
-  if (usage && usage.date === today && usage.count >= DEMO_LIMIT) {
+  // Rate limit (Redis-backed)
+  const count = await getDemoCount(ip, today);
+  if (count >= DEMO_LIMIT) {
     return res.status(429).json({
       detail: `Demo limit reached (${DEMO_LIMIT}/day). Connect a wallet for unlimited access.`,
     });
@@ -611,11 +623,7 @@ app.post("/api/demo", async (req, res) => {
 
     // Only count non-cached as demo usage (cached = free)
     if (!cached) {
-      if (usage && usage.date === today) {
-        usage.count++;
-      } else {
-        demoUsage.set(ip, { date: today, count: 1 });
-      }
+      await incDemoCount(ip, today);
     }
 
     // Save to user's personal gallery (always) and public gallery (only if not private)
@@ -882,32 +890,38 @@ app.post("/v1/nft/mint", async (req, res) => {
 
 // Get all active listings (MUST be before /:tokenId to avoid route conflict)
 app.get("/v1/nft/listings", async (req, res) => {
-  if (!redis) return res.json({ listings: [] });
+  if (!redis) return res.json({ listings: [], total: 0 });
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
   try {
-    const ids = await redis.lrange("pixelpay:nft:listings", 0, 99);
+    const total = await redis.llen("pixelpay:nft:listings");
+    const ids = await redis.lrange("pixelpay:nft:listings", offset, offset + limit - 1);
     const listings = [];
     for (const id of ids) {
       const ld = await redis.get(`pixelpay:nft:listing:${id}`);
       if (!ld) continue;
       const listing = typeof ld === "string" ? JSON.parse(ld) : ld;
       const nd = await redis.get(`pixelpay:nft:${id}`);
-      if (!nd) continue; // skip listings with missing NFT data
+      if (!nd) continue;
       const nft = typeof nd === "string" ? JSON.parse(nd) : nd;
       listings.push({ ...listing, nft });
     }
-    res.json({ listings, total: listings.length });
+    res.json({ listings, total, limit, offset });
   } catch (err) {
     res.json({ listings: [], total: 0 });
   }
 });
 
 // Recent activity (MUST be before /:tokenId)
-app.get("/v1/nft/activity", async (_req, res) => {
-  if (!redis) return res.json({ activity: [] });
+app.get("/v1/nft/activity", async (req, res) => {
+  if (!redis) return res.json({ activity: [], total: 0 });
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
   try {
-    const sales = await redis.lrange("pixelpay:nft:sales", 0, 19);
+    const total = await redis.llen("pixelpay:nft:sales");
+    const sales = await redis.lrange("pixelpay:nft:sales", offset, offset + limit - 1);
     const parsed = sales.map(s => typeof s === "string" ? JSON.parse(s) : s);
-    res.json({ sales: parsed, activity: parsed, total: parsed.length });
+    res.json({ sales: parsed, activity: parsed, total, limit, offset });
   } catch (err) {
     res.json({ activity: [], total: 0 });
   }
@@ -915,15 +929,18 @@ app.get("/v1/nft/activity", async (_req, res) => {
 
 // Get all NFTs by owner (MUST be before /:tokenId)
 app.get("/v1/nft/by-owner/:wallet", async (req, res) => {
-  if (!redis) return res.json({ nfts: [] });
+  if (!redis) return res.json({ nfts: [], total: 0 });
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
   try {
-    const ids = await redis.lrange(`pixelpay:nft:by_owner:${req.params.wallet.toLowerCase()}`, 0, 199);
+    const total = await redis.llen(`pixelpay:nft:by_owner:${req.params.wallet.toLowerCase()}`);
+    const ids = await redis.lrange(`pixelpay:nft:by_owner:${req.params.wallet.toLowerCase()}`, offset, offset + limit - 1);
     const nfts = [];
     for (const id of ids) {
       const data = await redis.get(`pixelpay:nft:${id}`);
       if (data) nfts.push(typeof data === "string" ? JSON.parse(data) : data);
     }
-    res.json({ nfts, total: nfts.length });
+    res.json({ nfts, total, limit, offset });
   } catch (err) {
     res.json({ nfts: [], total: 0 });
   }

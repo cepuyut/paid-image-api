@@ -372,6 +372,7 @@ async function handleWallet() {
     refreshBalances();
   } catch (e) {
     console.error("Wallet error:", e);
+    showToast("Failed to connect wallet", "error");
   }
 }
 
@@ -390,6 +391,7 @@ async function refreshBalances() {
     document.getElementById("balanceOut").textContent = "Balance: " + formatAmount(balOut);
   } catch (e) {
     console.error("Balance error:", e);
+    showToast("Failed to load balances", "error");
   }
 }
 
@@ -508,6 +510,7 @@ async function fetchQuote() {
     document.getElementById("rateInfo").style.display = "none";
     btn.textContent = "No liquidity";
     btn.disabled = true;
+    showToast("No liquidity for this pair", "error");
   }
 }
 
