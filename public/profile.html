@@ -36,23 +36,24 @@
       font-weight: 800; font-size: 17px; color: #000;
     }
     .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
-    .nav-right { display: flex; align-items: center; gap: 4px; }
+    .nav-right { display: flex; align-items: center; gap: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 1px; }
     .nav-links a {
       color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
-      padding: 6px 12px; border-radius: 6px; transition: color 0.15s;
+      padding: 7px 14px; border-radius: 8px; transition: all 0.2s;
     }
-    .nav-links a:hover { color: var(--white); }
-    .nav-links a.active { color: var(--white); }
+    .nav-links a:hover { color: var(--text2); background: var(--surface2); }
+    .nav-links a.active { color: var(--white); background: var(--surface2); }
     .btn-wallet {
       background: var(--white); color: #000; border: none; padding: 8px 16px;
       border-radius: 10px; font-size: 13px; font-weight: 600; font-family: inherit;
       cursor: pointer; transition: all 0.2s; margin-left: 8px;
     }
-    .btn-wallet:hover { opacity: 0.9; }
-    .btn-wallet.connected { background: var(--surface2); color: var(--green); border: 1px solid var(--border2); }
+    .btn-wallet:hover { opacity: 0.85; }
+    .btn-wallet.connected { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
     .pxp-badge {
-      background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #00d47b44;
-      color: #00d47b; padding: 6px 12px; border-radius: 8px; font-size: 12px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--green); padding: 7px 14px; border-radius: 10px; font-size: 12px;
       font-weight: 600; font-family: inherit; white-space: nowrap;
     }
 
@@ -188,6 +189,7 @@
         <a href="/gallery">Gallery</a>
         <a href="/marketplace">Marketplace</a>
         <a href="/swap">Swap</a>
+        <a href="/profile" class="active">Profile</a>
       </div>
       <span class="pxp-badge" id="pxpBal" style="display:none">0 PXP</span>
       <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>

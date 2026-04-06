@@ -35,11 +35,14 @@
       font-weight: 800; font-size: 17px; color: #000;
     }
     .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
+    .nav-right { display: flex; align-items: center; gap: 6px; }
+    .nav-links { display: flex; align-items: center; gap: 1px; }
     .nav-links a {
       color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
-      padding: 6px 12px; border-radius: 6px; transition: color 0.15s;
+      padding: 7px 14px; border-radius: 8px; transition: all 0.2s;
     }
-    .nav-links a:hover { color: var(--white); }
+    .nav-links a:hover { color: var(--text2); background: var(--surface2); }
+    .nav-links a.active { color: var(--white); background: var(--surface2); }
 
     .page-header { padding: 48px 0 16px; text-align: center; }
     .page-header h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.04em; color: var(--white); margin-bottom: 8px; }
@@ -127,14 +130,17 @@
     }
 
     .pxp-badge {
-      background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #00d47b44;
-      color: #00d47b; padding: 6px 12px; border-radius: 8px; font-size: 12px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--green); padding: 7px 14px; border-radius: 10px; font-size: 12px;
       font-weight: 600; font-family: inherit; white-space: nowrap;
     }
     .btn-wallet {
-      background: #fff; color: #000; border: none; padding: 8px 16px; border-radius: 10px;
-      font-size: 13px; font-weight: 600; cursor: pointer; margin-left: 8px; font-family: inherit;
+      background: #fff; color: #000; border: none; padding: 8px 18px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: all 0.2s;
     }
+    .btn-wallet:hover { opacity: 0.85; }
+    .btn-wallet.connected { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
 
     footer {
       text-align: center; padding: 32px 0; color: var(--muted2); font-size: 12px;
@@ -179,11 +185,14 @@
       <div class="logo-icon">P</div>
       <div class="logo-text">PixelPay</div>
     </a>
-    <div class="nav-links" style="display:flex;align-items:center;gap:4px;">
-      <a href="/">Generate</a>
-      <a href="/v1/prices">Pricing</a>
-      <a href="/marketplace">Marketplace</a>
-      <a href="/swap">Swap</a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/">Generate</a>
+        <a href="/gallery" class="active">Gallery</a>
+        <a href="/marketplace">Marketplace</a>
+        <a href="/swap">Swap</a>
+        <a href="/profile">Profile</a>
+      </div>
       <span class="pxp-badge" id="pxpBal" style="display:none">0 PXP</span>
       <button id="walletBtn" onclick="connectWallet()" class="btn-wallet">Connect</button>
     </div>
