@@ -598,17 +598,25 @@ async function loadStats() {
   } catch (_) {}
 }
 
+// ── Sanitize ──
+function esc(str) {
+  const d = document.createElement("div");
+  d.textContent = str;
+  return d.innerHTML;
+}
+function sanitizeId(id) { return String(id).replace(/[^0-9]/g, ""); }
+
 // ── Render card ──
 function renderCard(nft, listing) {
   if (!nft) return "";
-  const name = (nft.name || nft.prompt || "NFT #" + nft.tokenId).slice(0, 60).replace(/</g, "&lt;").replace(/"/g, "&quot;");
-  const img = nft.image_url || "";
+  const name = esc((nft.name || nft.prompt || "NFT #" + nft.tokenId).slice(0, 60));
+  const img = esc(nft.image_url || "");
   const shortCreator = nft.creator ? nft.creator.slice(0, 6) + "..." + nft.creator.slice(-4) : "";
-  const model = nft.model ? nft.model.replace("fal-ai/", "") : "";
+  const model = nft.model ? esc(nft.model.replace("fal-ai/", "")) : "";
   const price = listing ? "$" + (Number(listing.price) / 1e6).toFixed(2) : "";
-  const tokenId = nft.tokenId || "0";
+  const tokenId = sanitizeId(nft.tokenId || "0");
 
-  return `<div class="nft-card" onclick="openNFT('${tokenId}')">
+  return `<div class="nft-card" data-token-id="${tokenId}">
     <img src="${img}" alt="${name}" loading="lazy" onerror="this.style.background='var(--surface3)'">
     <div class="nft-info">
       <div style="display:flex;justify-content:space-between;align-items:start">
@@ -619,12 +627,28 @@ function renderCard(nft, listing) {
         ${price ? `<div class="nft-price">${price}</div>` : ''}
       </div>
       <div class="nft-meta">
-        <span class="nft-creator">by ${shortCreator}</span>
+        <span class="nft-creator">by ${esc(shortCreator)}</span>
       </div>
       ${model ? `<span class="nft-model-tag">${model}</span>` : ''}
     </div>
   </div>`;
 }
+
+// ── Event delegation for NFT cards + modal actions ──
+document.addEventListener("click", function(e) {
+  const card = e.target.closest(".nft-card[data-token-id]");
+  if (card) { openNFT(sanitizeId(card.dataset.tokenId)); return; }
+
+  const actionBtn = e.target.closest("[data-action]");
+  if (!actionBtn || !window._modalCtx) return;
+  const { tokenId, price } = window._modalCtx;
+  switch (actionBtn.dataset.action) {
+    case "buy-usdc": buyNFT(tokenId, price); break;
+    case "buy-pxp": buyWithPXP(tokenId, price); break;
+    case "cancel": cancelListing(tokenId); break;
+    case "list": openListModal(tokenId); break;
+  }
+});
 
 // ── Modal ──
 async function openNFT(tokenId) {
@@ -649,7 +673,7 @@ async function openNFT(tokenId) {
     if (nft.model) attrs.push({ label: "Model", value: nft.model.replace("fal-ai/", "") });
     if (nft.tokenId) attrs.push({ label: "Token ID", value: "#" + nft.tokenId });
     document.getElementById("modalAttrs").innerHTML = attrs.map(a =>
-      `<div class="modal-attr"><div class="modal-attr-label">${a.label}</div><div class="modal-attr-value">${a.value}</div></div>`
+      `<div class="modal-attr"><div class="modal-attr-label">${esc(a.label)}</div><div class="modal-attr-value">${esc(a.value)}</div></div>`
     ).join("");
 
     // Actions
@@ -657,24 +681,27 @@ async function openNFT(tokenId) {
     const nftOwner = nft.owner || nft.wallet || "";
     const isOwner = walletConnected && walletAddress && nftOwner && nftOwner.toLowerCase() === walletAddress.toLowerCase();
 
+    // Store current modal context for event delegation
+    window._modalCtx = { tokenId: sanitizeId(tokenId), price: listing ? String(listing.price).replace(/[^0-9]/g, "") : "0" };
+
     if (listing) {
       const priceUsd = (Number(listing.price) / 1e6).toFixed(2);
       if (isOwner) {
         actions.innerHTML = `
           <div><div class="modal-price">$${priceUsd}</div><div class="modal-price-label">Listed price</div></div>
-          <button class="btn-cancel-listing" onclick="cancelListing('${tokenId}')">Cancel Listing</button>`;
+          <button class="btn-cancel-listing" data-action="cancel">Cancel Listing</button>`;
       } else {
         const pxpAmount = (Number(listing.price) / 1e6 * 0.8 * 100).toFixed(0);
         const originalPxp = (Number(listing.price) / 1e6 * 100).toFixed(0);
         actions.innerHTML = `
           <div><div class="modal-price">$${priceUsd}</div><div class="modal-price-label">Choose payment method</div></div>
           <div class="buy-options">
-            <button class="buy-option" id="buyBtn" onclick="buyNFT('${tokenId}', '${listing.price}')">
+            <button class="buy-option" id="buyBtn" data-action="buy-usdc">
               <div class="pay-label">Pay with USDC</div>
               <div class="pay-amount">$${priceUsd}</div>
               <div class="pay-sub">Stablecoin</div>
             </button>
-            ${PXP_TOKEN_ADDR ? `<button class="buy-option pxp" id="buyPxpBtn" onclick="buyWithPXP('${tokenId}', '${listing.price}')">
+            ${PXP_TOKEN_ADDR ? `<button class="buy-option pxp" id="buyPxpBtn" data-action="buy-pxp">
               <span class="discount-tag">-20%</span>
               <div class="pay-label">Pay with PXP</div>
               <div class="pay-amount">${pxpAmount} PXP</div>
@@ -685,7 +712,7 @@ async function openNFT(tokenId) {
     } else if (isOwner) {
       actions.innerHTML = `
         <div><div class="modal-price-label">You own this NFT</div></div>
-        <button class="btn-list" onclick="openListModal('${tokenId}')">List for Sale</button>`;
+        <button class="btn-list" data-action="list">List for Sale</button>`;
     } else {
       actions.innerHTML = `<div class="modal-price-label">Not listed for sale</div>`;
     }

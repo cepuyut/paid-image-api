@@ -45,8 +45,8 @@ const PXP_ABI = parseAbi([
   "function balanceOf(address) view returns (uint256)",
   "function totalSupply() view returns (uint256)",
 ]);
-const PATHUSD = "0x20C0000000000000000000000000000000000000";
-const USDC_TOKEN_ADDR = "0x20c000000000000000000000b9537d11c60e8b50";
+const PATHUSD = process.env.PATHUSD_ADDRESS || "0x20C0000000000000000000000000000000000000";
+const USDC_TOKEN_ADDR = process.env.USDC_TOKEN_ADDRESS || "0x20c000000000000000000000b9537d11c60e8b50";
 const MARKETPLACE_BUY_ABI = parseAbi(["function buy(uint256 tokenId) external"]);
 const NFT_TRANSFER_ABI = parseAbi(["function transferFrom(address from, address to, uint256 tokenId)"]);
 const USDC_ABI = parseAbi([
@@ -657,6 +657,7 @@ app.post("/v1/gallery/publish", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const { image_url, wallet, prompt, model, style, seed } = req.body || {};
   if (!image_url || !wallet) return res.status(400).json({ detail: "image_url and wallet required." });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return res.status(400).json({ detail: "Invalid wallet address." });
   try {
     const entry = { prompt, model, style: style || null, image_url, seed: seed || null, wallet: wallet.toLowerCase(), timestamp: Date.now() };
     await redis.lpush(GALLERY_KEY, JSON.stringify(entry));
@@ -674,6 +675,7 @@ app.post("/v1/gallery/unpublish", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const { image_url, wallet } = req.body || {};
   if (!image_url || !wallet) return res.status(400).json({ detail: "image_url and wallet required." });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return res.status(400).json({ detail: "Invalid wallet address." });
   try {
     const items = await redis.lrange(GALLERY_KEY, 0, MAX_GALLERY - 1);
     for (const item of items) {
@@ -856,6 +858,7 @@ app.post("/v1/nft/mint", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const { tokenId, wallet, prompt, model, style, seed, image_url, metadata_uri, tx_hash } = req.body || {};
   if (tokenId == null || !wallet) return res.status(400).json({ detail: "tokenId and wallet required." });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return res.status(400).json({ detail: "Invalid wallet address." });
 
   const entry = {
     tokenId: Number(tokenId), wallet: wallet.toLowerCase(), prompt, model,
@@ -971,6 +974,7 @@ app.post("/v1/nft/list", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const { tokenId, seller, price } = req.body || {};
   if (tokenId == null || !seller || !price) return res.status(400).json({ detail: "tokenId, seller, price required." });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(seller)) return res.status(400).json({ detail: "Invalid seller address." });
   try {
     // Verify seller owns this NFT
     const nd = await redis.get(`pixelpay:nft:${tokenId}`);
@@ -1148,12 +1152,15 @@ app.post("/v1/nft/buy-pxp", async (req, res) => {
 app.delete("/v1/nft/listing/:tokenId", async (req, res) => {
   if (!redis) return res.status(503).json({ detail: "Redis not configured." });
   const seller = req.query.seller;
+  if (!seller || !/^0x[0-9a-fA-F]{40}$/.test(seller)) {
+    return res.status(400).json({ detail: "Valid seller address required." });
+  }
   try {
     const ld = await redis.get(`pixelpay:nft:listing:${req.params.tokenId}`);
     if (!ld) return res.status(404).json({ detail: "Listing not found." });
     const listing = typeof ld === "string" ? JSON.parse(ld) : ld;
     // Verify the caller is the seller
-    if (seller && listing.seller !== seller.toLowerCase()) {
+    if (listing.seller !== seller.toLowerCase()) {
       return res.status(403).json({ detail: "Only the seller can cancel." });
     }
     await redis.del(`pixelpay:nft:listing:${req.params.tokenId}`);

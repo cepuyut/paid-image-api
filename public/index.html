@@ -1345,6 +1345,7 @@ res = requests.<span class="fn">post</span>(
 </div>
 
 <script>
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 // ── Config ──
 const TEMPO_CHAIN_ID = 4217;
 const TEMPO_RPC = "https://rpc.tempo.xyz";
@@ -1522,7 +1523,7 @@ function showLoading(message) {
         <div class="pixel-grid">${pixels}</div>
       </div>
       <div class="loading-text">
-        <div>${message}</div>
+        <div>${esc(message)}</div>
         <div style="margin-top:4px">Elapsed: <span class="timer" id="loadingTimer">0s</span></div>
       </div>
     </div>`;
@@ -1964,7 +1965,7 @@ async function generatePaid() {
     if (err.code === "ACTION_REJECTED" || err.code === 4001) {
       msg = "Transaction rejected. No USDC was spent.";
     }
-    result.innerHTML = `<div class="error">${msg}</div>`;
+    result.innerHTML = `<div class="error">${esc(msg)}</div>`;
   } finally {
     btn.disabled = false;
     btn.textContent = "Generate";
@@ -2009,7 +2010,7 @@ async function generateDemo() {
 
     if (!res.ok) {
       const err = await res.json();
-      result.innerHTML = `<div class="error">${err.detail || "Failed. Try again."}</div>`;
+      result.innerHTML = `<div class="error">${esc(err.detail || "Failed. Try again.")}</div>`;
       return;
     }
 
