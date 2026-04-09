@@ -29,8 +29,11 @@
         "summary": "Generate an image from a text prompt",
         "description": "PixelPay generates images from text prompts using fal.ai models. 8 models available: Schnell $0.029, Dev $0.049, Recraft $0.059, HiDream $0.079, Ideogram $0.079, Pro $0.099, Nano Banana 2 $0.14 (premium), Nano Banana Pro $0.19 (premium) USDC via MPP Tempo charge.",
         "x-payment-info": {
-          "protocols": ["mpp"],
+          "protocols": ["x402", "mpp"],
           "pricingMode": "tiered",
+          "minPrice": "0.029000",
+          "maxPrice": "0.190000",
+          "currency": "USDC",
           "priceRange": { "min": "0.029000", "max": "0.190000" },
           "tiers": [
             { "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "0.029000" },
