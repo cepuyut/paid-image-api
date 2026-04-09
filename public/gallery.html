@@ -261,6 +261,7 @@ let currentModalItem = null;
 let currentModalIdx = -1;
 let currentTab = "my";
 let publicImageUrls = new Set();
+let mintedImages = new Set(); // Track minted images to prevent duplicate mints
 
 // ── Helpers ──
 function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
@@ -426,10 +427,21 @@ function openModal(idx) {
     pubBtn.style.display = "none";
   }
 
-  // Reset mint button
+  // Check if image already minted — if so, disable mint button
   const mintBtn = document.getElementById("modalMintBtn");
-  mintBtn.textContent = "\u2606 Mint NFT";
-  mintBtn.style.color = ""; mintBtn.style.borderColor = ""; mintBtn.disabled = false;
+  const imgUrl = item.image_url || "";
+  const isMinted = mintedImages.has(imgUrl);
+  if (isMinted) {
+    mintBtn.textContent = "Already Minted";
+    mintBtn.style.color = "#0f0"; mintBtn.style.borderColor = "#0f0";
+    mintBtn.disabled = true;
+    mintBtn.onclick = null;
+  } else {
+    mintBtn.textContent = "\u2606 Mint NFT";
+    mintBtn.style.color = ""; mintBtn.style.borderColor = "";
+    mintBtn.disabled = false;
+    mintBtn.onclick = mintFromGallery;
+  }
 
   document.getElementById("imageModal").classList.add("open");
   document.body.style.overflow = "hidden";
@@ -541,6 +553,9 @@ async function mintFromGallery() {
     }).catch(()=>{});
     btn.textContent = "Minted! #" + tokenId;
     btn.style.color = "#0f0"; btn.style.borderColor = "#0f0";
+    btn.disabled = true; // Keep disabled — this image is already minted
+    btn.onclick = null; // Remove click handler
+    mintedImages.add(currentModalItem.image_url); // Track so modal knows it's minted
     showToast("NFT minted successfully! Token #" + tokenId, "success");
   } catch(e) {
     console.error("Mint error:", e);

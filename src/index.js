@@ -634,11 +634,12 @@ app.post("/v1/images/generate", async (req, res) => {
       if (count === 1 && !hasRefs && images.length > 0) setCache(cacheKey, images, usedModel);
     }
 
-    // Save to user's personal gallery (always) and public gallery (only if not private)
+    // Save to user's personal gallery (always) — public only if explicitly set to public (private: false)
     if (images.length > 0 && !cached) {
       const imgUrl = images[0].url || null;
       if (imgUrl) {
-        gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, wallet: reqWallet || null, timestamp: Date.now() }, !isPrivate);
+        const publishToPublic = isPrivate === false; // Must explicitly opt-in to public
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, wallet: reqWallet || null, timestamp: Date.now() }, publishToPublic);
       }
       // PXP reward for generating
       if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "generate").catch(() => {});
