@@ -11,10 +11,11 @@ No API keys needed. Just pay per request.
 ## Payment
 
 - Protocol: MPP (Machine Payments Protocol)
-- Method: `tempo` (Tempo blockchain)
+- Method: `tempo` (Tempo blockchain, chain ID 4217)
 - Intent: `charge` (one-time per-request payment)
 - Currency: `0x20c000000000000000000000b9537d11c60e8b50` (USDC on Tempo)
 - Recipient: `0xf48c6E46358652fC77462d56d609B8bC7f4ba82e`
+- Fee payer: Server pays gas (you only pay USDC amount)
 
 ### Tiered Pricing (per image)
 
@@ -41,7 +42,7 @@ Default model: `fal-ai/flux/schnell` ($0.029). Price is determined by the `model
 4. Retry the same request with `Authorization: Payment <base64url-credential>`
 5. Receive `200 OK` with generated images and a `Payment-Receipt` header
 
-## Endpoint
+## Endpoints
 
 ### POST /v1/images/generate
 
@@ -49,57 +50,88 @@ Generate an image from a text prompt.
 
 **Request body** (JSON):
 - `prompt` (string, required): Text describing the image to generate
-- `model` (string, optional): Model ID. Options: `fal-ai/flux/schnell` ($0.029, default), `fal-ai/flux/dev` ($0.049), `fal-ai/recraft-v3` ($0.059), `fal-ai/hidream-i1-full` ($0.079), `fal-ai/ideogram/v3` ($0.079), `fal-ai/flux-pro/v1.1` ($0.099), `fal-ai/nano-banana-2` ($0.14, premium), `fal-ai/nano-banana-pro` ($0.19, premium)
-- `image_size` (string, optional): Output size / aspect ratio. Default: `landscape_4_3`. Options: `square_hd` (1:1), `square`, `landscape_4_3` (4:3), `landscape_16_9` (16:9), `portrait_4_3` (3:4), `portrait_9_16` (9:16), `portrait_16_9`, `widescreen_21_9` (21:9)
-- `num_images` (integer, optional): Number of images, 1-4. Default: 1
-- `image_urls` (string or array, optional): Reference image(s) for image-to-image generation. Pass a URL or base64 data URL. Model support: Nano Banana 2/Pro (up to 14), Recraft V3/FLUX Dev (1 image), Schnell/HiDream/Ideogram/Pro (text-only, not supported)
-- `style` (string, optional): Style preset. Options: `anime`, `cinematic`, `vintage`, `noir`, `cyberpunk`, `watercolor`, `oil-painting`, `pixel-art`, `minimalist`, `pop-art`. Automatically appends style keywords to prompt.
-- `enhance` (boolean, optional): If true, auto-enhance prompt with quality keywords for better results. Default: false
-- `negative_prompt` (string, optional): Things to avoid in the image (e.g. "blur, watermark, low quality, deformed")
-- `seed` (integer, optional): Random seed for reproducible results. Omit for random. The seed used is returned in the response for reuse.
-- `private` (boolean, optional): If true, image will not appear in the public gallery. Default: false
+- `model` (string, optional): Model ID. Default: `fal-ai/flux/schnell`
+- `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `landscape_4_3`, `landscape_16_9`, `portrait_4_3`, `portrait_9_16`, `widescreen_21_9`
+- `num_images` (integer, optional): 1-4 images. Default: 1
+- `image_urls` (string or array, optional): Reference image(s) for img2img. Supported by Nano Banana 2/Pro, Recraft V3, FLUX Dev
+- `style` (string, optional): Style preset: `anime`, `cinematic`, `vintage`, `noir`, `cyberpunk`, `watercolor`, `oil-painting`, `pixel-art`, `minimalist`, `pop-art`
+- `enhance` (boolean, optional): Auto-enhance prompt. Default: false
+- `negative_prompt` (string, optional): Things to avoid (e.g. "blur, watermark")
+- `seed` (integer, optional): For reproducible results
 
-**Success response** (200):
+**Example request:**
+```
+POST /v1/images/generate
+Content-Type: application/json
+
+{"prompt": "a serene mountain landscape at sunset", "model": "fal-ai/flux/schnell"}
+```
+
+**402 response (pay this):**
+```
+HTTP/1.1 402 Payment Required
+WWW-Authenticate: Payment id="...", realm="pixelpayapi.com", method="tempo", intent="charge", request="<base64url>", expires="..."
+
+{"status": 402, "detail": "Generate an image for 0.029 USDC (schnell tier)"}
+```
+
+**200 response (after payment):**
 ```json
 {
-  "images": [
-    {
-      "url": "https://...",
-      "width": 1024,
-      "height": 768,
-      "content_type": "image/jpeg"
-    }
-  ],
-  "prompt": "...",
+  "images": [{"url": "https://fal.media/files/...", "width": 1024, "height": 768, "content_type": "image/jpeg"}],
+  "prompt": "a serene mountain landscape at sunset",
   "model": "fal-ai/flux/schnell",
-  "seed": 1234567890,
-  "timings": {}
+  "seed": 1234567890
 }
 ```
 
-**Payment challenge** (402):
-```json
-{
-  "type": "https://paymentauth.org/problems/payment-required",
-  "title": "Payment Required",
-  "status": 402,
-  "detail": "Generate an image for 0.029 USDC (schnell tier)"
-}
-```
+### GET /v1/models
+
+List all available models with capabilities and pricing.
+
+### GET /v1/prices
+
+Get current pricing for all models.
+
+### POST /v1/validate
+
+Validate a prompt before paying. Returns estimated cost and model info.
+
+**Request:** `{"prompt": "...", "model": "fal-ai/flux/schnell"}`
+**Response:** `{"valid": true, "model": "fal-ai/flux/schnell", "price": "0.029000", "tier": "schnell"}`
+
+### GET /v1/styles
+
+List available style presets.
+
+### POST /v1/images/upscale
+
+Upscale an image 2x using fal.ai creative-upscaler.
+
+**Request:** `{"image_url": "https://..."}`
+
+### GET /v1/gallery
+
+Public image gallery (JSON). Returns recent community-generated images.
+
+### GET /v1/history/:wallet
+
+Per-wallet generation history (last 100 entries).
+
+### GET /health
+
+Health check endpoint.
 
 ## Discovery
 
 - OpenAPI spec: `GET /openapi.json`
-- LLM docs: `GET /llms.txt`
-- Pricing: `GET /v1/prices`
-- Style presets: `GET /v1/styles`
-- Public gallery: `GET /v1/gallery` (JSON) or `GET /gallery` (HTML page)
-- Upscale image: `POST /v1/images/upscale` — send `{ "image_url": "..." }` to upscale 2x via fal.ai creative-upscaler
-- Generation history: `GET /v1/history/:wallet` — per-wallet generation history (last 100). `POST /v1/history/save` to save entries.
-- Health check: `GET /health`
+- Agent instructions: `GET /agents.txt`
+- LLM docs: `GET /llms.txt` (this file)
+- Well-known: `GET /.well-known/mpp.json`
 
 ## Links
 
+- Website: https://pixelpayapi.com
 - MPP spec: https://mpp.dev
 - fal.ai: https://fal.ai
 - Tempo docs: https://docs.tempo.xyz

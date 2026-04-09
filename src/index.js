@@ -376,6 +376,78 @@ app.get("/.well-known/mpp.json", (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Agent instructions: GET /agents.txt
+// ---------------------------------------------------------------------------
+
+let agentsTxt;
+try { agentsTxt = readFileSync(join(ROOT, "agents.txt"), "utf8"); } catch { agentsTxt = null; }
+
+app.get("/agents.txt", (_req, res) => {
+  if (!agentsTxt) return res.status(404).send("agents.txt not found.");
+  res.set("Content-Type", "text/plain; charset=utf-8");
+  res.set("Cache-Control", "max-age=300");
+  res.send(agentsTxt);
+});
+
+// ---------------------------------------------------------------------------
+// Models endpoint: GET /v1/models
+// ---------------------------------------------------------------------------
+
+app.get("/v1/models", (_req, res) => {
+  const models = Object.entries(BASE_PRICING).map(([id, info]) => ({
+    id,
+    tier: info.tier,
+    price_usd: (info.base / 1_000_000).toFixed(3),
+    price_base_units: info.base,
+    premium: !!info.premium,
+    max_reference_images: info.maxImages,
+    capabilities: {
+      text_to_image: true,
+      image_to_image: info.maxImages > 0,
+      text_in_image: id === "fal-ai/ideogram/v3",
+      vector_output: id === "fal-ai/recraft-v3",
+    },
+  }));
+  res.set("Cache-Control", "max-age=60");
+  res.json({ models, default_model: DEFAULT_MODEL, total: models.length });
+});
+
+// ---------------------------------------------------------------------------
+// Validate endpoint: POST /v1/validate
+// ---------------------------------------------------------------------------
+
+app.post("/v1/validate", (req, res) => {
+  const { prompt, model } = req.body || {};
+  if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+    return res.status(400).json({ valid: false, error: "prompt is required and must be a non-empty string" });
+  }
+  if (prompt.length > 10000) {
+    return res.status(400).json({ valid: false, error: "prompt exceeds maximum length of 10000 characters" });
+  }
+  const resolvedModel = (!model || model === "auto") ? autoSelectModel(prompt) : model;
+  const modelInfo = BASE_PRICING[resolvedModel];
+  if (!modelInfo) {
+    return res.status(400).json({
+      valid: false,
+      error: `Model '${resolvedModel}' is not supported`,
+      available_models: Object.keys(BASE_PRICING),
+    });
+  }
+  const multiplier = getDemandMultiplier();
+  const price = Math.round(modelInfo.base * multiplier);
+  res.json({
+    valid: true,
+    prompt: prompt.trim(),
+    model: resolvedModel,
+    tier: modelInfo.tier,
+    price: String(price),
+    price_usd: (price / 1_000_000).toFixed(3),
+    premium: !!modelInfo.premium,
+    surge_multiplier: multiplier,
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Paid endpoint: POST /v1/images/generate
 // ---------------------------------------------------------------------------
 
@@ -1437,7 +1509,10 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`PixelPay listening on ${HOST}`);
   console.log(`  POST ${HOST}/v1/images/generate  (MPP-protected, tiered pricing)`);
   console.log(`  GET  ${HOST}/v1/prices`);
+  console.log(`  GET  ${HOST}/v1/models`);
+  console.log(`  POST ${HOST}/v1/validate`);
   console.log(`  GET  ${HOST}/openapi.json`);
   console.log(`  GET  ${HOST}/llms.txt`);
+  console.log(`  GET  ${HOST}/agents.txt`);
   console.log(`  GET  ${HOST}/.well-known/mpp.json`);
 });
