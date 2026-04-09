@@ -1940,8 +1940,13 @@ async function generatePaid() {
       body: JSON.stringify(reqBody)
     });
 
+    const challengeContentType = challengeRes.headers.get("content-type") || "";
+    if (!challengeContentType.includes("application/json")) {
+      throw new Error("Server is temporarily unavailable. Please try again in a moment.");
+    }
     if (challengeRes.status !== 402) {
-      throw new Error("Expected 402 challenge, got " + challengeRes.status);
+      const errBody = await challengeRes.json().catch(() => ({}));
+      throw new Error(errBody.detail || "Expected 402 challenge, got " + challengeRes.status);
     }
 
     const wwwAuth = challengeRes.headers.get("WWW-Authenticate");

@@ -659,8 +659,7 @@ app.post("/v1/images/generate", async (req, res) => {
     // Issue retry credit so user can retry without paying again
     let retryToken = null;
     if (redis && credential) {
-      const { randomBytes: rb } = await import("node:crypto");
-      retryToken = rb(16).toString("hex");
+      retryToken = createHmac("sha256", String(Date.now())).update(String(Math.random())).digest("hex").slice(0, 32);
       const creditData = {
         amount: Number(totalPrice),
         model: resolvedModel,
