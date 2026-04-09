@@ -17,7 +17,7 @@ services:
       - key: CURRENCY_TOKEN
         value: "0x20c000000000000000000000b9537d11c60e8b50"
       - key: MPP_REALM
-        value: pixelpay
+        value: pixelpayapi.com
       - key: MPP_CHALLENGE_SECRET
         sync: false
       - key: MPP_CHALLENGE_TTL
