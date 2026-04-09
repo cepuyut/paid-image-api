@@ -4,7 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PixelPay — AI Image Generation via MPP</title>
-  <meta name="description" content="Generate AI images via API. Pay per request with USDC on Tempo. No API keys. 9 models, smart routing.">
+  <meta name="description" content="Generate AI images from 8 models. Pay per request with USDC on Tempo. No API keys, no signup. Smart routing, batch discounts.">
+  <meta name="keywords" content="AI image generation, USDC, Tempo blockchain, NFT, pay per use, API, flux, stable diffusion">
+  <meta name="author" content="PixelPay">
+  <meta name="theme-color" content="#000000">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PixelPay — AI Images. Pay per pixel.">
+  <meta property="og:description" content="Generate AI images from 8 models. Pay with USDC on Tempo. No API keys, no signup.">
+  <meta property="og:url" content="https://paid-image-api.onrender.com">
+  <meta property="og:site_name" content="PixelPay">
+  <meta property="og:image" content="https://paid-image-api.onrender.com/og-image.svg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PixelPay — AI Images. Pay per pixel.">
+  <meta name="twitter:description" content="Generate AI images from 8 models. Pay with USDC on Tempo. No API keys, no signup.">
+  <meta name="twitter:image" content="https://paid-image-api.onrender.com/og-image.svg">
+  <meta name="twitter:site" content="@PixelPayAPI">
+  <!-- Canonical -->
+  <link rel="canonical" href="https://paid-image-api.onrender.com">
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "PixelPay",
+    "url": "https://paid-image-api.onrender.com",
+    "description": "Generate AI images from 8 models. Pay per request with USDC on Tempo blockchain.",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0.029",
+      "priceCurrency": "USD",
+      "description": "Starting price per image"
+    }
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,6 +50,7 @@
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
 
     :root {
       --bg: #000000;
@@ -98,7 +137,19 @@
     .wallet-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; }
 
     /* ── Hero ── */
-    .hero { padding: 72px 0 56px; text-align: center; }
+    .hero {
+      padding: 72px 0 56px;
+      text-align: center;
+      position: relative;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 500px; height: 300px;
+      background: radial-gradient(ellipse, rgba(0,212,123,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
     .hero-badge {
       display: inline-flex;
       align-items: center;
@@ -120,6 +171,18 @@
       animation: pulse 2s infinite;
     }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
 
     h1 {
       font-size: 56px;
@@ -128,7 +191,9 @@
       line-height: 1.05;
       color: var(--white);
       margin-bottom: 16px;
+      animation: fadeUp 0.7s ease-out;
     }
+    .hero-badge { animation: fadeIn 0.5s ease-out; }
     .hero-sub {
       font-size: 17px;
       color: var(--muted);
@@ -136,7 +201,9 @@
       margin: 0 auto 44px;
       line-height: 1.6;
       font-weight: 400;
+      animation: fadeUp 0.7s ease-out 0.15s both;
     }
+    .stats { animation: fadeUp 0.7s ease-out 0.3s both; }
 
     /* ── Stats strip ── */
     .stats {
@@ -151,7 +218,9 @@
       padding: 20px;
       text-align: center;
       border-right: 1px solid var(--border);
+      transition: background 0.2s;
     }
+    .stat:hover { background: var(--surface2); }
     .stat:last-child { border-right: none; }
     .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--white); }
     .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; margin-top: 4px; }
@@ -234,7 +303,7 @@
       background: var(--surface);
       transition: all 0.25s;
     }
-    .tier-card:hover { border-color: var(--border2); }
+    .tier-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
     .tier-card.featured {
       border-color: var(--white);
       background: var(--surface2);
@@ -447,17 +516,19 @@
       background: var(--white);
       color: #000;
       border: none;
-      padding: 12px 24px;
+      padding: 14px 24px;
       border-radius: var(--radius);
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 700;
       font-family: inherit;
       cursor: pointer;
-      transition: opacity 0.15s;
+      transition: all 0.2s;
       letter-spacing: -0.01em;
+      position: relative;
     }
-    .btn-generate:hover { opacity: 0.85; }
-    .btn-generate:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,255,255,0.15); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
 
     /* Progress steps for paid flow */
     .progress-steps {
@@ -788,9 +859,12 @@
     .step {
       display: flex;
       gap: 16px;
-      padding: 16px 0;
+      padding: 18px 16px;
       border-bottom: 1px solid var(--border);
+      border-radius: 8px;
+      transition: background 0.2s;
     }
+    .step:hover { background: var(--surface2); }
     .step:last-child { border-bottom: none; }
     .step-num {
       width: 28px; height: 28px; min-width: 28px;
@@ -802,7 +876,9 @@
       justify-content: center;
       font-size: 12px;
       font-weight: 700;
+      transition: transform 0.2s;
     }
+    .step:hover .step-num { transform: scale(1.1); }
     .step-title { font-weight: 600; font-size: 14px; color: var(--white); }
     .step-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
@@ -864,12 +940,13 @@
 
     footer {
       text-align: center;
-      padding: 32px 0;
+      padding: 40px 0;
       color: var(--muted2);
       font-size: 12px;
       border-top: 1px solid var(--border);
+      margin-top: 24px;
     }
-    footer a { color: var(--muted); text-decoration: none; }
+    footer a { color: var(--muted); text-decoration: none; transition: color 0.15s; }
     footer a:hover { color: var(--white); }
 
     @media (max-width: 640px) {
