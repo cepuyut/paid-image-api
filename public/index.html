@@ -1814,13 +1814,15 @@ async function mintAsNFT() {
     // Determine if image is base64 or URL
     const isBase64 = lastResultImgSrc.startsWith("data:");
     const uploadBody = {
-      name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
-      description: lastResultPrompt || "Generated with PixelPay AI",
-      attributes: [
-        { trait_type: "Model", value: lastResultModel || "unknown" },
-        { trait_type: "Seed", value: String(lastResultSeed ?? "random") },
-        { trait_type: "Generator", value: "PixelPay" }
-      ]
+      metadata: {
+        name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
+        description: lastResultPrompt || "Generated with PixelPay AI",
+        attributes: [
+          { trait_type: "Model", value: lastResultModel || "unknown" },
+          { trait_type: "Seed", value: String(lastResultSeed ?? "random") },
+          { trait_type: "Generator", value: "PixelPay" }
+        ]
+      }
     };
     if (isBase64) {
       // Strip data:image/...;base64, prefix

@@ -601,8 +601,9 @@ app.post("/v1/images/generate", async (req, res) => {
     const hasRefs = refs.length > 0;
 
     // Check cache first (only for single image requests without references)
+    // NEVER use cache for paid requests — users pay for fresh generations
     const cacheKey = getCacheKey(enhanced, usedModel, size);
-    const cached = (count === 1 && !hasRefs) ? getCached(cacheKey) : null;
+    const cached = false; // Disabled for paid endpoint — every payment gets a fresh image
 
     let images, timings, usedSeed = seed ?? null;
     if (cached) {
