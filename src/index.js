@@ -1056,6 +1056,16 @@ app.post("/v1/nft/mint", async (req, res) => {
   const existing = await redis.get(`pixelpay:nft:${tokenId}`);
   if (existing) return res.status(409).json({ detail: "Token already minted." });
 
+  // Prevent same image from being minted twice
+  if (image_url) {
+    const imgHash = createHmac("sha256", "nft-dedup").update(image_url).digest("hex").slice(0, 32);
+    const dupKey = `pixelpay:nft:img:${imgHash}`;
+    const alreadyMinted = await redis.get(dupKey);
+    if (alreadyMinted) {
+      return res.status(409).json({ detail: "This image has already been minted as NFT.", existing_token: alreadyMinted });
+    }
+  }
+
   const entry = {
     tokenId: Number(tokenId), wallet: wallet.toLowerCase(), prompt, model,
     style: style || null, seed: seed ?? null, image_url, metadata_uri,
@@ -1067,6 +1077,11 @@ app.post("/v1/nft/mint", async (req, res) => {
     await redis.lpush(`pixelpay:nft:by_creator:${wallet.toLowerCase()}`, tokenId);
     await redis.lpush("pixelpay:nft:all", tokenId);
     await redis.incr("pixelpay:nft:counter");
+    // Mark image as minted to prevent duplicates
+    if (image_url) {
+      const imgHash = createHmac("sha256", "nft-dedup").update(image_url).digest("hex").slice(0, 32);
+      await redis.set(`pixelpay:nft:img:${imgHash}`, String(tokenId));
+    }
     // PXP reward for minting NFT
     mintPXP(wallet.toLowerCase(), PXP_REWARDS.mint_nft, "mint_nft").catch(() => {});
     res.json({ ok: true, nft: entry });

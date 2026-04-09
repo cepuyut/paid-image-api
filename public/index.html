@@ -1864,7 +1864,7 @@ async function mintAsNFT() {
           wallet: walletAddress,
           prompt: lastResultPrompt,
           model: lastResultModel || "unknown",
-          image_url: lastResultImgSrc.startsWith("data:") ? null : lastResultImgSrc,
+          image_url: lastResultImgSrc.startsWith("data:") ? metadata_uri : lastResultImgSrc,
           metadata_uri,
           tx_hash: receipt.hash
         })
@@ -1874,6 +1874,7 @@ async function mintAsNFT() {
     btn.innerHTML = '&#10003; Minted!';
     btn.style.color = 'var(--green)';
     btn.style.borderColor = 'var(--green)';
+    btn.disabled = true; // Keep disabled permanently — image already minted
     if (tokenId != null) {
       btn.title = `Token #${tokenId} minted successfully`;
     }
