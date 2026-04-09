@@ -1941,7 +1941,7 @@ async function generatePaid() {
     });
 
     const challengeContentType = challengeRes.headers.get("content-type") || "";
-    if (!challengeContentType.includes("application/json")) {
+    if (!challengeContentType.includes("json")) {
       throw new Error("Server is temporarily unavailable. Please try again in a moment.");
     }
     if (challengeRes.status !== 402) {
