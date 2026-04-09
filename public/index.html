@@ -1601,12 +1601,16 @@ function downloadImage(imgEl, filename) {
   if (imgEl.src.startsWith("data:")) {
     link.href = imgEl.src;
   } else {
-    // For URL images, use canvas to convert
-    const canvas = document.createElement("canvas");
-    canvas.width = imgEl.naturalWidth;
-    canvas.height = imgEl.naturalHeight;
-    canvas.getContext("2d").drawImage(imgEl, 0, 0);
-    link.href = canvas.toDataURL("image/png");
+    // For URL images, try canvas conversion; fallback to direct link if CORS taints
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = imgEl.naturalWidth;
+      canvas.height = imgEl.naturalHeight;
+      canvas.getContext("2d").drawImage(imgEl, 0, 0);
+      link.href = canvas.toDataURL("image/png");
+    } catch {
+      link.href = imgEl.src;
+    }
   }
   link.download = filename || "pixelpay-image.png";
   document.body.appendChild(link);
