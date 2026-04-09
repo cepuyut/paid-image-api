@@ -481,6 +481,54 @@ app.post("/v1/images/generate", async (req, res) => {
     return res.status(statusCode).json(body);
   }
 
+  // --- Check for retry credit (failed generation refund) ---
+  const retryHeader = req.get("X-PixelPay-Retry");
+  if (retryHeader && redis) {
+    const creditKey = `pixelpay:credit:${retryHeader}`;
+    const credit = await redis.get(creditKey).catch(() => null);
+    if (credit) {
+      try {
+        const creditData = JSON.parse(credit);
+        if (creditData.amount >= Number(totalPrice) && creditData.used !== true) {
+          // Mark credit as used
+          await redis.set(creditKey, JSON.stringify({ ...creditData, used: true }), { ex: 60 });
+          // Skip payment verification — this is a retry on a failed paid request
+          console.log(`Retry credit used: ${retryHeader} for ${creditData.wallet || "unknown"}`);
+          // Continue to generation below (skip credential verification)
+          const usedModel = resolvedModel;
+          if (!BASE_PRICING[usedModel]) {
+            return res.status(400).json({ detail: `Model '${usedModel}' is not supported.` });
+          }
+          const size = image_size || "landscape_4_3";
+          const enhanced = enhancePrompt(prompt, usedModel, { style, enhance });
+          const falBody = { prompt: enhanced, image_size: size, num_images: count };
+          if (negative_prompt) falBody.negative_prompt = negative_prompt;
+          if (seed != null) falBody.seed = Number(seed);
+          try {
+            const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(falBody),
+            });
+            if (!falRes.ok) throw new Error(`fal.ai error: ${falRes.status}`);
+            const result = await falRes.json();
+            // Success — delete credit
+            await redis.del(creditKey).catch(() => {});
+            return res.json({
+              images: result.images || [], prompt, enhanced_prompt: enhanced,
+              model: usedModel, timings: result.timings,
+              retried: true,
+            });
+          } catch (retryErr) {
+            // Still failing — restore credit for another try
+            await redis.set(creditKey, JSON.stringify({ ...creditData, used: false }), { ex: 3600 }).catch(() => {});
+            return res.status(502).json({ detail: "Retry failed. Your credit is still valid.", retry_token: retryHeader });
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
   // --- Verify credential ---
   const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
   if (!ok) {
@@ -608,11 +656,27 @@ app.post("/v1/images/generate", async (req, res) => {
     });
   } catch (err) {
     console.error("Image backend error:", err.message);
+    // Issue retry credit so user can retry without paying again
+    let retryToken = null;
+    if (redis && credential) {
+      const { randomBytes: rb } = await import("node:crypto");
+      retryToken = rb(16).toString("hex");
+      const creditData = {
+        amount: Number(totalPrice),
+        model: resolvedModel,
+        wallet: reqWallet || null,
+        timestamp: Date.now(),
+        used: false,
+      };
+      await redis.set(`pixelpay:credit:${retryToken}`, JSON.stringify(creditData), { ex: 3600 }).catch(() => {});
+      console.log(`Retry credit issued: ${retryToken} for ${totalPrice} (${resolvedModel})`);
+    }
     res.status(502).json({
       type: "https://paymentauth.org/problems/upstream-error",
       title: "Upstream Error",
       status: 502,
-      detail: "Image generation failed. Please retry.",
+      detail: "Image generation failed. You have a retry credit — use the retry_token to try again without paying.",
+      ...(retryToken ? { retry_token: retryToken } : {}),
     });
   }
 });

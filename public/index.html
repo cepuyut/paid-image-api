@@ -2006,8 +2006,33 @@ async function generatePaid() {
     stopLoading();
 
     if (!imageRes.ok) {
-      const err = await imageRes.json();
-      throw new Error(err.detail || "Generation failed after payment");
+      const errData = await imageRes.json().catch(() => ({}));
+      // If we got a retry token, auto-retry once
+      if (errData.retry_token) {
+        showLoading("Generation failed — retrying with credit...");
+        const retryRes = await fetch("/v1/images/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Payment " + credentialB64,
+            "X-PixelPay-Retry": errData.retry_token
+          },
+          body: JSON.stringify(reqBody)
+        });
+        stopLoading();
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          document.getElementById("ps3").className = "step-indicator done";
+          const retryImg = retryData.images?.[0];
+          if (retryImg) renderResult(retryImg, prompt, retryData.model, `$${amountUsd} USDC`, 'paid', retryData.seed);
+          await refreshBalance(null, walletAddress);
+          return;
+        }
+        // Retry also failed — show message with retry token for manual retry
+        const retryErr = await retryRes.json().catch(() => ({}));
+        throw new Error(`Generation failed. Retry credit saved: ${errData.retry_token}. Contact support.`);
+      }
+      throw new Error(errData.detail || "Generation failed after payment");
     }
 
     const data = await imageRes.json();
