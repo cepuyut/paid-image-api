@@ -1811,23 +1811,32 @@ async function mintAsNFT() {
 
   try {
     // 1. Upload image + metadata to IPFS via backend
+    // Determine if image is base64 or URL
+    const isBase64 = lastResultImgSrc.startsWith("data:");
+    const uploadBody = {
+      name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
+      description: lastResultPrompt || "Generated with PixelPay AI",
+      attributes: [
+        { trait_type: "Model", value: lastResultModel || "unknown" },
+        { trait_type: "Seed", value: String(lastResultSeed ?? "random") },
+        { trait_type: "Generator", value: "PixelPay" }
+      ]
+    };
+    if (isBase64) {
+      // Strip data:image/...;base64, prefix
+      uploadBody.image_b64 = lastResultImgSrc.replace(/^data:[^;]+;base64,/, "");
+      uploadBody.content_type = lastResultImgSrc.match(/^data:([^;]+)/)?.[1] || "image/png";
+    } else {
+      uploadBody.image_url = lastResultImgSrc;
+    }
     const uploadRes = await fetch("/v1/nft/upload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image_data: lastResultImgSrc,
-        name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
-        description: lastResultPrompt || "Generated with PixelPay AI",
-        attributes: [
-          { trait_type: "Model", value: lastResultModel || "unknown" },
-          { trait_type: "Seed", value: String(lastResultSeed ?? "random") },
-          { trait_type: "Generator", value: "PixelPay" }
-        ]
-      })
+      body: JSON.stringify(uploadBody)
     });
     if (!uploadRes.ok) {
       const err = await uploadRes.json().catch(() => ({}));
-      throw new Error(err.error || "IPFS upload failed");
+      throw new Error(err.detail || err.error || "IPFS upload failed");
     }
     const { metadata_uri } = await uploadRes.json();
 
