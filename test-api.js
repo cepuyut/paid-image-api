@@ -3,7 +3,7 @@
  * Usage: node test-api.js "your prompt here" [model]
  */
 
-const BASE = process.env.API_URL || "https://paid-image-api.onrender.com";
+const BASE = process.env.API_URL || "https://pixelpayapi.com";
 
 const prompt = process.argv[2] || "a cat wearing sunglasses on a beach";
 const model = process.argv[3] || "fal-ai/flux/schnell";

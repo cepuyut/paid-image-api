@@ -10,7 +10,7 @@
 
 import { writeFileSync, readFileSync, existsSync } from "node:fs";
 
-const API_URL = process.env.API_URL || "https://paid-image-api.onrender.com";
+const API_URL = process.env.API_URL || "https://pixelpayapi.com";
 const prompt = process.argv[2] || "a cute cat";
 const model = process.argv[3] || "fal-ai/flux/schnell";
 const txHash = process.argv[4];

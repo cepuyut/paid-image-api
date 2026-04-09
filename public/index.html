@@ -12,26 +12,26 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="PixelPay — AI Images. Pay per pixel.">
   <meta property="og:description" content="Generate AI images from 8 models. Pay with USDC on Tempo. No API keys, no signup.">
-  <meta property="og:url" content="https://paid-image-api.onrender.com">
+  <meta property="og:url" content="https://pixelpayapi.com">
   <meta property="og:site_name" content="PixelPay">
-  <meta property="og:image" content="https://paid-image-api.onrender.com/og-image.svg">
+  <meta property="og:image" content="https://pixelpayapi.com/og-image.svg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="PixelPay — AI Images. Pay per pixel.">
   <meta name="twitter:description" content="Generate AI images from 8 models. Pay with USDC on Tempo. No API keys, no signup.">
-  <meta name="twitter:image" content="https://paid-image-api.onrender.com/og-image.svg">
+  <meta name="twitter:image" content="https://pixelpayapi.com/og-image.svg">
   <meta name="twitter:site" content="@PixelPayAPI">
   <!-- Canonical -->
-  <link rel="canonical" href="https://paid-image-api.onrender.com">
+  <link rel="canonical" href="https://pixelpayapi.com">
   <!-- Structured Data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "PixelPay",
-    "url": "https://paid-image-api.onrender.com",
+    "url": "https://pixelpayapi.com",
     "description": "Generate AI images from 8 models. Pay per request with USDC on Tempo blockchain.",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Web",
@@ -1355,16 +1355,16 @@
       <div class="tab" onclick="showTab('python', this)">Python</div>
     </div>
     <pre id="code-curl"><code><span class="cm"># Step 1: Get payment challenge</span>
-curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
+curl -X POST https://pixelpayapi.com/v1/images/generate \
   -H <span class="str">"Content-Type: application/json"</span> \
   -d <span class="str">'{"prompt": "a sunset over mountains", "model": "auto"}'</span>
 
 <span class="cm"># Step 2: Pay via Tempo, then retry with credential</span>
-curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
+curl -X POST https://pixelpayapi.com/v1/images/generate \
   -H <span class="str">"Content-Type: application/json"</span> \
   -H <span class="str">"Authorization: Payment &lt;base64url-credential&gt;"</span> \
   -d <span class="str">'{"prompt": "a sunset over mountains", "model": "auto"}'</span></code></pre>
-    <pre id="code-node" style="display:none"><code><span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://paid-image-api.onrender.com/v1/images/generate"</span>, {
+    <pre id="code-node" style="display:none"><code><span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://pixelpayapi.com/v1/images/generate"</span>, {
   method: <span class="str">"POST"</span>,
   headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
   body: JSON.<span class="fn">stringify</span>({
@@ -1377,7 +1377,7 @@ curl -X POST https://paid-image-api.onrender.com/v1/images/generate \
     <pre id="code-python" style="display:none"><code><span class="kw">import</span> requests
 
 res = requests.<span class="fn">post</span>(
-    <span class="str">"https://paid-image-api.onrender.com/v1/images/generate"</span>,
+    <span class="str">"https://pixelpayapi.com/v1/images/generate"</span>,
     json={<span class="str">"prompt"</span>: <span class="str">"a sunset over mountains"</span>, <span class="str">"model"</span>: <span class="str">"auto"</span>}
 )
 

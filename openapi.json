@@ -7,19 +7,19 @@
     "x-guidance": "PixelPay generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.029, Dev $0.049, Recraft $0.059, HiDream $0.079, Ideogram $0.079, Pro $0.099, Nano Banana 2 $0.14 (premium), Nano Banana Pro $0.19 (premium) USDC via Tempo blockchain, then retry with the payment credential to receive your generated image. Premium models require wallet payment. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
-    "ownershipProofs": ["dns:paid-image-api.onrender.com"]
+    "ownershipProofs": ["dns:pixelpayapi.com"]
   },
   "x-service-info": {
     "categories": ["media", "compute"],
     "docs": {
-      "homepage": "https://paid-image-api.onrender.com",
-      "llms": "https://paid-image-api.onrender.com/llms.txt",
-      "apiReference": "https://paid-image-api.onrender.com/openapi.json"
+      "homepage": "https://pixelpayapi.com",
+      "llms": "https://pixelpayapi.com/llms.txt",
+      "apiReference": "https://pixelpayapi.com/openapi.json"
     }
   },
   "servers": [
     {
-      "url": "https://paid-image-api.onrender.com"
+      "url": "https://pixelpayapi.com"
     }
   ],
   "paths": {

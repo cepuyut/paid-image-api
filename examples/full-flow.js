@@ -24,7 +24,7 @@ import { writeFileSync } from "node:fs";
 // Config
 // ---------------------------------------------------------------------------
 
-const API_URL = process.env.API_URL || "https://paid-image-api.onrender.com";
+const API_URL = process.env.API_URL || "https://pixelpayapi.com";
 const TEMPO_RPC = "https://rpc.tempo.xyz";
 const CHAIN_ID = 4217; // Tempo mainnet chain ID
 const PRIVATE_KEY = process.env.PRIVATE_KEY;

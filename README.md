@@ -2,7 +2,7 @@
 
 AI image generation API monetized via [MPP](https://mpp.dev) (Machine Payments Protocol). No API keys — just pay per request with USDC on Tempo blockchain.
 
-**Live:** https://paid-image-api.onrender.com
+**Live:** https://pixelpayapi.com
 
 ## Pricing
 
