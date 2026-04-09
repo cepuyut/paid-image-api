@@ -343,6 +343,39 @@ app.get("/llms.txt", (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// MPP Well-Known Discovery: GET /.well-known/mpp.json
+// ---------------------------------------------------------------------------
+
+app.get("/.well-known/mpp.json", (_req, res) => {
+  res.set("Cache-Control", "max-age=300");
+  res.json({
+    version: "1.0",
+    service: "PixelPay",
+    description: "AI image generation API — pay-per-request via MPP on Tempo blockchain",
+    endpoints: [
+      {
+        path: "/v1/images/generate",
+        method: "POST",
+        description: "Generate an image from a text prompt",
+        payment: {
+          protocol: "mpp",
+          chain: "tempo",
+          chainId: 4217,
+          currency: "USDC",
+          priceRange: { min: "0.029", max: "0.190", unit: "USD" }
+        }
+      }
+    ],
+    discovery: {
+      openapi: "https://pixelpayapi.com/openapi.json",
+      llms: "https://pixelpayapi.com/llms.txt",
+      prices: "https://pixelpayapi.com/v1/prices"
+    },
+    ownershipProofs: ["dns:pixelpayapi.com"]
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Paid endpoint: POST /v1/images/generate
 // ---------------------------------------------------------------------------
 
@@ -1406,4 +1439,5 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`  GET  ${HOST}/v1/prices`);
   console.log(`  GET  ${HOST}/openapi.json`);
   console.log(`  GET  ${HOST}/llms.txt`);
+  console.log(`  GET  ${HOST}/.well-known/mpp.json`);
 });
