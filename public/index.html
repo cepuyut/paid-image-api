@@ -1662,7 +1662,7 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
     result.innerHTML = `
       <img src="${imgSrc}" alt="${safePrompt}" id="generatedImg" crossorigin="anonymous">
       <div class="meta">
-        <span>${extraInfo} ${seedHtml}</span>
+        <span>${seedHtml}</span>
       </div>
       <div class="result-actions" style="margin-top:8px">
         <button class="btn-action" onclick="downloadImage(document.getElementById('generatedImg'), '${filename}')">

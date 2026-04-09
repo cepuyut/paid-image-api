@@ -692,7 +692,6 @@ async function openNFT(tokenId) {
 
     // Attributes
     const attrs = [];
-    if (nft.model) attrs.push({ label: "Model", value: nft.model.replace("fal-ai/", "") });
     if (nft.tokenId) attrs.push({ label: "Token ID", value: "#" + nft.tokenId });
     document.getElementById("modalAttrs").innerHTML = attrs.map(a =>
       `<div class="modal-attr"><div class="modal-attr-label">${esc(a.label)}</div><div class="modal-attr-value">${esc(a.value)}</div></div>`
