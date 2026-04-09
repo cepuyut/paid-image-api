@@ -1662,7 +1662,7 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
     result.innerHTML = `
       <img src="${imgSrc}" alt="${safePrompt}" id="generatedImg" crossorigin="anonymous">
       <div class="meta">
-        <span>${extraInfo} &middot; ${modelName} ${seedHtml}</span>
+        <span>${extraInfo} ${seedHtml}</span>
       </div>
       <div class="result-actions" style="margin-top:8px">
         <button class="btn-action" onclick="downloadImage(document.getElementById('generatedImg'), '${filename}')">
@@ -1675,7 +1675,8 @@ function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
           ${upscaleSvg} Upscale
         </button>
         ${seed != null ? `<button class="btn-action" onclick="reuseSeed(${seed})" title="Use this seed for next generation">${copySvg} Reuse Seed</button>` : ''}
-        <button class="btn-action" id="mintBtn" onclick="mintAsNFT()" title="Mint this image as an NFT">${mintSvg} Mint NFT</button>
+        <input type="text" id="nftNameInput" placeholder="Name your NFT..." maxlength="80" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:0.85rem;width:160px;display:none">
+        <button class="btn-action" id="mintBtn" onclick="handleMintClick()" title="Mint this image as an NFT">${mintSvg} Mint NFT</button>
         ${extraClass ? `<span class="btn-action" style="cursor:default;color:var(--green);border-color:var(--green)">${extraClass === 'paid' ? 'Paid' : 'Cached'}</span>` : ''}
       </div>`;
 
@@ -1794,6 +1795,20 @@ try {
 } catch(_) {}
 
 // ── Mint as NFT ──
+function handleMintClick() {
+  const nameInput = document.getElementById("nftNameInput");
+  if (nameInput.style.display === "none") {
+    // First click: show name input
+    nameInput.style.display = "inline-block";
+    nameInput.focus();
+    nameInput.placeholder = "Name your NFT...";
+    document.getElementById("mintBtn").innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 3h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg> Confirm Mint';
+    return;
+  }
+  // Second click: proceed to mint
+  mintAsNFT();
+}
+
 async function mintAsNFT() {
   if (!walletConnected || !walletSigner) {
     alert("Connect your wallet first to mint an NFT.");
@@ -1813,9 +1828,11 @@ async function mintAsNFT() {
     // 1. Upload image + metadata to IPFS via backend
     // Determine if image is base64 or URL
     const isBase64 = lastResultImgSrc.startsWith("data:");
+    const customName = document.getElementById("nftNameInput")?.value?.trim();
+    const nftName = customName || (lastResultPrompt || "PixelPay AI Art").slice(0, 80);
     const uploadBody = {
       metadata: {
-        name: (lastResultPrompt || "PixelPay AI Art").slice(0, 80),
+        name: nftName,
         description: lastResultPrompt || "Generated with PixelPay AI",
         attributes: [
           { trait_type: "Model", value: lastResultModel || "unknown" },

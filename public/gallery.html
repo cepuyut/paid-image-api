@@ -245,7 +245,8 @@
         <button onclick="downloadModalImage()">&#11015; Download</button>
         <button onclick="copyPrompt()">&#128203; Copy Prompt</button>
         <button onclick="openInGenerator()">&#9998; Use Prompt</button>
-        <button id="modalMintBtn" onclick="mintFromGallery()">&#9734; Mint NFT</button>
+        <input type="text" id="galleryNftName" placeholder="Name your NFT..." maxlength="80" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:0.85rem;width:150px;display:none">
+        <button id="modalMintBtn" onclick="handleGalleryMint()">&#9734; Mint NFT</button>
         <button id="modalPublishBtn" onclick="togglePublish()" style="display:none">&#127758; Publish</button>
       </div>
     </div>
@@ -384,7 +385,7 @@ function renderGrid(items, emptyMsg) {
         <div class="card-info">
           <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
           <div class="card-meta">
-            <span>${esc(shortModel)} &middot; ${ago}</span>
+            <span>${ago}</span>
             ${styleTag}
           </div>
         </div>
@@ -426,6 +427,11 @@ function openModal(idx) {
   } else {
     pubBtn.style.display = "none";
   }
+
+  // Reset NFT name input
+  const nftNameInput = document.getElementById("galleryNftName");
+  nftNameInput.value = "";
+  nftNameInput.style.display = "none";
 
   // Check if image already minted — if so, disable mint button
   const mintBtn = document.getElementById("modalMintBtn");
@@ -523,6 +529,17 @@ async function togglePublish() {
 }
 
 // ── Mint NFT ──
+function handleGalleryMint() {
+  const nameInput = document.getElementById("galleryNftName");
+  if (nameInput.style.display === "none") {
+    nameInput.style.display = "inline-block";
+    nameInput.focus();
+    document.getElementById("modalMintBtn").textContent = "✦ Confirm Mint";
+    return;
+  }
+  mintFromGallery();
+}
+
 async function mintFromGallery() {
   if (!currentModalItem) return;
   if (!walletAddress || !walletSigner) { alert("Connect your wallet first."); return; }
@@ -534,7 +551,7 @@ async function mintFromGallery() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image_url: currentModalItem.image_url,
-        metadata: { name: (currentModalItem.prompt || "PixelPay NFT").slice(0,50), description: currentModalItem.prompt || "", attributes: [{ trait_type: "Model", value: currentModalItem.model || "" }, { trait_type: "Style", value: currentModalItem.style || "none" }] }
+        metadata: { name: document.getElementById("galleryNftName")?.value?.trim() || (currentModalItem.prompt || "PixelPay NFT").slice(0,50), description: currentModalItem.prompt || "", attributes: [{ trait_type: "Model", value: currentModalItem.model || "" }, { trait_type: "Style", value: currentModalItem.style || "none" }] }
       })
     });
     const upload = await uploadRes.json();
