@@ -263,7 +263,7 @@ let currentTab = "my";
 let publicImageUrls = new Set();
 
 // ── Helpers ──
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 
 // ── Toast ──
 function showToast(msg, type = "info") {
@@ -383,7 +383,7 @@ function renderGrid(items, emptyMsg) {
         <div class="card-info">
           <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
           <div class="card-meta">
-            <span>${shortModel} &middot; ${ago}</span>
+            <span>${esc(shortModel)} &middot; ${ago}</span>
             ${styleTag}
           </div>
         </div>

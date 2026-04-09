@@ -1400,7 +1400,7 @@ res = requests.<span class="fn">post</span>(
 </div>
 
 <script>
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 // ── Config ──
 const TEMPO_CHAIN_ID = 4217;
 const TEMPO_RPC = "https://rpc.tempo.xyz";
@@ -1584,6 +1584,7 @@ function showLoading(message) {
     </div>`;
 
   loadingStartTime = Date.now();
+  if (loadingTimer) clearInterval(loadingTimer);
   loadingTimer = setInterval(() => {
     const el = document.getElementById("loadingTimer");
     if (el) el.textContent = Math.floor((Date.now() - loadingStartTime) / 1000) + "s";

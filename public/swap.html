@@ -296,7 +296,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 
 function showToast(msg, type = "info") {
   const c = document.getElementById("toastContainer");

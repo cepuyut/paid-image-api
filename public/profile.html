@@ -277,7 +277,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 function sanitizeId(id) { return String(id).replace(/[^0-9]/g, ""); }
 
 const TEMPO_CHAIN_ID = 4217;

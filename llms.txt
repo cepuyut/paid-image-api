@@ -98,7 +98,7 @@ Get current pricing for all models.
 Validate a prompt before paying. Returns estimated cost and model info.
 
 **Request:** `{"prompt": "...", "model": "fal-ai/flux/schnell"}`
-**Response:** `{"valid": true, "model": "fal-ai/flux/schnell", "price": "0.029000", "tier": "schnell"}`
+**Response:** `{"valid": true, "prompt": "...", "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "29000", "price_usd": "0.029", "premium": false, "surge_multiplier": 1}`
 
 ### GET /v1/styles
 

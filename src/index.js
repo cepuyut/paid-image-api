@@ -311,6 +311,7 @@ try { openApiDoc = JSON.parse(readFileSync(join(ROOT, "openapi.json"), "utf8"));
 try { llmsTxt = readFileSync(join(ROOT, "llms.txt"), "utf8"); } catch { llmsTxt = null; }
 
 const app = express();
+app.set("trust proxy", 1); // Trust first proxy (Render)
 app.use(express.json({ limit: "50mb" }));
 
 // Serve landing page
@@ -454,6 +455,10 @@ app.post("/v1/validate", (req, res) => {
 app.post("/v1/images/generate", async (req, res) => {
   const authHeader = req.get("Authorization");
   const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
+
+  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
+    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
 
   // Resolve model first so pricing matches the actual model used
   const resolvedModel = (!model || model === "auto") ? autoSelectModel(prompt || "") : model;
@@ -662,16 +667,21 @@ app.post("/api/demo", async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
 
   // Rate limit (Redis-backed)
-  const count = await getDemoCount(ip, today);
-  if (count >= DEMO_LIMIT) {
-    return res.status(429).json({
-      detail: `Demo limit reached (${DEMO_LIMIT}/day). Connect a wallet for unlimited access.`,
-    });
+  try {
+    const count = await getDemoCount(ip, today);
+    if (count >= DEMO_LIMIT) {
+      return res.status(429).json({
+        detail: `Demo limit reached (${DEMO_LIMIT}/day). Connect a wallet for unlimited access.`,
+      });
+    }
+  } catch (rlErr) {
+    console.error("Demo rate limit check failed:", rlErr.message);
+    // Allow request if rate limiting fails (fail-open)
   }
 
   const { prompt, model, image_size, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
-  if (!prompt || typeof prompt !== "string") {
-    return res.status(400).json({ detail: "A 'prompt' string is required." });
+  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
+    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
   }
 
   try {
@@ -790,8 +800,9 @@ app.post("/v1/gallery/publish", async (req, res) => {
   const { image_url, wallet, prompt, model, style, seed } = req.body || {};
   if (!image_url || !wallet) return res.status(400).json({ detail: "image_url and wallet required." });
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return res.status(400).json({ detail: "Invalid wallet address." });
+  if (prompt && prompt.length > 10000) return res.status(400).json({ detail: "Prompt too long (max 10000 chars)." });
   try {
-    const entry = { prompt, model, style: style || null, image_url, seed: seed || null, wallet: wallet.toLowerCase(), timestamp: Date.now() };
+    const entry = { prompt: (prompt || "").slice(0, 10000), model, style: style || null, image_url, seed: seed || null, wallet: wallet.toLowerCase(), timestamp: Date.now() };
     await redis.lpush(GALLERY_KEY, JSON.stringify(entry));
     await redis.ltrim(GALLERY_KEY, 0, MAX_GALLERY - 1);
     // PXP reward for publishing
@@ -934,6 +945,20 @@ app.post("/v1/nft/upload", async (req, res) => {
     if (image_b64) {
       imgBuf = Buffer.from(image_b64, "base64");
     } else if (image_url) {
+      // SSRF protection: only allow https URLs, block private/internal ranges
+      try {
+        const parsed = new URL(image_url);
+        if (parsed.protocol !== "https:") throw new Error("Only HTTPS URLs allowed");
+        const host = parsed.hostname.toLowerCase();
+        if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" ||
+            host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("172.") ||
+            host.endsWith(".internal") || host.endsWith(".local") ||
+            host === "169.254.169.254" || host.startsWith("169.254.")) {
+          throw new Error("Internal URLs not allowed");
+        }
+      } catch (e) {
+        return res.status(400).json({ detail: e.message || "Invalid image URL" });
+      }
       const imgRes = await fetch(image_url);
       if (!imgRes.ok) throw new Error(`Failed to fetch image: ${imgRes.status}`);
       imgContentType = imgRes.headers.get("content-type") || imgContentType;
@@ -1010,6 +1035,26 @@ app.post("/v1/nft/mint", async (req, res) => {
   const { tokenId, wallet, prompt, model, style, seed, image_url, metadata_uri, tx_hash } = req.body || {};
   if (tokenId == null || !wallet) return res.status(400).json({ detail: "tokenId and wallet required." });
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return res.status(400).json({ detail: "Invalid wallet address." });
+  if (!tx_hash || !/^0x[0-9a-fA-F]{64}$/.test(tx_hash)) return res.status(400).json({ detail: "Valid tx_hash required." });
+
+  // Verify tx_hash on-chain
+  try {
+    const receipt = await pxpPublicClient.getTransactionReceipt({ hash: tx_hash });
+    if (!receipt || receipt.status === "reverted") {
+      return res.status(400).json({ detail: "Transaction failed or not found on-chain." });
+    }
+    // Verify the sender matches the claimed wallet
+    const tx = await pxpPublicClient.getTransaction({ hash: tx_hash });
+    if (tx.from.toLowerCase() !== wallet.toLowerCase()) {
+      return res.status(400).json({ detail: "Transaction sender does not match wallet." });
+    }
+  } catch (verifyErr) {
+    return res.status(400).json({ detail: "Failed to verify transaction on-chain: " + verifyErr.message });
+  }
+
+  // Prevent duplicate mint records for same tokenId
+  const existing = await redis.get(`pixelpay:nft:${tokenId}`);
+  if (existing) return res.status(409).json({ detail: "Token already minted." });
 
   const entry = {
     tokenId: Number(tokenId), wallet: wallet.toLowerCase(), prompt, model,
