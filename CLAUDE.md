@@ -67,6 +67,7 @@ AI image & video generation API monetized via MPP (Machine Payments Protocol) on
 2. **Phase 5**: Agent legibility (MPPscan, llms.txt, agents.txt, well-known)
 3. **Phase 6**: Multi-Model Expansion (GPT-Image, Grok, edit, transform, video)
 4. **Phase 7**: x402 Dual Protocol (Base USDC alongside MPP, reusable handlePayment())
+5. **Phase 8**: SDK + MCP (TypeScript SDK `sdk/`, MCP server `mcp/`)
 
 ## Development Rules
 - **ZERO BUGS** — user is very frustrated about repeated errors. Test thoroughly.
