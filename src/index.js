@@ -1175,6 +1175,15 @@ app.post("/v1/images/upscale", async (req, res) => {
 app.post("/v1/images/edit", async (req, res) => {
   const { prompt, image_url, mask_url, image_size, wallet: reqWallet } = req.body || {};
 
+  // Payment check FIRST (before body validation) so MPPscan probe gets 402
+  const editModel = "fal-ai/flux-pro/v1/fill";
+  const perImage = getPricing(editModel);
+  const totalPrice = perImage.price;
+  const desc = `Edit an image for ${perImage.usd} USDC (inpaint/outpaint)`;
+
+  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/images/edit" });
+  if (!payment.ok) return;
+
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
     return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
   }
@@ -1183,14 +1192,6 @@ app.post("/v1/images/edit", async (req, res) => {
   }
   try { validateImageUrl(image_url); if (mask_url) validateImageUrl(mask_url); }
   catch (e) { return res.status(400).json({ detail: e.message }); }
-
-  const editModel = "fal-ai/flux-pro/v1/fill";
-  const perImage = getPricing(editModel);
-  const totalPrice = perImage.price;
-  const desc = `Edit an image for ${perImage.usd} USDC (inpaint/outpaint)`;
-
-  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/images/edit" });
-  if (!payment.ok) return;
 
   try {
     const refs = mask_url ? [image_url, mask_url] : [image_url];
@@ -1216,13 +1217,7 @@ app.post("/v1/images/edit", async (req, res) => {
 app.post("/v1/images/transform", async (req, res) => {
   const { prompt, image_url, image_size, num_images, negative_prompt, seed, wallet: reqWallet } = req.body || {};
 
-  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
-    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
-  }
-  if (image_url) {
-    try { validateImageUrl(image_url); } catch (e) { return res.status(400).json({ detail: e.message }); }
-  }
-
+  // Payment check FIRST so MPPscan probe gets 402
   const transformModel = "fal-ai/flux-kontext/text-to-image";
   const count = Math.min(Math.max(num_images || 1, 1), 4);
   const perImage = getPricing(transformModel);
@@ -1231,6 +1226,13 @@ app.post("/v1/images/transform", async (req, res) => {
 
   const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/images/transform" });
   if (!payment.ok) return;
+
+  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
+    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
+  if (image_url) {
+    try { validateImageUrl(image_url); } catch (e) { return res.status(400).json({ detail: e.message }); }
+  }
 
   try {
     const refs = image_url ? [image_url] : [];
@@ -1256,13 +1258,7 @@ app.post("/v1/images/transform", async (req, res) => {
 app.post("/v1/videos/generate", async (req, res) => {
   const { prompt, image_url, seed, wallet: reqWallet } = req.body || {};
 
-  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
-    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
-  }
-  if (image_url) {
-    try { validateImageUrl(image_url); } catch (e) { return res.status(400).json({ detail: e.message }); }
-  }
-
+  // Payment check FIRST so MPPscan probe gets 402
   const videoModel = "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video";
   const perImage = getPricing(videoModel);
   const totalPrice = perImage.price;
@@ -1270,6 +1266,13 @@ app.post("/v1/videos/generate", async (req, res) => {
 
   const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/videos/generate" });
   if (!payment.ok) return;
+
+  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
+    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
+  if (image_url) {
+    try { validateImageUrl(image_url); } catch (e) { return res.status(400).json({ detail: e.message }); }
+  }
 
   try {
     const refs = image_url ? [image_url] : [];
