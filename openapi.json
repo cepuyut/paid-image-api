@@ -3,7 +3,7 @@
   "info": {
     "title": "PixelPay",
     "version": "2.0.0",
-    "description": "PixelPay — AI image & video generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
+    "description": "PixelPay — AI image & video generation API monetized via MPP + x402 dual protocol. Pay-per-request with USDC on Tempo or Base.",
     "x-guidance": "PixelPay generates images, edits, transforms, and videos from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.029, Grok $0.039, Dev $0.049, Recraft $0.059, GPT-Image $0.069, HiDream $0.079, Ideogram $0.079, Edit $0.079, Pro $0.099, Nano Banana 2 $0.14, Nano Banana Pro $0.19, Video $0.35 USDC via Tempo blockchain, then retry with the payment credential. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
@@ -36,7 +36,8 @@
             "max": "0.190000"
           },
           "protocols": [
-            { "mpp": { "method": "tempo", "intent": "charge", "currency": "0x20c000000000000000000000b9537d11c60e8b50" } }
+            { "mpp": { "method": "tempo", "intent": "charge", "currency": "0x20c000000000000000000000b9537d11c60e8b50" } },
+            { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "facilitator": "https://x402.org/facilitator" } }
           ],
           "minPrice": "0.029000",
           "maxPrice": "0.190000",
@@ -97,7 +98,7 @@
         "x-payment-info": {
           "minPrice": "0.079000",
           "maxPrice": "0.079000",
-          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }]
+          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }, { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" } }]
         },
         "requestBody": {
           "required": true,
@@ -130,7 +131,7 @@
         "x-payment-info": {
           "minPrice": "0.049000",
           "maxPrice": "0.049000",
-          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }]
+          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }, { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" } }]
         },
         "requestBody": {
           "required": true,
@@ -163,7 +164,7 @@
         "x-payment-info": {
           "minPrice": "0.350000",
           "maxPrice": "0.350000",
-          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }]
+          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }, { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" } }]
         },
         "requestBody": {
           "required": true,

@@ -18,6 +18,9 @@
   "license": "MIT",
   "dependencies": {
     "@upstash/redis": "^1.37.0",
+    "@x402/core": "^2.9.0",
+    "@x402/evm": "^2.9.0",
+    "@x402/express": "^2.9.0",
     "express": "^5.1.0",
     "mppx": "^0.4.11",
     "viem": "^2.47.6"

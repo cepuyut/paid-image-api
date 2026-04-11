@@ -1,6 +1,7 @@
 import express from "express";
 import { createHmac } from "node:crypto";
 import { createChallenge, verifyCredential, createReceipt } from "./mpp.js";
+import { initX402, detectProtocol, buildX402Challenge, verifyX402Payment, buildX402Receipt } from "./x402.js";
 import { readFileSync, readFile } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -35,6 +36,9 @@ Mppx.create({
   methods: [tempo({ account: walletAccount })],
 });
 console.log(`MPP client initialized — wallet ${DERIVED_WALLET_ADDRESS}`);
+
+// Initialize x402 for dual-protocol support (Base USDC)
+const x402Enabled = initX402();
 
 const FAL_MPP_BASE = "https://fal.mpp.tempo.xyz";
 
@@ -416,7 +420,81 @@ function autoSelectModel(prompt, maxBudget) {
 }
 
 // fal.ai via MPP (no API key needed — paid via Tempo wallet)
-console.log("fal.ai backend loaded via MPP (cache + prompt enhancement + smart routing)");
+console.log(`fal.ai backend loaded via MPP + ${x402Enabled ? "x402" : "MPP-only"} (cache + enhancement + routing)`);
+
+// ---------------------------------------------------------------------------
+// Dual-Protocol Payment Handler — MPP + x402 on every paid endpoint
+// ---------------------------------------------------------------------------
+
+async function handlePayment(req, res, { totalPrice, description, path }) {
+  const protocol = detectProtocol(req);
+
+  // No credentials → send dual 402 challenge (MPP + x402 headers)
+  if (!protocol) {
+    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description });
+    for (const [k, v] of Object.entries(headers)) res.set(k, v);
+    // Add x402 PAYMENT-REQUIRED header alongside MPP WWW-Authenticate
+    if (x402Enabled) {
+      const x402Header = buildX402Challenge(totalPrice, description, path);
+      if (x402Header) res.set("PAYMENT-REQUIRED", x402Header);
+    }
+    res.status(statusCode).json(body);
+    return { ok: false, sent: true };
+  }
+
+  // MPP credential
+  if (protocol === "mpp") {
+    const authHeader = req.get("Authorization");
+    const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
+    if (!ok) {
+      const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description });
+      body.type = `https://paymentauth.org/problems/${error}`;
+      body.title = error.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      body.detail = `Payment verification failed: ${error}`;
+      for (const [k, v] of Object.entries(headers)) res.set(k, v);
+      if (x402Enabled) {
+        const x402Header = buildX402Challenge(totalPrice, description, path);
+        if (x402Header) res.set("PAYMENT-REQUIRED", x402Header);
+      }
+      res.status(402).json(body);
+      return { ok: false, sent: true };
+    }
+    return { ok: true, protocol: "mpp", credential };
+  }
+
+  // x402 credential
+  if (protocol === "x402") {
+    if (!x402Enabled) {
+      res.status(501).json({ detail: "x402 payments not configured on this server." });
+      return { ok: false, sent: true };
+    }
+    const { ok, error, txHash, payer } = await verifyX402Payment(req, totalPrice, path);
+    if (!ok) {
+      res.status(402).json({
+        type: `https://paymentauth.org/problems/${error}`,
+        title: "Payment Failed",
+        status: 402,
+        detail: `x402 payment verification failed: ${error}`,
+      });
+      return { ok: false, sent: true };
+    }
+    return { ok: true, protocol: "x402", txHash, payer };
+  }
+
+  res.status(400).json({ detail: "Unknown payment protocol." });
+  return { ok: false, sent: true };
+}
+
+// Set payment receipt headers based on protocol used
+function setPaymentReceipt(res, paymentResult) {
+  if (paymentResult.protocol === "mpp") {
+    const receipt = createReceipt(paymentResult.credential?.payload?.hash || paymentResult.credential?.payload?.signature?.slice(0, 20));
+    res.set("Payment-Receipt", receipt);
+  } else if (paymentResult.protocol === "x402") {
+    const x402Receipt = buildX402Receipt(paymentResult.txHash, paymentResult.network);
+    if (x402Receipt) res.set("PAYMENT-RESPONSE", x402Receipt);
+  }
+}
 
 // Pre-read static files at startup (avoid blocking readFileSync in handlers)
 let openApiDoc, llmsTxt;
@@ -582,7 +660,6 @@ app.post("/v1/validate", (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/v1/images/generate", async (req, res) => {
-  const authHeader = req.get("Authorization");
   const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
@@ -602,16 +679,6 @@ app.post("/v1/images/generate", async (req, res) => {
     ? `Generate ${count} images for ${totalUsd} USDC (${perImage.tier}, ${batchDiscount < 1 ? Math.round((1 - batchDiscount) * 100) + "% batch discount" : "no discount"})`
     : `Generate an image for ${perImage.usd} USDC (${perImage.tier} tier)`;
 
-  // --- No credential → 402 challenge ---
-  if (!authHeader || !authHeader.startsWith("Payment ")) {
-    const { statusCode, headers, body } = createChallenge({
-      amount: totalPrice,
-      description: desc,
-    });
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(statusCode).json(body);
-  }
-
   // --- Check for retry credit (failed generation refund) ---
   const retryHeader = req.get("X-PixelPay-Retry");
   if (retryHeader && redis) {
@@ -621,42 +688,26 @@ app.post("/v1/images/generate", async (req, res) => {
       try {
         const creditData = JSON.parse(credit);
         if (creditData.amount >= Number(totalPrice) && creditData.used !== true) {
-          // Mark credit as used
           await redis.set(creditKey, JSON.stringify({ ...creditData, used: true }), { ex: 60 });
-          // Skip payment verification — this is a retry on a failed paid request
           console.log(`Retry credit used: ${retryHeader} for ${creditData.wallet || "unknown"}`);
-          // Continue to generation below (skip credential verification)
           const usedModel = resolvedModel;
-          if (!BASE_PRICING[usedModel]) {
-            return res.status(400).json({ detail: `Model '${usedModel}' is not supported.` });
-          }
+          if (!BASE_PRICING[usedModel]) return res.status(400).json({ detail: `Model '${usedModel}' is not supported.` });
           const size = image_size || "landscape_4_3";
           const enhanced = enhancePrompt(prompt, usedModel, { style, enhance });
           const refs = Array.isArray(image_urls) ? image_urls : (image_urls ? [image_urls] : []);
           const falBody = buildFalBody(usedModel, { prompt: enhanced, image_size: size, num_images: count, negative_prompt, seed, image_urls: refs });
           try {
-            const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(falBody),
-            });
+            const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
             if (!falRes.ok) throw new Error(`fal.ai error: ${falRes.status}`);
             const result = await falRes.json();
-            // Success — delete credit
             await redis.del(creditKey).catch(() => {});
-            // Video model returns different shape
             const retryModelDef = BASE_PRICING[usedModel] || {};
             if (retryModelDef.type === "video") {
               const retryVideoUrl = result.video?.url || null;
               return res.json({ video: retryVideoUrl ? { url: retryVideoUrl } : null, prompt, enhanced_prompt: enhanced, model: usedModel, retried: true });
             }
-            return res.json({
-              images: result.images || [], prompt, enhanced_prompt: enhanced,
-              model: usedModel, timings: result.timings,
-              retried: true,
-            });
+            return res.json({ images: result.images || [], prompt, enhanced_prompt: enhanced, model: usedModel, timings: result.timings, retried: true });
           } catch (retryErr) {
-            // Still failing — restore credit for another try
             await redis.set(creditKey, JSON.stringify({ ...creditData, used: false }), { ex: 3600 }).catch(() => {});
             return res.status(502).json({ detail: "Retry failed. Your credit is still valid.", retry_token: retryHeader });
           }
@@ -665,19 +716,9 @@ app.post("/v1/images/generate", async (req, res) => {
     }
   }
 
-  // --- Verify credential ---
-  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
-  if (!ok) {
-    const { statusCode, headers, body } = createChallenge({
-      amount: totalPrice,
-      description: desc,
-    });
-    body.type = `https://paymentauth.org/problems/${error}`;
-    body.title = error.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    body.detail = `Payment verification failed: ${error}`;
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(402).json(body);
-  }
+  // --- Dual-protocol payment verification (MPP + x402) ---
+  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/images/generate" });
+  if (!payment.ok) return; // Response already sent by handlePayment
 
   // --- Call fal.ai (with cache, enhancement, smart routing) ---
   try {
@@ -775,9 +816,8 @@ app.post("/v1/images/generate", async (req, res) => {
     }
 
     trackRequest();
-    const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
+    setPaymentReceipt(res, payment);
 
-    res.set("Payment-Receipt", receipt);
     res.set("Cache-Control", "private");
     res.json({
       images, prompt, enhanced_prompt: enhanced, model: usedModel, timings,
@@ -1090,7 +1130,6 @@ app.post("/v1/images/upscale", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/v1/images/edit", async (req, res) => {
-  const authHeader = req.get("Authorization");
   const { prompt, image_url, mask_url, image_size, wallet: reqWallet } = req.body || {};
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
@@ -1107,37 +1146,17 @@ app.post("/v1/images/edit", async (req, res) => {
   const totalPrice = perImage.price;
   const desc = `Edit an image for ${perImage.usd} USDC (inpaint/outpaint)`;
 
-  if (!authHeader || !authHeader.startsWith("Payment ")) {
-    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(statusCode).json(body);
-  }
-
-  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
-  if (!ok) {
-    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
-    body.type = `https://paymentauth.org/problems/${error}`;
-    body.detail = `Payment verification failed: ${error}`;
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(402).json(body);
-  }
+  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/images/edit" });
+  if (!payment.ok) return;
 
   try {
     const refs = mask_url ? [image_url, mask_url] : [image_url];
     const falBody = buildFalBody(editModel, { prompt, image_size: image_size || "landscape_4_3", num_images: 1, image_urls: refs });
-    const falRes = await fetch(`${FAL_MPP_BASE}/${editModel}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(falBody),
-    });
-    if (!falRes.ok) {
-      const errText = await falRes.text().catch(() => "");
-      throw new Error(`fal.ai edit error: ${falRes.status} ${errText.slice(0, 200)}`);
-    }
+    const falRes = await fetch(`${FAL_MPP_BASE}/${editModel}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
+    if (!falRes.ok) throw new Error(`fal.ai edit error: ${falRes.status}`);
     const result = await falRes.json();
     trackRequest();
-    const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
-    res.set("Payment-Receipt", receipt);
+    setPaymentReceipt(res, payment);
     if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "edit").catch(() => {});
     res.json({ images: result.images || [], prompt, model: editModel, timings: result.timings });
   } catch (err) {
@@ -1152,7 +1171,6 @@ app.post("/v1/images/edit", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/v1/images/transform", async (req, res) => {
-  const authHeader = req.get("Authorization");
   const { prompt, image_url, image_size, num_images, negative_prompt, seed, wallet: reqWallet } = req.body || {};
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
@@ -1168,37 +1186,17 @@ app.post("/v1/images/transform", async (req, res) => {
   const totalPrice = String(Math.round(Number(perImage.price) * count));
   const desc = `Transform image for ${(Number(totalPrice) / 1_000_000).toFixed(2)} USDC (style remix)`;
 
-  if (!authHeader || !authHeader.startsWith("Payment ")) {
-    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(statusCode).json(body);
-  }
-
-  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
-  if (!ok) {
-    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
-    body.type = `https://paymentauth.org/problems/${error}`;
-    body.detail = `Payment verification failed: ${error}`;
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(402).json(body);
-  }
+  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/images/transform" });
+  if (!payment.ok) return;
 
   try {
     const refs = image_url ? [image_url] : [];
     const falBody = buildFalBody(transformModel, { prompt, image_size: image_size || "landscape_4_3", num_images: count, negative_prompt, seed, image_urls: refs });
-    const falRes = await fetch(`${FAL_MPP_BASE}/${transformModel}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(falBody),
-    });
-    if (!falRes.ok) {
-      const errText = await falRes.text().catch(() => "");
-      throw new Error(`fal.ai transform error: ${falRes.status} ${errText.slice(0, 200)}`);
-    }
+    const falRes = await fetch(`${FAL_MPP_BASE}/${transformModel}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
+    if (!falRes.ok) throw new Error(`fal.ai transform error: ${falRes.status}`);
     const result = await falRes.json();
     trackRequest();
-    const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
-    res.set("Payment-Receipt", receipt);
+    setPaymentReceipt(res, payment);
     if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "transform").catch(() => {});
     res.json({ images: result.images || [], prompt, model: transformModel, timings: result.timings });
   } catch (err) {
@@ -1208,12 +1206,11 @@ app.post("/v1/images/transform", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Video Generate endpoint: POST /v1/videos/generate (MPP-protected)
-// Uses Seedance Fast for video generation
+// Video Generate endpoint: POST /v1/videos/generate (MPP + x402)
+// Uses Seedance 1.0 Pro Fast for video generation
 // ---------------------------------------------------------------------------
 
 app.post("/v1/videos/generate", async (req, res) => {
-  const authHeader = req.get("Authorization");
   const { prompt, image_url, seed, wallet: reqWallet } = req.body || {};
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
@@ -1228,37 +1225,17 @@ app.post("/v1/videos/generate", async (req, res) => {
   const totalPrice = perImage.price;
   const desc = `Generate a 5s video for ${perImage.usd} USDC`;
 
-  if (!authHeader || !authHeader.startsWith("Payment ")) {
-    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(statusCode).json(body);
-  }
-
-  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
-  if (!ok) {
-    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
-    body.type = `https://paymentauth.org/problems/${error}`;
-    body.detail = `Payment verification failed: ${error}`;
-    for (const [k, v] of Object.entries(headers)) res.set(k, v);
-    return res.status(402).json(body);
-  }
+  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/videos/generate" });
+  if (!payment.ok) return;
 
   try {
     const refs = image_url ? [image_url] : [];
     const falBody = buildFalBody(videoModel, { prompt, image_urls: refs, seed });
-    const falRes = await fetch(`${FAL_MPP_BASE}/${videoModel}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(falBody),
-    });
-    if (!falRes.ok) {
-      const errText = await falRes.text().catch(() => "");
-      throw new Error(`fal.ai video error: ${falRes.status} ${errText.slice(0, 200)}`);
-    }
+    const falRes = await fetch(`${FAL_MPP_BASE}/${videoModel}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
+    if (!falRes.ok) throw new Error(`fal.ai video error: ${falRes.status}`);
     const result = await falRes.json();
     trackRequest();
-    const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
-    res.set("Payment-Receipt", receipt);
+    setPaymentReceipt(res, payment);
     if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "video").catch(() => {});
     const videoUrl = result.video?.url || null;
     res.json({ video: videoUrl ? { url: videoUrl } : null, prompt, model: videoModel, timings: result.timings, seed: result.seed ?? seed ?? null });

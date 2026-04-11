@@ -2,13 +2,21 @@
 
 > AI image & video generation API. Pay-per-request via MPP on Tempo blockchain. No API keys needed.
 
-## Quick Start
+## Quick Start (Two Payment Options)
 
+### Option A: MPP (Tempo Blockchain)
 1. POST to https://pixelpayapi.com/v1/images/generate with {"prompt": "your prompt"}
 2. You will receive HTTP 402 with a payment challenge in WWW-Authenticate header
 3. Pay the required USDC amount on Tempo blockchain to the specified recipient
 4. Retry the same request with Authorization: Payment <credential>
 5. Receive 200 OK with your generated image
+
+### Option B: x402 (Base / Coinbase Ecosystem)
+1. POST to https://pixelpayapi.com/v1/images/generate with {"prompt": "your prompt"}
+2. You will receive HTTP 402 with PAYMENT-REQUIRED header (base64 JSON with x402 requirements)
+3. Sign a USDC TransferWithAuthorization on Base (chain 8453) for the required amount
+4. Retry the same request with PAYMENT-SIGNATURE header containing your signed payment
+5. Receive 200 OK with your generated image and PAYMENT-RESPONSE receipt header
 
 ## Available Models (Image Generation)
 
@@ -109,11 +117,19 @@ Content-Type: application/json
 
 ## Payment Details
 
+### MPP (Machine Payments Protocol)
 - Chain: Tempo (chain ID 4217)
 - Currency: USDC (0x20c000000000000000000000b9537d11c60e8b50)
 - Recipient: 0xf48c6E46358652fC77462d56d609B8bC7f4ba82e
 - Fee payer: Server pays gas (feePayer: true)
-- Protocol: MPP (Machine Payments Protocol)
+- Headers: WWW-Authenticate / Authorization: Payment / Payment-Receipt
+
+### x402 (Coinbase / Base)
+- Chain: Base Mainnet (eip155:8453)
+- Currency: USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
+- Recipient: 0xf48c6E46358652fC77462d56d609B8bC7f4ba82e
+- Facilitator: https://x402.org/facilitator
+- Headers: PAYMENT-REQUIRED / PAYMENT-SIGNATURE / PAYMENT-RESPONSE
 
 ## Tips for Agents
 

@@ -57,10 +57,16 @@ AI image & video generation API monetized via MPP (Machine Payments Protocol) on
 - Demo rate limit: 1/day per IP, fail-open
 - Video/edit/transform models blocked from free demo
 
+## Key Files
+| File | Purpose |
+|---|---|
+| `src/x402.js` | x402 protocol module (Base USDC, facilitator) |
+
 ## Completed Phases
 1. **Phase 1-4**: Core API, NFT marketplace, PXP token, gallery
 2. **Phase 5**: Agent legibility (MPPscan, llms.txt, agents.txt, well-known)
 3. **Phase 6**: Multi-Model Expansion (GPT-Image, Grok, edit, transform, video)
+4. **Phase 7**: x402 Dual Protocol (Base USDC alongside MPP, reusable handlePayment())
 
 ## Development Rules
 - **ZERO BUGS** — user is very frustrated about repeated errors. Test thoroughly.

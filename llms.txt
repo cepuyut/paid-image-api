@@ -8,14 +8,25 @@ PixelPay lets you generate images, edit images, transform styles, and create vid
 
 No API keys needed. Just pay per request.
 
-## Payment
+## Payment (Dual Protocol)
 
-- Protocol: MPP (Machine Payments Protocol)
+PixelPay accepts two payment protocols on every paid endpoint. Both use USDC stablecoins.
+
+### MPP (Machine Payments Protocol)
 - Method: `tempo` (Tempo blockchain, chain ID 4217)
 - Intent: `charge` (one-time per-request payment)
 - Currency: `0x20c000000000000000000000b9537d11c60e8b50` (USDC on Tempo)
 - Recipient: `0xf48c6E46358652fC77462d56d609B8bC7f4ba82e`
 - Fee payer: Server pays gas (you only pay USDC amount)
+- Headers: `WWW-Authenticate` → `Authorization: Payment` → `Payment-Receipt`
+
+### x402 (Base / Coinbase Ecosystem)
+- Chain: Base Mainnet (`eip155:8453`)
+- Asset: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (USDC on Base)
+- Recipient: `0xf48c6E46358652fC77462d56d609B8bC7f4ba82e`
+- Facilitator: `https://x402.org/facilitator`
+- Headers: `PAYMENT-REQUIRED` → `PAYMENT-SIGNATURE` → `PAYMENT-RESPONSE`
+- Spec: x402 v2 (EIP-3009 TransferWithAuthorization)
 
 ### Tiered Pricing (per image/video)
 
@@ -41,11 +52,21 @@ Default model: `fal-ai/flux/schnell` ($0.029).
 
 ## Payment Flow
 
+### MPP Flow
 1. `POST /v1/images/generate` with your prompt and model (no auth header)
 2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge
 3. Sign a Tempo transaction transferring the required USDC
 4. Retry the same request with `Authorization: Payment <base64url-credential>`
 5. Receive `200 OK` with generated images and a `Payment-Receipt` header
+
+### x402 Flow
+1. `POST /v1/images/generate` with your prompt and model (no auth header)
+2. Receive `402 Payment Required` with `PAYMENT-REQUIRED` header (base64 JSON)
+3. Sign a USDC TransferWithAuthorization on Base for the required amount
+4. Retry the same request with `PAYMENT-SIGNATURE` header (base64 signed payload)
+5. Receive `200 OK` with generated images and a `PAYMENT-RESPONSE` receipt header
+
+Both protocols coexist — the 402 response includes headers for both. Use whichever your agent/wallet supports.
 
 ## Endpoints
 
