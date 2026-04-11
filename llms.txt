@@ -33,7 +33,7 @@ No API keys needed. Just pay per request.
 | `fal-ai/flux-pro/v1.1` | pro | $0.099 | image |
 | `fal-ai/nano-banana-2` | premium | $0.14 | image |
 | `fal-ai/nano-banana-pro` | premium | $0.19 | image |
-| `fal-ai/seedance/video/fast` | video | $0.35 | video |
+| `fal-ai/bytedance/seedance/v1/pro/fast/text-to-video` | video | $0.35 | video |
 
 **Premium models** require wallet payment — not available in free demo.
 

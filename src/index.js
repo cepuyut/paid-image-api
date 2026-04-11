@@ -122,8 +122,8 @@ const BASE_PRICING = {
   "fal-ai/flux-pro/v1/fill":    { base: 79000,  tier: "edit", type: "edit", maxImages: 1 },
   // Transform (style transfer / remix)
   "fal-ai/flux-kontext/text-to-image": { base: 49000, tier: "transform", type: "transform", maxImages: 1 },
-  // Video generation
-  "fal-ai/seedance/video/fast": { base: 350000, tier: "video", type: "video", maxImages: 0 },
+  // Video generation (Seedance 1.0 Pro Fast)
+  "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video": { base: 350000, tier: "video", type: "video", maxImages: 0 },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
 
@@ -325,7 +325,7 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
   }
 
   // --- Seedance Video: image_url as starting frame, prompt for motion ---
-  if (model === "fal-ai/seedance/video/fast") {
+  if (model === "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video") {
     const body = { prompt, duration: 5 };
     if (refs.length > 0) body.image_url = refs[0];
     if (seed != null) body.seed = Number(seed);
@@ -841,7 +841,7 @@ app.get("/v1/prices", (_req, res) => {
 // Demo endpoint: POST /api/demo (free, rate-limited by IP)
 // ---------------------------------------------------------------------------
 
-const DEMO_LIMIT = 1; // per IP per day
+const DEMO_LIMIT = 5; // per IP per day (competitive with other APIs)
 
 async function getDemoCount(ip, today) {
   if (!redis) return 0;
@@ -949,8 +949,10 @@ app.post("/api/demo", async (req, res) => {
       if (!hasRefs && images.length > 0) setCache(cacheKey, images, usedModel);
 
       // Save to gallery using original URL (before base64 conversion)
-      if (firstImageUrl && !isPrivate) {
-        gallerySave({ prompt, model: usedModel, style: style || null, image_url: firstImageUrl, wallet: reqWallet || null, timestamp: Date.now() }, true);
+      // Default to private — only publish to public if explicitly opted in (private: false)
+      if (firstImageUrl) {
+        const demoPublishToPublic = isPrivate === false;
+        gallerySave({ prompt, model: usedModel, style: style || null, image_url: firstImageUrl, wallet: reqWallet || null, timestamp: Date.now() }, demoPublishToPublic);
       }
     }
 
@@ -1221,7 +1223,7 @@ app.post("/v1/videos/generate", async (req, res) => {
     try { validateImageUrl(image_url); } catch (e) { return res.status(400).json({ detail: e.message }); }
   }
 
-  const videoModel = "fal-ai/seedance/video/fast";
+  const videoModel = "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video";
   const perImage = getPricing(videoModel);
   const totalPrice = perImage.price;
   const desc = `Generate a 5s video for ${perImage.usd} USDC`;

@@ -45,7 +45,7 @@ AI image & video generation API monetized via MPP (Machine Payments Protocol) on
 |---|---|---|
 | POST /v1/images/edit | fal-ai/flux-pro/v1/fill | $0.079 |
 | POST /v1/images/transform | fal-ai/flux-kontext/text-to-image | $0.049 |
-| POST /v1/videos/generate | fal-ai/seedance/video/fast | $0.35 |
+| POST /v1/videos/generate | fal-ai/bytedance/seedance/v1/pro/fast/text-to-video | $0.35 |
 
 ## Key Design Decisions
 - `buildFalBody()` mapper handles model-specific API params (GPT-Image uses pixel sizes, Grok uses aspect_ratio)
