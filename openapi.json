@@ -96,9 +96,15 @@
         "summary": "Edit an image via inpainting/outpainting",
         "description": "Uses FLUX Fill for inpainting/outpainting. Requires image_url. Optional mask_url for targeted edits. $0.079 USDC.",
         "x-payment-info": {
-          "minPrice": "0.079000",
-          "maxPrice": "0.079000",
-          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }, { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" } }]
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.079000"
+          },
+          "protocols": [
+            { "mpp": { "method": "tempo", "intent": "charge", "currency": "0x20c000000000000000000000b9537d11c60e8b50" } },
+            { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "facilitator": "https://x402.org/facilitator" } }
+          ]
         },
         "requestBody": {
           "required": true,
@@ -129,9 +135,15 @@
         "summary": "Transform/remix an image with style transfer",
         "description": "Uses FLUX Kontext for style remix. Provide a prompt and optional reference image. $0.049 USDC.",
         "x-payment-info": {
-          "minPrice": "0.049000",
-          "maxPrice": "0.049000",
-          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }, { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" } }]
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.049000"
+          },
+          "protocols": [
+            { "mpp": { "method": "tempo", "intent": "charge", "currency": "0x20c000000000000000000000b9537d11c60e8b50" } },
+            { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "facilitator": "https://x402.org/facilitator" } }
+          ]
         },
         "requestBody": {
           "required": true,
@@ -162,9 +174,15 @@
         "summary": "Generate a 5-second video from a text prompt",
         "description": "Uses Seedance Fast for video generation. Optional image_url as starting frame. $0.35 USDC.",
         "x-payment-info": {
-          "minPrice": "0.350000",
-          "maxPrice": "0.350000",
-          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }, { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" } }]
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.350000"
+          },
+          "protocols": [
+            { "mpp": { "method": "tempo", "intent": "charge", "currency": "0x20c000000000000000000000b9537d11c60e8b50" } },
+            { "x402": { "version": 2, "network": "eip155:8453", "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "facilitator": "https://x402.org/facilitator" } }
+          ]
         },
         "requestBody": {
           "required": true,
