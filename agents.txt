@@ -1,6 +1,6 @@
 # PixelPay — Agent Instructions
 
-> AI image generation API. Pay-per-request via MPP on Tempo blockchain. No API keys needed.
+> AI image & video generation API. Pay-per-request via MPP on Tempo blockchain. No API keys needed.
 
 ## Quick Start
 
@@ -10,28 +10,42 @@
 4. Retry the same request with Authorization: Payment <credential>
 5. Receive 200 OK with your generated image
 
-## Available Models
+## Available Models (Image Generation)
 
 | Model ID | Price | Best For |
 |---|---|---|
 | fal-ai/flux/schnell | $0.029 | Fast, cheap, good quality (DEFAULT) |
+| xai/grok-imagine-image | $0.039 | Fast, budget-friendly |
 | fal-ai/flux/dev | $0.049 | Better quality, slower |
 | fal-ai/recraft-v3 | $0.059 | Vector/illustration style |
+| fal-ai/gpt-image-1/text-to-image | $0.069 | Creative, artistic (OpenAI) |
 | fal-ai/hidream-i1-full | $0.079 | Photorealistic, detailed |
 | fal-ai/ideogram/v3 | $0.079 | Text rendering in images |
 | fal-ai/flux-pro/v1.1 | $0.099 | Highest quality Flux |
 | fal-ai/nano-banana-2 | $0.14 | Premium, Google DeepMind |
 | fal-ai/nano-banana-pro | $0.19 | Best quality available |
 
+## Additional Capabilities
+
+| Endpoint | Price | Description |
+|---|---|---|
+| POST /v1/images/edit | $0.079 | Inpainting/outpainting (requires image_url) |
+| POST /v1/images/transform | $0.049 | Style transfer/remix |
+| POST /v1/videos/generate | $0.35 | 5-second video generation |
+
 ## Model Selection Guide
 
 - Need it cheap and fast? Use `fal-ai/flux/schnell` ($0.029)
+- Budget-friendly alternative? Use `xai/grok-imagine-image` ($0.039)
+- Need creative/artistic output? Use `fal-ai/gpt-image-1/text-to-image` ($0.069)
 - Need text in the image? Use `fal-ai/ideogram/v3` ($0.079)
 - Need best quality? Use `fal-ai/nano-banana-pro` ($0.19)
 - Need illustrations/vectors? Use `fal-ai/recraft-v3` ($0.059)
+- Need to edit an existing image? Use POST /v1/images/edit ($0.079)
+- Need video? Use POST /v1/videos/generate ($0.35)
 - Unsure? Omit model field — auto-selects best model based on prompt
 
-## Example Request
+## Example: Generate Image
 
 ```
 POST /v1/images/generate
@@ -44,52 +58,44 @@ Content-Type: application/json
 }
 ```
 
-## Example 402 Response
+## Example: Edit Image
 
 ```
-HTTP/1.1 402 Payment Required
-WWW-Authenticate: Payment id="abc123", realm="pixelpayapi.com", method="tempo", intent="charge", request="<base64url>", expires="2026-04-10T12:00:00Z"
+POST /v1/images/edit
+Content-Type: application/json
 
 {
-  "type": "https://paymentauth.org/problems/payment-required",
-  "title": "Payment Required",
-  "status": 402,
-  "detail": "Generate an image for 0.029 USDC (schnell tier)"
+  "prompt": "replace the sky with a dramatic sunset",
+  "image_url": "https://example.com/photo.jpg",
+  "mask_url": "https://example.com/sky-mask.png"
 }
 ```
 
-## Example 200 Response
+## Example: Generate Video
 
-```json
+```
+POST /v1/videos/generate
+Content-Type: application/json
+
 {
-  "images": [
-    {
-      "url": "https://fal.media/files/...",
-      "width": 1024,
-      "height": 768,
-      "content_type": "image/jpeg"
-    }
-  ],
-  "prompt": "a serene mountain landscape at sunset",
-  "model": "fal-ai/flux/schnell",
-  "seed": 1234567890,
-  "timings": { "inference": 1.23 }
+  "prompt": "a cat walking through a garden, cinematic slow motion",
+  "image_url": "https://example.com/cat.jpg"
 }
 ```
 
-## Request Parameters
+## Request Parameters (Image Generate)
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | prompt | string | Yes | Text describing the image |
 | model | string | No | Model ID (default: fal-ai/flux/schnell) |
-| image_size | string | No | landscape_4_3, square_hd, portrait_4_3, landscape_16_9, portrait_9_16 |
+| image_size | string | No | landscape_4_3, square_hd, portrait_4_3, etc. |
 | num_images | integer | No | 1-4 images per request (default: 1) |
-| style | string | No | anime, cinematic, vintage, noir, cyberpunk, watercolor, oil-painting, pixel-art, minimalist, pop-art |
+| style | string | No | anime, cinematic, vintage, noir, cyberpunk, etc. |
 | enhance | boolean | No | Auto-enhance prompt for better quality |
-| negative_prompt | string | No | Things to avoid (e.g. "blur, watermark") |
+| negative_prompt | string | No | Things to avoid |
 | seed | integer | No | For reproducible results |
-| image_urls | array | No | Reference images for img2img (Nano Banana, Recraft, Dev only) |
+| image_urls | array | No | Reference images for img2img |
 
 ## Other Endpoints
 
@@ -97,8 +103,8 @@ WWW-Authenticate: Payment id="abc123", realm="pixelpayapi.com", method="tempo", 
 - GET /v1/models — List all available models with capabilities
 - GET /v1/styles — Available style presets
 - POST /v1/validate — Validate prompt before paying
-- POST /v1/images/upscale — Upscale image 2x ({"image_url": "..."})
-- GET /v1/gallery — Public image gallery (JSON)
+- POST /v1/images/upscale — Upscale image 2x
+- GET /v1/gallery — Public image gallery
 - GET /health — Health check
 
 ## Payment Details
@@ -112,8 +118,10 @@ WWW-Authenticate: Payment id="abc123", realm="pixelpayapi.com", method="tempo", 
 ## Tips for Agents
 
 1. Always check GET /v1/prices first to budget your spending
-2. Use the cheapest model (schnell) for drafts, upgrade for final output
-3. Include style presets to get better results without complex prompts
-4. Set enhance=true to auto-improve your prompts
-5. Use seed for reproducible results when iterating
-6. The server pays gas fees — you only pay the USDC amount
+2. Use the cheapest model (schnell $0.029 or grok $0.039) for drafts
+3. GPT-Image ($0.069) excels at creative/artistic prompts
+4. Include style presets to get better results without complex prompts
+5. Set enhance=true to auto-improve your prompts
+6. Use seed for reproducible results when iterating
+7. The server pays gas fees — you only pay the USDC amount
+8. For video, provide an image_url as starting frame for better results

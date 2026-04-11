@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PixelPay — AI Image Generation via MPP</title>
-  <meta name="description" content="Generate AI images from 8 models. Pay per request with USDC on Tempo. No API keys, no signup. Smart routing, batch discounts.">
+  <meta name="description" content="Generate AI images from 13 models. Pay per request with USDC on Tempo. No API keys, no signup. Smart routing, batch discounts.">
   <meta name="keywords" content="AI image generation, USDC, Tempo blockchain, NFT, pay per use, API, flux, stable diffusion">
   <meta name="author" content="PixelPay">
   <meta name="theme-color" content="#000000">
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="PixelPay — AI Images. Pay per pixel.">
-  <meta property="og:description" content="Generate AI images from 8 models. Pay with USDC on Tempo. No API keys, no signup.">
+  <meta property="og:description" content="Generate AI images from 13 models. Pay with USDC on Tempo. No API keys, no signup.">
   <meta property="og:url" content="https://pixelpayapi.com">
   <meta property="og:site_name" content="PixelPay">
   <meta property="og:image" content="https://pixelpayapi.com/og-image.svg">
@@ -20,7 +20,7 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="PixelPay — AI Images. Pay per pixel.">
-  <meta name="twitter:description" content="Generate AI images from 8 models. Pay with USDC on Tempo. No API keys, no signup.">
+  <meta name="twitter:description" content="Generate AI images from 13 models. Pay with USDC on Tempo. No API keys, no signup.">
   <meta name="twitter:image" content="https://pixelpayapi.com/og-image.svg">
   <meta name="twitter:site" content="@PixelPayAPI">
   <!-- Canonical -->
@@ -32,7 +32,7 @@
     "@type": "WebApplication",
     "name": "PixelPay",
     "url": "https://pixelpayapi.com",
-    "description": "Generate AI images from 8 models. Pay per request with USDC on Tempo blockchain.",
+    "description": "Generate AI images from 13 models. Pay per request with USDC on Tempo blockchain.",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Web",
     "offers": {
@@ -1152,11 +1152,19 @@
               <div class="item-left"><span class="item-name">Ideogram V3</span><span class="item-tier">Text</span></div>
               <span class="item-price">$0.079</span>
             </div>
+            <div class="dropdown-item" data-value="fal-ai/gpt-image-1/text-to-image" data-label="GPT Image" data-price="$0.069" onclick="selectModel(this)">
+              <div class="item-left"><span class="item-name">GPT Image</span><span class="item-tier">Creative</span></div>
+              <span class="item-price">$0.069</span>
+            </div>
             <div class="dropdown-item" data-value="fal-ai/flux-pro/v1.1" data-label="Pro" data-price="$0.099" onclick="selectModel(this)">
               <div class="item-left"><span class="item-name">Pro</span><span class="item-tier">Premium</span></div>
               <span class="item-price">$0.099</span>
             </div>
             <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-value="xai/grok-imagine-image" data-label="Grok" data-price="$0.039" onclick="selectModel(this)">
+              <div class="item-left"><span class="item-name">Grok Imagine</span><span class="item-tier">Fast</span></div>
+              <span class="item-price">$0.039</span>
+            </div>
             <div class="dropdown-item" data-value="fal-ai/nano-banana-2" data-label="Nano Banana 2" data-price="$0.14" data-premium="true" onclick="selectModel(this)">
               <div class="item-left"><span class="item-name">Nano Banana 2</span><span class="item-tag">PREMIUM</span></div>
               <span class="item-price">$0.14</span>
@@ -2255,6 +2263,8 @@ const MODEL_MAX_IMAGES = {
   "fal-ai/recraft-v3": 1,
   "fal-ai/hidream-i1-full": 0,
   "fal-ai/ideogram/v3": 0,
+  "fal-ai/gpt-image-1/text-to-image": 0,
+  "xai/grok-imagine-image": 0,
   "fal-ai/nano-banana-2": 14,
   "fal-ai/nano-banana-pro": 14,
 };

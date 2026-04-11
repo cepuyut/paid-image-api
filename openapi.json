@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PixelPay",
-    "version": "1.0.0",
-    "description": "PixelPay — AI image generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
-    "x-guidance": "PixelPay generates images from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.029, Dev $0.049, Recraft $0.059, HiDream $0.079, Ideogram $0.079, Pro $0.099, Nano Banana 2 $0.14 (premium), Nano Banana Pro $0.19 (premium) USDC via Tempo blockchain, then retry with the payment credential to receive your generated image. Premium models require wallet payment. Check GET /v1/prices for current pricing."
+    "version": "2.0.0",
+    "description": "PixelPay — AI image & video generation API monetized via MPP (Machine Payments Protocol). Pay-per-request with Tempo blockchain.",
+    "x-guidance": "PixelPay generates images, edits, transforms, and videos from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.029, Grok $0.039, Dev $0.049, Recraft $0.059, GPT-Image $0.069, HiDream $0.079, Ideogram $0.079, Edit $0.079, Pro $0.099, Nano Banana 2 $0.14, Nano Banana Pro $0.19, Video $0.35 USDC via Tempo blockchain, then retry with the payment credential. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
     "ownershipProofs": ["dns:pixelpayapi.com"]
@@ -27,7 +27,7 @@
       "post": {
         "operationId": "generateImage",
         "summary": "Generate an image from a text prompt",
-        "description": "PixelPay generates images from text prompts using fal.ai models. 8 models available: Schnell $0.029, Dev $0.049, Recraft $0.059, HiDream $0.079, Ideogram $0.079, Pro $0.099, Nano Banana 2 $0.14 (premium), Nano Banana Pro $0.19 (premium) USDC via MPP Tempo charge.",
+        "description": "Generate images using 10 models: Schnell $0.029, Grok $0.039, Dev $0.049, Recraft $0.059, GPT-Image $0.069, HiDream $0.079, Ideogram $0.079, Pro $0.099, Nano Banana 2 $0.14, Nano Banana Pro $0.19 USDC via MPP.",
         "x-payment-info": {
           "price": {
             "mode": "dynamic",
@@ -38,10 +38,14 @@
           "protocols": [
             { "mpp": { "method": "tempo", "intent": "charge", "currency": "0x20c000000000000000000000b9537d11c60e8b50" } }
           ],
+          "minPrice": "0.029000",
+          "maxPrice": "0.190000",
           "tiers": [
             { "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "0.029000" },
+            { "model": "xai/grok-imagine-image", "tier": "grok", "price": "0.039000" },
             { "model": "fal-ai/flux/dev", "tier": "dev", "price": "0.049000" },
             { "model": "fal-ai/recraft-v3", "tier": "recraft", "price": "0.059000" },
+            { "model": "fal-ai/gpt-image-1/text-to-image", "tier": "gpt-image", "price": "0.069000" },
             { "model": "fal-ai/hidream-i1-full", "tier": "hidream", "price": "0.079000" },
             { "model": "fal-ai/ideogram/v3", "tier": "ideogram", "price": "0.079000" },
             { "model": "fal-ai/flux-pro/v1.1", "tier": "pro", "price": "0.099000" },
@@ -58,60 +62,21 @@
                 "properties": {
                   "prompt": {
                     "type": "string",
-                    "description": "Text prompt describing the image to generate",
-                    "example": "A serene mountain landscape at sunset with a lake reflection"
+                    "description": "Text prompt describing the image to generate"
                   },
                   "model": {
                     "type": "string",
-                    "description": "Model identifier. Pricing varies by model: fal-ai/flux/schnell ($0.029), fal-ai/flux/dev ($0.049), fal-ai/recraft-v3 ($0.059), fal-ai/hidream-i1-full ($0.079), fal-ai/ideogram/v3 ($0.079), fal-ai/flux-pro/v1.1 ($0.099), fal-ai/nano-banana-2 ($0.14, premium), fal-ai/nano-banana-pro ($0.19, premium)",
+                    "description": "Model identifier. Use 'auto' for smart selection.",
                     "default": "fal-ai/flux/schnell",
-                    "enum": ["fal-ai/flux/schnell", "fal-ai/flux/dev", "fal-ai/recraft-v3", "fal-ai/hidream-i1-full", "fal-ai/ideogram/v3", "fal-ai/flux-pro/v1.1", "fal-ai/nano-banana-2", "fal-ai/nano-banana-pro"]
+                    "enum": ["auto", "fal-ai/flux/schnell", "fal-ai/flux/dev", "fal-ai/recraft-v3", "fal-ai/hidream-i1-full", "fal-ai/ideogram/v3", "fal-ai/gpt-image-1/text-to-image", "xai/grok-imagine-image", "fal-ai/flux-pro/v1.1", "fal-ai/nano-banana-2", "fal-ai/nano-banana-pro"]
                   },
-                  "image_size": {
-                    "type": "string",
-                    "description": "Output image size",
-                    "default": "landscape_4_3",
-                    "enum": ["square_hd", "square", "landscape_4_3", "landscape_16_9", "portrait_4_3", "portrait_16_9", "portrait_9_16", "widescreen_21_9"]
-                  },
-                  "num_images": {
-                    "type": "integer",
-                    "description": "Number of images to generate (1-4)",
-                    "default": 1,
-                    "minimum": 1,
-                    "maximum": 4
-                  },
-                  "image_urls": {
-                    "oneOf": [
-                      { "type": "string", "format": "uri", "description": "Single reference image URL or base64 data URL" },
-                      { "type": "array", "items": { "type": "string" }, "description": "Array of reference image URLs or base64 data URLs" }
-                    ],
-                    "description": "Reference image(s) for image-to-image generation. Support varies by model: Nano Banana 2/Pro up to 14 images, Recraft V3/FLUX Dev support 1 image, Schnell/HiDream/Ideogram/Pro are text-only (no reference images)."
-                  },
-                  "style": {
-                    "type": "string",
-                    "description": "Style preset to apply. Appends style-specific keywords to prompt automatically.",
-                    "enum": ["anime", "cinematic", "vintage", "noir", "cyberpunk", "watercolor", "oil-painting", "pixel-art", "minimalist", "pop-art"]
-                  },
-                  "enhance": {
-                    "type": "boolean",
-                    "description": "If true, automatically enhance the prompt with quality keywords for better results.",
-                    "default": false
-                  },
-                  "negative_prompt": {
-                    "type": "string",
-                    "description": "Things to avoid in the generated image (e.g. 'blur, watermark, low quality, deformed')."
-                  },
-                  "seed": {
-                    "type": "integer",
-                    "description": "Random seed for reproducible results. Omit for random. Returned in response for reuse.",
-                    "minimum": 0,
-                    "maximum": 2147483647
-                  },
-                  "private": {
-                    "type": "boolean",
-                    "description": "If true, the generated image will not appear in the public gallery.",
-                    "default": false
-                  }
+                  "image_size": { "type": "string", "default": "landscape_4_3" },
+                  "num_images": { "type": "integer", "default": 1, "minimum": 1, "maximum": 4 },
+                  "style": { "type": "string", "enum": ["anime", "cinematic", "vintage", "noir", "cyberpunk", "watercolor", "oil-painting", "pixel-art", "minimalist", "pop-art"] },
+                  "enhance": { "type": "boolean", "default": false },
+                  "negative_prompt": { "type": "string" },
+                  "seed": { "type": "integer" },
+                  "private": { "type": "boolean", "default": true }
                 },
                 "required": ["prompt"]
               }
@@ -119,49 +84,106 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Image generated successfully",
-            "headers": {
-              "Payment-Receipt": {
-                "description": "Base64url-encoded payment receipt",
-                "schema": { "type": "string" }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "images": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "url": { "type": "string", "format": "uri" },
-                          "width": { "type": "integer" },
-                          "height": { "type": "integer" },
-                          "content_type": { "type": "string" }
-                        }
-                      }
-                    },
-                    "prompt": { "type": "string" },
-                    "model": { "type": "string" },
-                    "seed": { "type": "integer", "description": "Seed used for generation. Reuse for identical results." },
-                    "timings": { "type": "object" }
-                  }
-                }
-              }
-            }
-          },
-          "402": {
-            "description": "Payment Required – respond with Authorization: Payment credential",
-            "headers": {
-              "WWW-Authenticate": {
-                "description": "MPP payment challenge",
-                "schema": { "type": "string" }
+          "200": { "description": "Image generated successfully" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/v1/images/edit": {
+      "post": {
+        "operationId": "editImage",
+        "summary": "Edit an image via inpainting/outpainting",
+        "description": "Uses FLUX Fill for inpainting/outpainting. Requires image_url. Optional mask_url for targeted edits. $0.079 USDC.",
+        "x-payment-info": {
+          "minPrice": "0.079000",
+          "maxPrice": "0.079000",
+          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": { "type": "string", "description": "Edit instruction" },
+                  "image_url": { "type": "string", "description": "Source image URL" },
+                  "mask_url": { "type": "string", "description": "Optional mask for targeted edit" },
+                  "image_size": { "type": "string", "default": "landscape_4_3" }
+                },
+                "required": ["prompt", "image_url"]
               }
             }
           }
+        },
+        "responses": {
+          "200": { "description": "Edited image returned" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/v1/images/transform": {
+      "post": {
+        "operationId": "transformImage",
+        "summary": "Transform/remix an image with style transfer",
+        "description": "Uses FLUX Kontext for style remix. Provide a prompt and optional reference image. $0.049 USDC.",
+        "x-payment-info": {
+          "minPrice": "0.049000",
+          "maxPrice": "0.049000",
+          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": { "type": "string" },
+                  "image_url": { "type": "string", "description": "Reference image to transform" },
+                  "image_size": { "type": "string", "default": "landscape_4_3" },
+                  "num_images": { "type": "integer", "default": 1 }
+                },
+                "required": ["prompt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Transformed image returned" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/v1/videos/generate": {
+      "post": {
+        "operationId": "generateVideo",
+        "summary": "Generate a 5-second video from a text prompt",
+        "description": "Uses Seedance Fast for video generation. Optional image_url as starting frame. $0.35 USDC.",
+        "x-payment-info": {
+          "minPrice": "0.350000",
+          "maxPrice": "0.350000",
+          "protocols": [{ "mpp": { "method": "tempo", "intent": "charge" } }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": { "type": "string", "description": "Motion/scene description" },
+                  "image_url": { "type": "string", "description": "Optional starting frame image" },
+                  "seed": { "type": "integer" }
+                },
+                "required": ["prompt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Video generated", "content": { "application/json": { "schema": { "type": "object", "properties": { "video": { "type": "object", "properties": { "url": { "type": "string" } } } } } } } },
+          "402": { "description": "Payment Required" }
         }
       }
     }

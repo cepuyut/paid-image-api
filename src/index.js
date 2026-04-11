@@ -102,18 +102,28 @@ const HOST = process.env.HOST || `http://localhost:${PORT}`;
 // ---------------------------------------------------------------------------
 const BASE_PRICING = {
   // Flux family
-  "fal-ai/flux/schnell":        { base: 29000,  tier: "schnell", maxImages: 0 },
-  "fal-ai/flux/dev":            { base: 49000,  tier: "dev", maxImages: 1 },
-  "fal-ai/flux-pro/v1.1":       { base: 99000,  tier: "pro", maxImages: 0 },
+  "fal-ai/flux/schnell":        { base: 29000,  tier: "schnell", type: "image", maxImages: 0 },
+  "fal-ai/flux/dev":            { base: 49000,  tier: "dev", type: "image", maxImages: 1 },
+  "fal-ai/flux-pro/v1.1":       { base: 99000,  tier: "pro", type: "image", maxImages: 0 },
   // Recraft V3 (SVG + raster)
-  "fal-ai/recraft-v3":          { base: 59000,  tier: "recraft", maxImages: 1 },
+  "fal-ai/recraft-v3":          { base: 59000,  tier: "recraft", type: "image", maxImages: 1 },
   // HiDream (high quality)
-  "fal-ai/hidream-i1-full":     { base: 79000,  tier: "hidream", maxImages: 0 },
+  "fal-ai/hidream-i1-full":     { base: 79000,  tier: "hidream", type: "image", maxImages: 0 },
   // Ideogram V3 (text-in-image)
-  "fal-ai/ideogram/v3":         { base: 79000,  tier: "ideogram", maxImages: 0 },
+  "fal-ai/ideogram/v3":         { base: 79000,  tier: "ideogram", type: "image", maxImages: 0 },
+  // GPT-Image-1 (OpenAI via fal.ai)
+  "fal-ai/gpt-image-1/text-to-image": { base: 69000, tier: "gpt-image", type: "image", maxImages: 0 },
+  // Grok Imagine (xAI via fal.ai)
+  "xai/grok-imagine-image":     { base: 39000,  tier: "grok", type: "image", maxImages: 0 },
   // Premium tier (multi-reference)
-  "fal-ai/nano-banana-2":       { base: 140000, tier: "premium", premium: true, maxImages: 14 },
-  "fal-ai/nano-banana-pro":     { base: 190000, tier: "premium", premium: true, maxImages: 14 },
+  "fal-ai/nano-banana-2":       { base: 140000, tier: "premium", type: "image", premium: true, maxImages: 14 },
+  "fal-ai/nano-banana-pro":     { base: 190000, tier: "premium", type: "image", premium: true, maxImages: 14 },
+  // Edit (inpainting/outpainting)
+  "fal-ai/flux-pro/v1/fill":    { base: 79000,  tier: "edit", type: "edit", maxImages: 1 },
+  // Transform (style transfer / remix)
+  "fal-ai/flux-kontext/text-to-image": { base: 49000, tier: "transform", type: "transform", maxImages: 1 },
+  // Video generation
+  "fal-ai/seedance/video/fast": { base: 350000, tier: "video", type: "video", maxImages: 0 },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
 
@@ -236,6 +246,83 @@ function enhancePrompt(prompt, model, { style, enhance } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Model-specific body mapper — adapts params for each fal.ai model's API
+// ---------------------------------------------------------------------------
+
+// Size mapping for models that use fixed pixel sizes instead of aspect keywords
+const PIXEL_SIZE_MAP = {
+  "square_hd": "1024x1024", "square": "1024x1024",
+  "landscape_4_3": "1024x768", "landscape_16_9": "1024x576",
+  "portrait_4_3": "768x1024", "portrait_16_9": "576x1024",
+  "portrait_9_16": "576x1024", "widescreen_21_9": "1024x448",
+};
+
+const ASPECT_RATIO_MAP = {
+  "square_hd": "1:1", "square": "1:1",
+  "landscape_4_3": "4:3", "landscape_16_9": "16:9",
+  "portrait_4_3": "3:4", "portrait_16_9": "9:16",
+  "portrait_9_16": "9:16", "widescreen_21_9": "21:9",
+};
+
+function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, seed, image_urls }) {
+  const size = image_size || "landscape_4_3";
+  const count = num_images || 1;
+  const refs = Array.isArray(image_urls) ? image_urls : (image_urls ? [image_urls] : []);
+  const modelDef = BASE_PRICING[model] || {};
+  const maxRef = modelDef.maxImages || 0;
+
+  // --- GPT-Image-1: uses "size" as "1024x1024" pixel string ---
+  if (model === "fal-ai/gpt-image-1/text-to-image") {
+    const body = { prompt, size: PIXEL_SIZE_MAP[size] || "1024x1024", num_images: count };
+    // GPT-Image-1 does not support negative_prompt, seed, or ref images
+    return body;
+  }
+
+  // --- Grok Imagine: uses "aspect_ratio" as "4:3" string ---
+  if (model === "xai/grok-imagine-image") {
+    const body = { prompt, aspect_ratio: ASPECT_RATIO_MAP[size] || "4:3", num_images: count };
+    // Grok does not support negative_prompt, seed, or ref images
+    return body;
+  }
+
+  // --- FLUX Fill (edit/inpainting): requires image + mask ---
+  if (model === "fal-ai/flux-pro/v1/fill") {
+    const body = { prompt, image_size: size };
+    if (refs.length > 0) body.image_url = refs[0];
+    // mask_url can be passed via image_urls[1] if provided
+    if (refs.length > 1) body.mask_url = refs[1];
+    return body;
+  }
+
+  // --- FLUX Kontext (transform/remix): reference image + prompt ---
+  if (model === "fal-ai/flux-kontext/text-to-image") {
+    const body = { prompt, image_size: size, num_images: count };
+    if (refs.length > 0) body.image_url = refs[0];
+    if (negative_prompt) body.negative_prompt = negative_prompt;
+    if (seed != null) body.seed = Number(seed);
+    return body;
+  }
+
+  // --- Seedance Video: image_url as starting frame, prompt for motion ---
+  if (model === "fal-ai/seedance/video/fast") {
+    const body = { prompt, duration: 5 };
+    if (refs.length > 0) body.image_url = refs[0];
+    if (seed != null) body.seed = Number(seed);
+    return body;
+  }
+
+  // --- Default (FLUX Schnell/Dev/Pro, Recraft, HiDream, Ideogram, Nano Banana) ---
+  const body = { prompt, image_size: size, num_images: count };
+  if (negative_prompt) body.negative_prompt = negative_prompt;
+  if (seed != null) body.seed = Number(seed);
+  if (refs.length > 0) {
+    if (maxRef === 1) body.image_url = refs[0];
+    else body.image_urls = refs;
+  }
+  return body;
+}
+
+// ---------------------------------------------------------------------------
 // Public Gallery — Redis-backed, stores last 50 generated images
 // ---------------------------------------------------------------------------
 const MAX_GALLERY = 50;
@@ -290,14 +377,19 @@ function autoSelectModel(prompt, maxBudget) {
   const len = prompt.trim().length;
   const hasDetail = /\b(detailed|realistic|photorealistic|cinematic|8k|4k|hdr|professional)\b/i.test(prompt);
   const hasText = /\b(text|word|letter|sign|logo|typography|write|font)\b/i.test(prompt);
+  const hasCreative = /\b(creative|artistic|illustration|cartoon|concept art|imagination)\b/i.test(prompt);
 
   // Text-in-image → Ideogram V3 (specialized for text rendering)
   if (hasText && (!maxBudget || maxBudget >= 80000)) return "fal-ai/ideogram/v3";
   // Detailed/complex prompt → Pro or HiDream
   if (hasDetail && (!maxBudget || maxBudget >= 100000)) return "fal-ai/flux-pro/v1.1";
   if (hasDetail && (!maxBudget || maxBudget >= 80000)) return "fal-ai/hidream-i1-full";
+  // Creative/artistic → GPT-Image (great at creative interpretation)
+  if (hasCreative && (!maxBudget || maxBudget >= 70000)) return "fal-ai/gpt-image-1/text-to-image";
   // Medium-length prompt → Dev
   if (len > 30 && (!maxBudget || maxBudget >= 50000)) return "fal-ai/flux/dev";
+  // Budget-conscious short prompt → Grok (cheapest after Schnell)
+  if (len <= 20 && maxBudget && maxBudget < 40000) return "xai/grok-imagine-image";
   // Short/simple → Schnell
   return "fal-ai/flux/schnell";
 }
@@ -357,14 +449,26 @@ app.get("/.well-known/mpp.json", (_req, res) => {
       {
         path: "/v1/images/generate",
         method: "POST",
-        description: "Generate an image from a text prompt",
-        payment: {
-          protocol: "mpp",
-          chain: "tempo",
-          chainId: 4217,
-          currency: "USDC",
-          priceRange: { min: "0.029", max: "0.190", unit: "USD" }
-        }
+        description: "Generate an image from a text prompt (13 models)",
+        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.029", max: "0.190", unit: "USD" } }
+      },
+      {
+        path: "/v1/images/edit",
+        method: "POST",
+        description: "Edit an image via inpainting/outpainting",
+        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.079", max: "0.079", unit: "USD" } }
+      },
+      {
+        path: "/v1/images/transform",
+        method: "POST",
+        description: "Transform/remix an image with style transfer",
+        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.049", max: "0.049", unit: "USD" } }
+      },
+      {
+        path: "/v1/videos/generate",
+        method: "POST",
+        description: "Generate a 5-second video from a text prompt",
+        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.35", max: "0.35", unit: "USD" } }
       }
     ],
     discovery: {
@@ -398,15 +502,19 @@ app.get("/v1/models", (_req, res) => {
   const models = Object.entries(BASE_PRICING).map(([id, info]) => ({
     id,
     tier: info.tier,
+    type: info.type || "image",
     price_usd: (info.base / 1_000_000).toFixed(3),
     price_base_units: info.base,
     premium: !!info.premium,
     max_reference_images: info.maxImages,
     capabilities: {
-      text_to_image: true,
+      text_to_image: info.type === "image" || info.type === "transform",
       image_to_image: info.maxImages > 0,
       text_in_image: id === "fal-ai/ideogram/v3",
       vector_output: id === "fal-ai/recraft-v3",
+      edit: info.type === "edit",
+      video: info.type === "video",
+      transform: info.type === "transform",
     },
   }));
   res.set("Cache-Control", "max-age=60");
@@ -501,9 +609,8 @@ app.post("/v1/images/generate", async (req, res) => {
           }
           const size = image_size || "landscape_4_3";
           const enhanced = enhancePrompt(prompt, usedModel, { style, enhance });
-          const falBody = { prompt: enhanced, image_size: size, num_images: count };
-          if (negative_prompt) falBody.negative_prompt = negative_prompt;
-          if (seed != null) falBody.seed = Number(seed);
+          const refs = Array.isArray(image_urls) ? image_urls : (image_urls ? [image_urls] : []);
+          const falBody = buildFalBody(usedModel, { prompt: enhanced, image_size: size, num_images: count, negative_prompt, seed, image_urls: refs });
           try {
             const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
               method: "POST",
@@ -514,6 +621,11 @@ app.post("/v1/images/generate", async (req, res) => {
             const result = await falRes.json();
             // Success — delete credit
             await redis.del(creditKey).catch(() => {});
+            // Video model returns different shape
+            const retryModelDef = BASE_PRICING[usedModel] || {};
+            if (retryModelDef.type === "video") {
+              return res.json({ video: result.video || null, prompt, enhanced_prompt: enhanced, model: usedModel, retried: true });
+            }
             return res.json({
               images: result.images || [], prompt, enhanced_prompt: enhanced,
               model: usedModel, timings: result.timings,
@@ -611,23 +723,26 @@ app.post("/v1/images/generate", async (req, res) => {
       timings = { cached: true };
       console.log(`Cache hit: ${cacheKey}`);
     } else {
-      const falBody = { prompt: enhanced, image_size: size, num_images: count };
-      if (negative_prompt) falBody.negative_prompt = negative_prompt;
-      if (seed != null) falBody.seed = Number(seed);
-      if (hasRefs) {
-        if (maxRef === 1) {
-          falBody.image_url = refs[0];
-        } else {
-          falBody.image_urls = refs;
-        }
-      }
+      const falBody = buildFalBody(usedModel, { prompt: enhanced, image_size: size, num_images: count, negative_prompt, seed, image_urls: refs });
       const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(falBody),
       });
-      if (!falRes.ok) throw new Error(`fal.ai MPP error: ${falRes.status}`);
+      if (!falRes.ok) {
+        const errText = await falRes.text().catch(() => "");
+        throw new Error(`fal.ai MPP error: ${falRes.status} ${errText.slice(0, 200)}`);
+      }
       const result = await falRes.json();
+      // Video models return { video: { url } } instead of { images: [] }
+      if (modelDef.type === "video") {
+        const videoUrl = result.video?.url || null;
+        return res.json({
+          video: videoUrl ? { url: videoUrl } : null,
+          prompt, enhanced_prompt: enhanced, model: usedModel, timings: result.timings,
+          ...(usedSeed != null ? { seed: usedSeed } : {}),
+        });
+      }
       images = result.images || [];
       timings = result.timings;
       usedSeed = result.seed ?? seed ?? null;
@@ -784,17 +899,17 @@ app.post("/api/demo", async (req, res) => {
     const cacheKey = getCacheKey(enhanced, usedModel, size);
     const cached = hasRefs ? null : getCached(cacheKey);
 
+    // Block video/edit/transform models from free demo (too expensive)
+    if (modelInfo.type === "video" || modelInfo.type === "edit") {
+      return res.status(403).json({ detail: `${usedModel} is not available in demo. Connect a wallet to use it.` });
+    }
+
     let images, usedSeed = seed ?? null;
     if (cached) {
       images = cached.images;
       console.log(`Demo cache hit: ${cacheKey}`);
     } else {
-      const falBody = { prompt: enhanced, image_size: size, num_images: 1 };
-      if (negative_prompt) falBody.negative_prompt = negative_prompt;
-      if (seed != null) falBody.seed = Number(seed);
-      if (hasRefs) {
-        if (maxRef === 1) { falBody.image_url = refs[0]; } else { falBody.image_urls = refs; }
-      }
+      const falBody = buildFalBody(usedModel, { prompt: enhanced, image_size: size, num_images: 1, negative_prompt, seed, image_urls: refs });
       const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -950,6 +1065,181 @@ app.post("/v1/images/upscale", async (req, res) => {
   } catch (err) {
     console.error("Upscale error:", err.message);
     res.status(502).json({ detail: "Upscale failed. Please retry." });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Image Edit endpoint: POST /v1/images/edit (MPP-protected)
+// Uses FLUX Fill for inpainting/outpainting
+// ---------------------------------------------------------------------------
+
+app.post("/v1/images/edit", async (req, res) => {
+  const authHeader = req.get("Authorization");
+  const { prompt, image_url, mask_url, image_size, wallet: reqWallet } = req.body || {};
+
+  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
+    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
+  if (!image_url) {
+    return res.status(400).json({ detail: "An 'image_url' is required for edit." });
+  }
+
+  const editModel = "fal-ai/flux-pro/v1/fill";
+  const perImage = getPricing(editModel);
+  const totalPrice = perImage.price;
+  const desc = `Edit an image for ${perImage.usd} USDC (inpaint/outpaint)`;
+
+  if (!authHeader || !authHeader.startsWith("Payment ")) {
+    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
+    for (const [k, v] of Object.entries(headers)) res.set(k, v);
+    return res.status(statusCode).json(body);
+  }
+
+  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
+  if (!ok) {
+    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
+    body.type = `https://paymentauth.org/problems/${error}`;
+    body.detail = `Payment verification failed: ${error}`;
+    for (const [k, v] of Object.entries(headers)) res.set(k, v);
+    return res.status(402).json(body);
+  }
+
+  try {
+    const refs = mask_url ? [image_url, mask_url] : [image_url];
+    const falBody = buildFalBody(editModel, { prompt, image_size: image_size || "landscape_4_3", num_images: 1, image_urls: refs });
+    const falRes = await fetch(`${FAL_MPP_BASE}/${editModel}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(falBody),
+    });
+    if (!falRes.ok) {
+      const errText = await falRes.text().catch(() => "");
+      throw new Error(`fal.ai edit error: ${falRes.status} ${errText.slice(0, 200)}`);
+    }
+    const result = await falRes.json();
+    trackRequest();
+    const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
+    res.set("Payment-Receipt", receipt);
+    if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "edit").catch(() => {});
+    res.json({ images: result.images || [], prompt, model: editModel, timings: result.timings });
+  } catch (err) {
+    console.error("Edit error:", err.message);
+    res.status(502).json({ detail: "Image editing failed: " + err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Image Transform endpoint: POST /v1/images/transform (MPP-protected)
+// Uses FLUX Kontext for style transfer / remix
+// ---------------------------------------------------------------------------
+
+app.post("/v1/images/transform", async (req, res) => {
+  const authHeader = req.get("Authorization");
+  const { prompt, image_url, image_size, num_images, negative_prompt, seed, wallet: reqWallet } = req.body || {};
+
+  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
+    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
+
+  const transformModel = "fal-ai/flux-kontext/text-to-image";
+  const count = Math.min(Math.max(num_images || 1, 1), 4);
+  const perImage = getPricing(transformModel);
+  const totalPrice = String(Math.round(Number(perImage.price) * count));
+  const desc = `Transform image for ${(Number(totalPrice) / 1_000_000).toFixed(2)} USDC (style remix)`;
+
+  if (!authHeader || !authHeader.startsWith("Payment ")) {
+    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
+    for (const [k, v] of Object.entries(headers)) res.set(k, v);
+    return res.status(statusCode).json(body);
+  }
+
+  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
+  if (!ok) {
+    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
+    body.type = `https://paymentauth.org/problems/${error}`;
+    body.detail = `Payment verification failed: ${error}`;
+    for (const [k, v] of Object.entries(headers)) res.set(k, v);
+    return res.status(402).json(body);
+  }
+
+  try {
+    const refs = image_url ? [image_url] : [];
+    const falBody = buildFalBody(transformModel, { prompt, image_size: image_size || "landscape_4_3", num_images: count, negative_prompt, seed, image_urls: refs });
+    const falRes = await fetch(`${FAL_MPP_BASE}/${transformModel}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(falBody),
+    });
+    if (!falRes.ok) {
+      const errText = await falRes.text().catch(() => "");
+      throw new Error(`fal.ai transform error: ${falRes.status} ${errText.slice(0, 200)}`);
+    }
+    const result = await falRes.json();
+    trackRequest();
+    const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
+    res.set("Payment-Receipt", receipt);
+    if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "transform").catch(() => {});
+    res.json({ images: result.images || [], prompt, model: transformModel, timings: result.timings });
+  } catch (err) {
+    console.error("Transform error:", err.message);
+    res.status(502).json({ detail: "Image transform failed: " + err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Video Generate endpoint: POST /v1/videos/generate (MPP-protected)
+// Uses Seedance Fast for video generation
+// ---------------------------------------------------------------------------
+
+app.post("/v1/videos/generate", async (req, res) => {
+  const authHeader = req.get("Authorization");
+  const { prompt, image_url, seed, wallet: reqWallet } = req.body || {};
+
+  if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
+    return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
+
+  const videoModel = "fal-ai/seedance/video/fast";
+  const perImage = getPricing(videoModel);
+  const totalPrice = perImage.price;
+  const desc = `Generate a 5s video for ${perImage.usd} USDC`;
+
+  if (!authHeader || !authHeader.startsWith("Payment ")) {
+    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
+    for (const [k, v] of Object.entries(headers)) res.set(k, v);
+    return res.status(statusCode).json(body);
+  }
+
+  const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
+  if (!ok) {
+    const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description: desc });
+    body.type = `https://paymentauth.org/problems/${error}`;
+    body.detail = `Payment verification failed: ${error}`;
+    for (const [k, v] of Object.entries(headers)) res.set(k, v);
+    return res.status(402).json(body);
+  }
+
+  try {
+    const refs = image_url ? [image_url] : [];
+    const falBody = buildFalBody(videoModel, { prompt, image_urls: refs, seed });
+    const falRes = await fetch(`${FAL_MPP_BASE}/${videoModel}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(falBody),
+    });
+    if (!falRes.ok) {
+      const errText = await falRes.text().catch(() => "");
+      throw new Error(`fal.ai video error: ${falRes.status} ${errText.slice(0, 200)}`);
+    }
+    const result = await falRes.json();
+    trackRequest();
+    const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
+    res.set("Payment-Receipt", receipt);
+    if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "video").catch(() => {});
+    res.json({ video: result.video || null, prompt, model: videoModel, timings: result.timings, seed: result.seed ?? seed ?? null });
+  } catch (err) {
+    console.error("Video error:", err.message);
+    res.status(502).json({ detail: "Video generation failed: " + err.message });
   }
 });
 
@@ -1622,7 +1912,7 @@ app.get("/v1/stats", (_req, res) => {
     requests_5min: requestTimestamps.length,
     demand_multiplier: getDemandMultiplier(),
     models: Object.keys(BASE_PRICING).length,
-    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification", "reference_images", "style_presets", "prompt_enhance", "public_gallery", "negative_prompt", "seed_control", "variations", "generation_history", "image_upscaler", "nft_minting", "nft_marketplace", "ipfs_upload"],
+    features: ["prompt_enhancement", "smart_routing", "response_cache", "dynamic_pricing", "batch_discount", "on_chain_verification", "reference_images", "style_presets", "prompt_enhance", "public_gallery", "negative_prompt", "seed_control", "variations", "generation_history", "image_upscaler", "nft_minting", "nft_marketplace", "ipfs_upload", "image_edit", "image_transform", "video_generation", "multi_provider"],
   });
 });
 
@@ -1632,12 +1922,12 @@ app.get("/v1/stats", (_req, res) => {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`PixelPay listening on ${HOST}`);
-  console.log(`  POST ${HOST}/v1/images/generate  (MPP-protected, tiered pricing)`);
+  console.log(`  POST ${HOST}/v1/images/generate    (MPP — ${Object.keys(BASE_PRICING).filter(k => BASE_PRICING[k].type === "image").length} image models)`);
+  console.log(`  POST ${HOST}/v1/images/edit         (MPP — inpaint/outpaint)`);
+  console.log(`  POST ${HOST}/v1/images/transform    (MPP — style remix)`);
+  console.log(`  POST ${HOST}/v1/videos/generate     (MPP — video generation)`);
   console.log(`  GET  ${HOST}/v1/prices`);
   console.log(`  GET  ${HOST}/v1/models`);
-  console.log(`  POST ${HOST}/v1/validate`);
   console.log(`  GET  ${HOST}/openapi.json`);
-  console.log(`  GET  ${HOST}/llms.txt`);
-  console.log(`  GET  ${HOST}/agents.txt`);
   console.log(`  GET  ${HOST}/.well-known/mpp.json`);
 });

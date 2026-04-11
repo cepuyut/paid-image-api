@@ -1,10 +1,10 @@
 # PixelPay
 
-> PixelPay — AI image generation API monetized via MPP (Machine Payments Protocol).
+> PixelPay — AI image & video generation API monetized via MPP (Machine Payments Protocol).
 
 ## Overview
 
-PixelPay lets you generate images from text prompts using fal.ai models. Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with USDC stablecoins.
+PixelPay lets you generate images, edit images, transform styles, and create videos from text prompts using multiple AI providers (fal.ai, OpenAI, xAI). Each request is paid per-use through the Machine Payments Protocol (MPP) using Tempo blockchain with USDC stablecoins.
 
 No API keys needed. Just pay per request.
 
@@ -17,28 +17,33 @@ No API keys needed. Just pay per request.
 - Recipient: `0xf48c6E46358652fC77462d56d609B8bC7f4ba82e`
 - Fee payer: Server pays gas (you only pay USDC amount)
 
-### Tiered Pricing (per image)
+### Tiered Pricing (per image/video)
 
-| Model | Tier | Price (USDC) | Base Units |
+| Model | Tier | Price (USDC) | Type |
 |---|---|---|---|
-| `fal-ai/flux/schnell` | schnell | $0.029 | 29000 |
-| `fal-ai/flux/dev` | dev | $0.049 | 49000 |
-| `fal-ai/recraft-v3` | recraft | $0.059 | 59000 |
-| `fal-ai/hidream-i1-full` | hidream | $0.079 | 79000 |
-| `fal-ai/ideogram/v3` | ideogram | $0.079 | 79000 |
-| `fal-ai/flux-pro/v1.1` | pro | $0.099 | 99000 |
-| `fal-ai/nano-banana-2` | premium | $0.14 | 140000 |
-| `fal-ai/nano-banana-pro` | premium | $0.19 | 190000 |
+| `fal-ai/flux/schnell` | schnell | $0.029 | image |
+| `xai/grok-imagine-image` | grok | $0.039 | image |
+| `fal-ai/flux/dev` | dev | $0.049 | image |
+| `fal-ai/flux-kontext/text-to-image` | transform | $0.049 | transform |
+| `fal-ai/recraft-v3` | recraft | $0.059 | image |
+| `fal-ai/gpt-image-1/text-to-image` | gpt-image | $0.069 | image |
+| `fal-ai/hidream-i1-full` | hidream | $0.079 | image |
+| `fal-ai/ideogram/v3` | ideogram | $0.079 | image |
+| `fal-ai/flux-pro/v1/fill` | edit | $0.079 | edit |
+| `fal-ai/flux-pro/v1.1` | pro | $0.099 | image |
+| `fal-ai/nano-banana-2` | premium | $0.14 | image |
+| `fal-ai/nano-banana-pro` | premium | $0.19 | image |
+| `fal-ai/seedance/video/fast` | video | $0.35 | video |
 
-**Premium models** (`fal-ai/nano-banana-2`, `fal-ai/nano-banana-pro`) require wallet payment — not available in free demo.
+**Premium models** require wallet payment — not available in free demo.
 
-Default model: `fal-ai/flux/schnell` ($0.029). Price is determined by the `model` field in your request.
+Default model: `fal-ai/flux/schnell` ($0.029).
 
 ## Payment Flow
 
 1. `POST /v1/images/generate` with your prompt and model (no auth header)
-2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge (amount varies by model)
-3. Sign a Tempo transaction transferring the required USDC to the recipient
+2. Receive `402 Payment Required` with `WWW-Authenticate: Payment ...` challenge
+3. Sign a Tempo transaction transferring the required USDC
 4. Retry the same request with `Authorization: Payment <base64url-credential>`
 5. Receive `200 OK` with generated images and a `Payment-Receipt` header
 
@@ -46,48 +51,53 @@ Default model: `fal-ai/flux/schnell` ($0.029). Price is determined by the `model
 
 ### POST /v1/images/generate
 
-Generate an image from a text prompt.
+Generate images from text prompts. 10 image models available.
 
 **Request body** (JSON):
-- `prompt` (string, required): Text describing the image to generate
-- `model` (string, optional): Model ID. Default: `fal-ai/flux/schnell`
-- `image_size` (string, optional): Output size. Default: `landscape_4_3`. Options: `square_hd`, `square`, `landscape_4_3`, `landscape_16_9`, `portrait_4_3`, `portrait_9_16`, `widescreen_21_9`
-- `num_images` (integer, optional): 1-4 images. Default: 1
-- `image_urls` (string or array, optional): Reference image(s) for img2img. Supported by Nano Banana 2/Pro, Recraft V3, FLUX Dev
-- `style` (string, optional): Style preset: `anime`, `cinematic`, `vintage`, `noir`, `cyberpunk`, `watercolor`, `oil-painting`, `pixel-art`, `minimalist`, `pop-art`
-- `enhance` (boolean, optional): Auto-enhance prompt. Default: false
-- `negative_prompt` (string, optional): Things to avoid (e.g. "blur, watermark")
+- `prompt` (string, required): Text describing the image
+- `model` (string, optional): Model ID or "auto". Default: `fal-ai/flux/schnell`
+- `image_size` (string, optional): Default: `landscape_4_3`
+- `num_images` (integer, optional): 1-4. Default: 1
+- `style` (string, optional): anime, cinematic, vintage, noir, cyberpunk, watercolor, oil-painting, pixel-art, minimalist, pop-art
+- `enhance` (boolean, optional): Auto-enhance prompt
+- `negative_prompt` (string, optional): Things to avoid
+- `seed` (integer, optional): For reproducible results
+- `image_urls` (array, optional): Reference images (model-dependent)
+
+### POST /v1/images/edit
+
+Edit an image via inpainting/outpainting using FLUX Fill. $0.079 USDC.
+
+**Request body** (JSON):
+- `prompt` (string, required): Edit instruction
+- `image_url` (string, required): Source image URL
+- `mask_url` (string, optional): Mask for targeted edit
+- `image_size` (string, optional): Default: `landscape_4_3`
+
+### POST /v1/images/transform
+
+Transform/remix an image with style transfer using FLUX Kontext. $0.049 USDC.
+
+**Request body** (JSON):
+- `prompt` (string, required): Style/transform instruction
+- `image_url` (string, optional): Reference image to transform
+- `image_size` (string, optional): Default: `landscape_4_3`
+- `num_images` (integer, optional): 1-4. Default: 1
+
+### POST /v1/videos/generate
+
+Generate a 5-second video using Seedance Fast. $0.35 USDC.
+
+**Request body** (JSON):
+- `prompt` (string, required): Motion/scene description
+- `image_url` (string, optional): Starting frame image
 - `seed` (integer, optional): For reproducible results
 
-**Example request:**
-```
-POST /v1/images/generate
-Content-Type: application/json
-
-{"prompt": "a serene mountain landscape at sunset", "model": "fal-ai/flux/schnell"}
-```
-
-**402 response (pay this):**
-```
-HTTP/1.1 402 Payment Required
-WWW-Authenticate: Payment id="...", realm="pixelpayapi.com", method="tempo", intent="charge", request="<base64url>", expires="..."
-
-{"status": 402, "detail": "Generate an image for 0.029 USDC (schnell tier)"}
-```
-
-**200 response (after payment):**
-```json
-{
-  "images": [{"url": "https://fal.media/files/...", "width": 1024, "height": 768, "content_type": "image/jpeg"}],
-  "prompt": "a serene mountain landscape at sunset",
-  "model": "fal-ai/flux/schnell",
-  "seed": 1234567890
-}
-```
+**Response:** `{ "video": { "url": "..." }, "prompt": "...", "model": "..." }`
 
 ### GET /v1/models
 
-List all available models with capabilities and pricing.
+List all available models with capabilities, pricing, and type (image/edit/transform/video).
 
 ### GET /v1/prices
 
@@ -95,10 +105,7 @@ Get current pricing for all models.
 
 ### POST /v1/validate
 
-Validate a prompt before paying. Returns estimated cost and model info.
-
-**Request:** `{"prompt": "...", "model": "fal-ai/flux/schnell"}`
-**Response:** `{"valid": true, "prompt": "...", "model": "fal-ai/flux/schnell", "tier": "schnell", "price": "29000", "price_usd": "0.029", "premium": false, "surge_multiplier": 1}`
+Validate a prompt before paying.
 
 ### GET /v1/styles
 
@@ -106,17 +113,11 @@ List available style presets.
 
 ### POST /v1/images/upscale
 
-Upscale an image 2x using fal.ai creative-upscaler.
-
-**Request:** `{"image_url": "https://..."}`
+Upscale an image 2x. `{"image_url": "..."}`
 
 ### GET /v1/gallery
 
-Public image gallery (JSON). Returns recent community-generated images.
-
-### GET /v1/history/:wallet
-
-Per-wallet generation history (last 100 entries).
+Public image gallery (JSON).
 
 ### GET /health
 
