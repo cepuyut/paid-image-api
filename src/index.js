@@ -543,31 +543,44 @@ app.get("/.well-known/mpp.json", (_req, res) => {
   res.json({
     version: "1.0",
     service: "PixelPay",
-    description: "AI image generation API — pay-per-request via MPP on Tempo blockchain",
+    description: "AI image & video generation API — pay-per-request via MPP (Tempo) or x402 (Base)",
+    protocols: ["mpp", "x402"],
     endpoints: [
       {
         path: "/v1/images/generate",
         method: "POST",
         description: "Generate an image from a text prompt (13 models)",
-        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.029", max: "0.190", unit: "USD" } }
+        payment: [
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.029", max: "0.190", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.029", max: "0.190", unit: "USD" } }
+        ]
       },
       {
         path: "/v1/images/edit",
         method: "POST",
         description: "Edit an image via inpainting/outpainting",
-        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.079", max: "0.079", unit: "USD" } }
+        payment: [
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.079", max: "0.079", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.079", max: "0.079", unit: "USD" } }
+        ]
       },
       {
         path: "/v1/images/transform",
         method: "POST",
         description: "Transform/remix an image with style transfer",
-        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.049", max: "0.049", unit: "USD" } }
+        payment: [
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.049", max: "0.049", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.049", max: "0.049", unit: "USD" } }
+        ]
       },
       {
         path: "/v1/videos/generate",
         method: "POST",
         description: "Generate a 5-second video from a text prompt",
-        payment: { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.35", max: "0.35", unit: "USD" } }
+        payment: [
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.35", max: "0.35", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.35", max: "0.35", unit: "USD" } }
+        ]
       }
     ],
     discovery: {

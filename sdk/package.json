@@ -1,0 +1,37 @@
+{
+  "name": "@pixelpay/sdk",
+  "version": "1.0.0",
+  "description": "PixelPay SDK — AI image & video generation with automatic MPP/x402 payment",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["pixelpay", "mpp", "x402", "image-generation", "ai", "paid-api", "402"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivob/pixelpay-sdk"
+  },
+  "peerDependencies": {
+    "mppx": ">=0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "mppx": { "optional": true }
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}
