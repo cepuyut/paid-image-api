@@ -593,6 +593,36 @@ app.get("/.well-known/mpp.json", (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// x402 Well-Known Discovery: GET /.well-known/x402
+// Per IETF draft-jeftovic-x402-dns-discovery-00
+// ---------------------------------------------------------------------------
+
+app.get("/.well-known/x402", (_req, res) => {
+  if (!x402Enabled) return res.status(404).json({ detail: "x402 not configured" });
+  res.set("Cache-Control", "max-age=300");
+  res.json({
+    x402Version: 2,
+    service: "PixelPay",
+    description: "AI image & video generation — pay with USDC on Base via x402",
+    payTo: process.env.WALLET_ADDRESS,
+    network: "eip155:8453",
+    asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    facilitator: process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator",
+    resources: [
+      { path: "/v1/images/generate", method: "POST", description: "Generate AI images (13 models)", maxAmountRequired: "190000", minAmountRequired: "29000" },
+      { path: "/v1/images/edit", method: "POST", description: "Edit image via inpainting", maxAmountRequired: "79000" },
+      { path: "/v1/images/transform", method: "POST", description: "Style transfer / remix", maxAmountRequired: "49000" },
+      { path: "/v1/videos/generate", method: "POST", description: "Generate 5s video", maxAmountRequired: "350000" },
+    ],
+    discovery: {
+      openapi: "https://pixelpayapi.com/openapi.json",
+      mpp: "https://pixelpayapi.com/.well-known/mpp.json",
+      llms: "https://pixelpayapi.com/llms.txt",
+    },
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Agent instructions: GET /agents.txt
 // ---------------------------------------------------------------------------
 
