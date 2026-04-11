@@ -246,6 +246,27 @@ function enhancePrompt(prompt, model, { style, enhance } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// SSRF protection — validate image URLs before forwarding
+// ---------------------------------------------------------------------------
+function validateImageUrl(url) {
+  if (!url) return;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") throw new Error("Only HTTPS URLs allowed");
+    const host = parsed.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" ||
+        host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("172.") ||
+        host.endsWith(".internal") || host.endsWith(".local") ||
+        host === "169.254.169.254" || host.startsWith("169.254.")) {
+      throw new Error("Internal URLs not allowed");
+    }
+  } catch (e) {
+    if (e.message === "Only HTTPS URLs allowed" || e.message === "Internal URLs not allowed") throw e;
+    throw new Error("Invalid URL format");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Model-specific body mapper — adapts params for each fal.ai model's API
 // ---------------------------------------------------------------------------
 
@@ -570,7 +591,9 @@ app.post("/v1/images/generate", async (req, res) => {
 
   // Resolve model first so pricing matches the actual model used
   const resolvedModel = (!model || model === "auto") ? autoSelectModel(prompt || "") : model;
-  const count = Math.min(Math.max(num_images || 1, 1), 4);
+  const resolvedModelDef = BASE_PRICING[resolvedModel];
+  // Video models only generate 1 output — force count=1 to prevent overcharging
+  const count = resolvedModelDef?.type === "video" ? 1 : Math.min(Math.max(num_images || 1, 1), 4);
   const perImage = getPricing(resolvedModel);
   const batchDiscount = count >= 4 ? 0.80 : count >= 3 ? 0.90 : 1.0;
   const totalPrice = String(Math.round(Number(perImage.price) * count * batchDiscount));
@@ -624,7 +647,8 @@ app.post("/v1/images/generate", async (req, res) => {
             // Video model returns different shape
             const retryModelDef = BASE_PRICING[usedModel] || {};
             if (retryModelDef.type === "video") {
-              return res.json({ video: result.video || null, prompt, enhanced_prompt: enhanced, model: usedModel, retried: true });
+              const retryVideoUrl = result.video?.url || null;
+              return res.json({ video: retryVideoUrl ? { url: retryVideoUrl } : null, prompt, enhanced_prompt: enhanced, model: usedModel, retried: true });
             }
             return res.json({
               images: result.images || [], prompt, enhanced_prompt: enhanced,
@@ -653,16 +677,6 @@ app.post("/v1/images/generate", async (req, res) => {
     body.detail = `Payment verification failed: ${error}`;
     for (const [k, v] of Object.entries(headers)) res.set(k, v);
     return res.status(402).json(body);
-  }
-
-  // --- Validate request body ---
-  if (!prompt || typeof prompt !== "string") {
-    return res.status(400).json({
-      type: "https://paymentauth.org/problems/bad-request",
-      title: "Bad Request",
-      status: 400,
-      detail: "A 'prompt' string is required.",
-    });
   }
 
   // --- Call fal.ai (with cache, enhancement, smart routing) ---
@@ -900,7 +914,7 @@ app.post("/api/demo", async (req, res) => {
     const cached = hasRefs ? null : getCached(cacheKey);
 
     // Block video/edit/transform models from free demo (too expensive)
-    if (modelInfo.type === "video" || modelInfo.type === "edit") {
+    if (modelInfo.type === "video" || modelInfo.type === "edit" || modelInfo.type === "transform") {
       return res.status(403).json({ detail: `${usedModel} is not available in demo. Connect a wallet to use it.` });
     }
 
@@ -1083,6 +1097,8 @@ app.post("/v1/images/edit", async (req, res) => {
   if (!image_url) {
     return res.status(400).json({ detail: "An 'image_url' is required for edit." });
   }
+  try { validateImageUrl(image_url); if (mask_url) validateImageUrl(mask_url); }
+  catch (e) { return res.status(400).json({ detail: e.message }); }
 
   const editModel = "fal-ai/flux-pro/v1/fill";
   const perImage = getPricing(editModel);
@@ -1124,7 +1140,7 @@ app.post("/v1/images/edit", async (req, res) => {
     res.json({ images: result.images || [], prompt, model: editModel, timings: result.timings });
   } catch (err) {
     console.error("Edit error:", err.message);
-    res.status(502).json({ detail: "Image editing failed: " + err.message });
+    res.status(502).json({ detail: "Image editing failed. Please retry." });
   }
 });
 
@@ -1139,6 +1155,9 @@ app.post("/v1/images/transform", async (req, res) => {
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
     return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
+  if (image_url) {
+    try { validateImageUrl(image_url); } catch (e) { return res.status(400).json({ detail: e.message }); }
   }
 
   const transformModel = "fal-ai/flux-kontext/text-to-image";
@@ -1182,7 +1201,7 @@ app.post("/v1/images/transform", async (req, res) => {
     res.json({ images: result.images || [], prompt, model: transformModel, timings: result.timings });
   } catch (err) {
     console.error("Transform error:", err.message);
-    res.status(502).json({ detail: "Image transform failed: " + err.message });
+    res.status(502).json({ detail: "Image transform failed. Please retry." });
   }
 });
 
@@ -1197,6 +1216,9 @@ app.post("/v1/videos/generate", async (req, res) => {
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
     return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
+  }
+  if (image_url) {
+    try { validateImageUrl(image_url); } catch (e) { return res.status(400).json({ detail: e.message }); }
   }
 
   const videoModel = "fal-ai/seedance/video/fast";
@@ -1236,10 +1258,11 @@ app.post("/v1/videos/generate", async (req, res) => {
     const receipt = createReceipt(credential?.payload?.hash || credential?.payload?.signature?.slice(0, 20));
     res.set("Payment-Receipt", receipt);
     if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "video").catch(() => {});
-    res.json({ video: result.video || null, prompt, model: videoModel, timings: result.timings, seed: result.seed ?? seed ?? null });
+    const videoUrl = result.video?.url || null;
+    res.json({ video: videoUrl ? { url: videoUrl } : null, prompt, model: videoModel, timings: result.timings, seed: result.seed ?? seed ?? null });
   } catch (err) {
     console.error("Video error:", err.message);
-    res.status(502).json({ detail: "Video generation failed: " + err.message });
+    res.status(502).json({ detail: "Video generation failed. Please retry." });
   }
 });
 
