@@ -1,6 +1,7 @@
 node_modules/
 .env
 *.png
+!public/favicon.png
 *.jpg
 *.jpeg
 *.log
