@@ -1,4 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#6366f1"/>
-  <text x="16" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="bold" font-size="20" fill="white">P</text>
+  <rect width="32" height="32" rx="7" fill="#000000"/>
+  <!-- Pixel grid (3x3) - image pixels concept -->
+  <rect x="5" y="5" width="6" height="6" rx="1" fill="rgba(255,255,255,0.95)"/>
+  <rect x="13" y="5" width="6" height="6" rx="1" fill="rgba(255,255,255,0.45)"/>
+  <rect x="21" y="5" width="6" height="6" rx="1" fill="rgba(255,255,255,0.75)"/>
+  <rect x="5" y="13" width="6" height="6" rx="1" fill="rgba(255,255,255,0.35)"/>
+  <rect x="13" y="13" width="6" height="6" rx="1" fill="rgba(255,255,255,0.85)"/>
+  <rect x="21" y="13" width="6" height="6" rx="1" fill="rgba(255,255,255,0.25)"/>
+  <rect x="5" y="21" width="6" height="6" rx="1" fill="rgba(255,255,255,0.55)"/>
+  <rect x="13" y="21" width="6" height="6" rx="1" fill="rgba(255,255,255,0.3)"/>
+  <!-- Bottom-right: gold coin pixel = "pay" -->
+  <rect x="21" y="21" width="6" height="6" rx="1" fill="#fbbf24"/>
 </svg>

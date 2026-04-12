@@ -703,6 +703,14 @@ app.post("/v1/validate", (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/v1/images/generate", async (req, res) => {
+  // --- Dual-protocol payment verification FIRST (before body validation) ---
+  // MPPscan and agents send empty POST to probe for 402 challenge
+  const probeModel = (req.body?.model && req.body.model !== "auto") ? req.body.model : "fal-ai/flux/dev";
+  const probePrice = getPricing(probeModel);
+  const probeDesc = `Generate an image for ${probePrice.usd} USDC (${probePrice.tier} tier)`;
+  const payment = await handlePayment(req, res, { totalPrice: probePrice.price, description: probeDesc, path: "/v1/images/generate" });
+  if (!payment.ok) return; // Response already sent by handlePayment (402 challenge or error)
+
   const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
@@ -758,10 +766,6 @@ app.post("/v1/images/generate", async (req, res) => {
       } catch (_) {}
     }
   }
-
-  // --- Dual-protocol payment verification (MPP + x402) ---
-  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/images/generate" });
-  if (!payment.ok) return; // Response already sent by handlePayment
 
   // --- Call fal.ai (with cache, enhancement, smart routing) ---
   try {
