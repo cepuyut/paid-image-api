@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pixelpay"
+version = "1.0.0"
+description = "PixelPay SDK — AI image & video generation with MPP/x402 payment"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+keywords = ["pixelpay", "mpp", "x402", "image-generation", "ai", "paid-api"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics",
+]
+
+[project.urls]
+Homepage = "https://pixelpayapi.com"
+Repository = "https://github.com/vivob/pixelpay-sdk"
