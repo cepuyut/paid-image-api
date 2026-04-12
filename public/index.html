@@ -982,15 +982,15 @@
   </nav>
 
   <div class="hero">
-    <div class="hero-badge"><span class="dot"></span> Live on Tempo</div>
-    <h1>AI Images.<br>Pay per pixel.</h1>
-    <p class="hero-sub">Generate images from 8 models. No API keys, no signup. Pay with USDC on Tempo via MPP.</p>
+    <div class="hero-badge"><span class="dot"></span> Live on Tempo + Base</div>
+    <h1>AI Images & Video.<br>Pay per pixel.</h1>
+    <p class="hero-sub">13 models — image, edit, transform, video. No API keys, no signup. Pay with USDC via MPP or x402.</p>
   </div>
 
   <!-- Stats -->
   <div class="stats">
     <div class="stat">
-      <div class="stat-value">8</div>
+      <div class="stat-value">13</div>
       <div class="stat-label">Models</div>
     </div>
     <div class="stat">
@@ -1038,7 +1038,7 @@
   </div>
 
   <button class="expand-btn" id="expandPricing" onclick="toggleAllModels()">
-    <span id="expandText">View all 8 models</span>
+    <span id="expandText">View all 13 models + services</span>
     <svg id="expandArrow" width="14" height="14" viewBox="0 0 16 16" fill="none" style="transition:transform 0.2s"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
 
@@ -1097,6 +1097,21 @@
       <div class="model-name">Nano Banana Pro <span class="tag premium">PREMIUM</span></div>
       <div class="model-price">$0.19</div>
       <div class="model-quality">Best-in-class</div>
+    </div>
+    <div class="pricing-row header" style="margin-top:12px">
+      <span>Service</span>
+      <span>Price</span>
+      <span>Best for</span>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Edit (Inpaint/Outpaint)</div>
+      <div class="model-price">$0.079</div>
+      <div class="model-quality">Remove/add objects</div>
+    </div>
+    <div class="pricing-row">
+      <div class="model-name">Transform (Style Transfer)</div>
+      <div class="model-price">$0.049</div>
+      <div class="model-quality">Restyle images</div>
     </div>
     <div class="pricing-row">
       <div class="model-name">Video <span class="tag premium">PREMIUM</span></div>
@@ -1406,9 +1421,51 @@ res = requests.<span class="fn">post</span>(
 <span class="cm"># Parse 402 challenge, pay via Tempo SDK, retry</span></code></pre>
   </div>
 
+  <!-- SDK & MCP -->
+  <div class="code-section">
+    <h2 class="section-title">SDKs &amp; MCP</h2>
+    <p class="section-desc">Drop-in libraries for JS/Python. Or add PixelPay to Claude Desktop via MCP.</p>
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('sdk-npm', this)">npm</div>
+      <div class="tab" onclick="showTab('sdk-pip', this)">pip</div>
+      <div class="tab" onclick="showTab('sdk-mcp', this)">MCP</div>
+    </div>
+    <pre id="code-sdk-npm"><code><span class="cm"># Install</span>
+npm install @pixelpay/sdk
+
+<span class="cm"># Usage</span>
+<span class="kw">import</span> { PixelPay } <span class="kw">from</span> <span class="str">"@pixelpay/sdk"</span>;
+
+<span class="kw">const</span> pp = <span class="kw">new</span> <span class="fn">PixelPay</span>();
+<span class="kw">const</span> models = <span class="kw">await</span> pp.<span class="fn">models</span>();
+<span class="kw">const</span> result = <span class="kw">await</span> pp.<span class="fn">generate</span>({ prompt: <span class="str">"a cat in space"</span> });</code></pre>
+    <pre id="code-sdk-pip" style="display:none"><code><span class="cm"># Install</span>
+pip install pixelpay
+
+<span class="cm"># Usage</span>
+<span class="kw">from</span> pixelpay <span class="kw">import</span> PixelPay
+
+pp = PixelPay()
+models = pp.models()
+result = pp.generate(prompt=<span class="str">"a cat in space"</span>)</code></pre>
+    <pre id="code-sdk-mcp" style="display:none"><code><span class="cm">// Add to claude_desktop_config.json</span>
+{
+  <span class="str">"mcpServers"</span>: {
+    <span class="str">"pixelpay"</span>: {
+      <span class="str">"command"</span>: <span class="str">"npx"</span>,
+      <span class="str">"args"</span>: [<span class="str">"@pixelpay/mcp"</span>]
+    }
+  }
+}
+
+<span class="cm">// Then in Claude: "Generate an image of a sunset"</span></code></pre>
+  </div>
+
   <!-- Links -->
   <div class="links">
     <a href="https://x.com/PixelPayAPI">X / Twitter</a>
+    <a href="https://www.npmjs.com/package/@pixelpay/sdk">npm SDK</a>
+    <a href="https://pypi.org/project/pixelpay/">PyPI SDK</a>
     <a href="/openapi.json">OpenAPI</a>
     <a href="/llms.txt">llms.txt</a>
     <a href="/v1/prices">Pricing API</a>
@@ -2226,14 +2283,15 @@ function toggleAllModels() {
   const arrow = document.getElementById("expandArrow");
   const open = table.style.display === "none";
   table.style.display = open ? "block" : "none";
-  text.textContent = open ? "Hide models" : "View all 8 models";
+  text.textContent = open ? "Hide models" : "View all 13 models + services";
   arrow.style.transform = open ? "rotate(180deg)" : "";
   btn.classList.toggle("open", open);
 }
 
 function showTab(lang, el) {
-  document.querySelectorAll("pre[id^='code-']").forEach(e => e.style.display = "none");
-  document.querySelectorAll(".tabs .tab").forEach(e => e.classList.remove("active"));
+  const section = el ? el.closest(".code-section") : document;
+  section.querySelectorAll("pre[id^='code-']").forEach(e => e.style.display = "none");
+  section.querySelectorAll(".tabs .tab").forEach(e => e.classList.remove("active"));
   document.getElementById("code-" + lang).style.display = "block";
   if (el) el.classList.add("active");
 }
