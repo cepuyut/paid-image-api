@@ -1,6 +1,6 @@
 import express from "express";
 import { createHmac } from "node:crypto";
-import { createChallenge, verifyCredential, createReceipt } from "./mpp.js";
+import { createChallenge, verifyCredential, createReceipt, setMppRedis } from "./mpp.js";
 import { initX402, detectProtocol, buildX402Challenge, verifyX402Payment, buildX402Receipt } from "./x402.js";
 import { readFileSync, readFile } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -410,8 +410,12 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
   ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
   : null;
 
-if (redis) console.log("Redis gallery connected (Upstash)");
-else console.warn("Gallery: UPSTASH_REDIS_REST_URL/TOKEN not set — gallery disabled");
+if (redis) {
+  console.log("Redis gallery connected (Upstash)");
+  setMppRedis(redis); // Share Redis with MPP for replay-attack persistence
+} else {
+  console.warn("Gallery: UPSTASH_REDIS_REST_URL/TOKEN not set — gallery disabled");
+}
 
 async function gallerySave(entry, isPublic = false) {
   if (!redis) return;
@@ -497,7 +501,7 @@ async function handlePayment(req, res, { totalPrice, description, path }) {
   // MPP credential
   if (protocol === "mpp") {
     const authHeader = req.get("Authorization");
-    const { ok, error, credential } = await verifyCredential(authHeader, totalPrice);
+    const { ok, error, credential, payer } = await verifyCredential(authHeader, totalPrice);
     if (!ok) {
       const { statusCode, headers, body } = createChallenge({ amount: totalPrice, description });
       body.type = `https://paymentauth.org/problems/${error}`;
@@ -511,7 +515,7 @@ async function handlePayment(req, res, { totalPrice, description, path }) {
       res.status(402).json(body);
       return { ok: false, sent: true };
     }
-    return { ok: true, protocol: "mpp", credential };
+    return { ok: true, protocol: "mpp", credential, payer };
   }
 
   // x402 credential
@@ -782,6 +786,13 @@ app.post("/v1/images/generate", async (req, res) => {
     ? `Generate ${count} images for ${totalUsd} USDC (${perImage.tier}, ${batchDiscount < 1 ? Math.round((1 - batchDiscount) * 100) + "% batch discount" : "no discount"})`
     : `Generate an image for ${perImage.usd} USDC (${perImage.tier} tier)`;
 
+  // Security: verify payment covers actual resolved price (prevent cheap-model-pay, expensive-model-use)
+  if (Number(totalPrice) > Number(probePrice.price)) {
+    return res.status(402).json({
+      detail: `Payment insufficient. You paid for ${probePrice.tier} ($${probePrice.usd}) but requested ${perImage.tier} ($${perImage.usd}). Please retry with correct model.`,
+    });
+  }
+
   // --- Check for retry credit (failed generation refund) ---
   const retryHeader = req.get("X-PixelPay-Retry");
   if (retryHeader && redis) {
@@ -911,7 +922,7 @@ app.post("/v1/images/generate", async (req, res) => {
         gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, wallet: reqWallet || null, timestamp: Date.now() }, publishToPublic);
       }
       // PXP reward for generating
-      if (reqWallet) mintPXP(reqWallet, "generate", "generate").catch(() => {});
+      if (payment.payer) mintPXP(payment.payer, "generate", "generate").catch(() => {});
     }
 
     trackRequest();
@@ -1102,7 +1113,7 @@ app.post("/api/demo", async (req, res) => {
 
     if (images.length > 0 && !cached) {
       // PXP reward for generating
-      if (reqWallet) mintPXP(reqWallet, "generate", "generate").catch(() => {});
+      if (payment.payer) mintPXP(payment.payer, "generate", "generate").catch(() => {});
     }
 
     res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, ...(usedSeed != null ? { seed: usedSeed } : {}), ...(style ? { style } : {}), cached: !!cached });
@@ -1256,7 +1267,7 @@ app.post("/v1/images/edit", async (req, res) => {
     const result = await falRes.json();
     trackRequest();
     setPaymentReceipt(res, payment);
-    if (reqWallet) mintPXP(reqWallet, "edit", "edit").catch(() => {});
+    if (payment.payer) mintPXP(payment.payer, "edit", "edit").catch(() => {});
     res.json({ images: result.images || [], prompt, model: editModel, timings: result.timings });
   } catch (err) {
     console.error("Edit error:", err.message);
@@ -1297,7 +1308,7 @@ app.post("/v1/images/transform", async (req, res) => {
     const result = await falRes.json();
     trackRequest();
     setPaymentReceipt(res, payment);
-    if (reqWallet) mintPXP(reqWallet, "transform", "transform").catch(() => {});
+    if (payment.payer) mintPXP(payment.payer, "transform", "transform").catch(() => {});
     res.json({ images: result.images || [], prompt, model: transformModel, timings: result.timings });
   } catch (err) {
     console.error("Transform error:", err.message);
@@ -1337,7 +1348,7 @@ app.post("/v1/videos/generate", async (req, res) => {
     const result = await falRes.json();
     trackRequest();
     setPaymentReceipt(res, payment);
-    if (reqWallet) mintPXP(reqWallet, "video", "video").catch(() => {});
+    if (payment.payer) mintPXP(payment.payer, "video", "video").catch(() => {});
     const videoUrl = result.video?.url || null;
     res.json({ video: videoUrl ? { url: videoUrl } : null, prompt, model: videoModel, timings: result.timings, seed: result.seed ?? seed ?? null });
   } catch (err) {
@@ -1770,6 +1781,12 @@ app.post("/v1/nft/buy-pxp", async (req, res) => {
     // PXP price: 20% discount, 100 PXP = $1. pxp = usdc * 0.8 * 100 / 1e6 * 1e18 = usdc * 80 * 1e12
     const pxpPrice = usdcPrice * 80n * 10n**12n;
 
+    // Prevent PXP tx replay — each tx can only be used for one purchase
+    if (redis) {
+      const txUsed = await redis.get(`pixelpay:pxp:tx:used:${pxp_tx_hash}`).catch(() => null);
+      if (txUsed) return res.status(400).json({ detail: "This PXP transaction has already been used for a purchase." });
+    }
+
     // Verify PXP transfer actually happened on-chain with correct amount/recipient
     try {
       const txReceipt = await pxpPublicClient.getTransactionReceipt({ hash: pxp_tx_hash });
@@ -1869,6 +1886,8 @@ app.post("/v1/nft/buy-pxp", async (req, res) => {
         await redis.set(`pixelpay:nft:first_sale:${listing.seller}`, "1");
       }
     }
+    // Mark PXP tx as used (30 day TTL)
+    if (redis) await redis.set(`pixelpay:pxp:tx:used:${pxp_tx_hash}`, "1", { ex: 30 * 24 * 3600 }).catch(() => {});
     console.log(`PXP buy: #${tokenId} buyer=${buyer.slice(0,8)}.. PXP=${Number(pxpPrice/10n**18n)} buy_tx=${buyHash.slice(0,10)}`);
     res.json({ ok: true, sale, pxp_price: pxpPrice.toString(), buy_tx: buyHash, nft_tx: nftHash });
   } catch (err) {

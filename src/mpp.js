@@ -22,8 +22,10 @@ const TEMPO_RPC = process.env.TEMPO_RPC || "https://rpc.tempo.xyz";
 // ERC-20 Transfer event topic
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-// Track used tx hashes to prevent replay attacks
+// Track used tx hashes to prevent replay attacks (in-memory + Redis)
 const usedTxHashes = new Set();
+let _redis = null;
+export function setMppRedis(redisClient) { _redis = redisClient; }
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -170,7 +172,10 @@ async function verifyOnChain(txHash, expectedAmount) {
     return { ok: false, error: "payment-insufficient" };
   }
 
-  return { ok: true };
+  // Extract payer address from Transfer event (topics[1] = from)
+  const payer = "0x" + transferLog.topics[1].slice(26);
+
+  return { ok: true, payer };
 }
 
 // ---------------------------------------------------------------------------
@@ -241,26 +246,39 @@ export async function verifyCredential(authHeader, expectedAmount) {
     return { ok: false, error: "verification-failed" };
   }
 
-  // Prevent replay attacks — each tx hash can only be used once
-  if (txHash && usedTxHashes.has(txHash)) {
-    return { ok: false, error: "payment-already-used" };
+  // Prevent replay attacks — each tx hash can only be used once (memory + Redis)
+  if (txHash) {
+    if (usedTxHashes.has(txHash)) {
+      return { ok: false, error: "payment-already-used" };
+    }
+    if (_redis) {
+      const used = await _redis.get(`pixelpay:tx:used:${txHash}`).catch(() => null);
+      if (used) {
+        usedTxHashes.add(txHash); // sync to memory
+        return { ok: false, error: "payment-already-used" };
+      }
+    }
   }
 
   // On-chain verification
+  let payer = null;
   if (txHash) {
     try {
       const onChain = await verifyOnChain(txHash, expectedAmount);
       if (!onChain.ok) {
         return { ok: false, error: onChain.error };
       }
+      payer = onChain.payer;
       usedTxHashes.add(txHash);
+      // Persist to Redis (30 day TTL — longer than any reasonable replay window)
+      if (_redis) _redis.set(`pixelpay:tx:used:${txHash}`, "1", { ex: 30 * 24 * 3600 }).catch(() => {});
     } catch (err) {
       console.error("On-chain verification error:", err.message);
       return { ok: false, error: "verification-failed" };
     }
   }
 
-  return { ok: true, credential };
+  return { ok: true, credential, payer };
 }
 
 // ---------------------------------------------------------------------------
