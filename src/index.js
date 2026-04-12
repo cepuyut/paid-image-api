@@ -68,16 +68,68 @@ const tempoChain = defineChain({
 const pxpPublicClient = createPublicClient({ chain: tempoChain, transport: http() });
 const pxpWalletClient = createWalletClient({ chain: tempoChain, transport: http(), account: walletAccount });
 
-// Reward amounts (18 decimals)
-const PXP_REWARDS = {
-  generate: 10n * 10n**18n,       // 10 PXP per generate
-  mint_nft: 50n * 10n**18n,       // 50 PXP per NFT mint
-  first_sale: 100n * 10n**18n,    // 100 PXP per first sale
-  publish: 5n * 10n**18n,         // 5 PXP per gallery publish
+// ---------------------------------------------------------------------------
+// PXP Rewards — Satoshi-style halving tokenomics
+// Max supply: 21,000,000 PXP | Pre-minted: 15% (3,150,000) | Rewards: 85% (17,850,000)
+// Halving every 25% of reward pool minted (4 eras)
+// ---------------------------------------------------------------------------
+const PXP_REWARD_POOL = 17_850_000n * 10n**18n;        // 85% of 21M
+const PXP_HALVING_INTERVAL = PXP_REWARD_POOL / 4n;     // 4,462,500 PXP per era
+const PXP_PREMINT = 3_150_000n * 10n**18n;              // 15% pre-minted at deploy
+
+// Base rates (Era 1 = 1x) — on-chain activity only
+const PXP_BASE_RATES = {
+  generate:   5n * 10n**18n,       // 5 PXP per image generate
+  edit:       3n * 10n**18n,       // 3 PXP per edit
+  transform:  2n * 10n**18n,       // 2 PXP per transform
+  video:     10n * 10n**18n,       // 10 PXP per video
+  mint_nft:   5n * 10n**18n,       // 5 PXP per NFT mint
 };
 
-async function mintPXP(toAddress, amount, reason) {
+// Cache: current era + total rewards minted (refresh every 60s)
+let pxpRewardsCache = { totalMinted: 0n, era: 1, multiplier: 1n, denominator: 1n, lastCheck: 0 };
+
+async function refreshPxpEra() {
+  if (!PXP_TOKEN) return;
+  const now = Date.now();
+  if (now - pxpRewardsCache.lastCheck < 60_000) return; // cache 60s
+  try {
+    const totalSupply = await pxpPublicClient.readContract({
+      address: PXP_TOKEN, abi: PXP_ABI, functionName: "totalSupply",
+    });
+    const rewardsMinted = totalSupply - PXP_PREMINT;
+    const era = Number(rewardsMinted / PXP_HALVING_INTERVAL) + 1;
+    // Multiplier: era1=1/1, era2=1/2, era3=1/4, era4=1/8, era5+=0
+    const clampedEra = Math.min(era, 4);
+    const denominator = BigInt(2 ** (clampedEra - 1)); // 1, 2, 4, 8
+    pxpRewardsCache = {
+      totalMinted: rewardsMinted > 0n ? rewardsMinted : 0n,
+      era: clampedEra,
+      multiplier: era > 4 ? 0n : 1n,
+      denominator,
+      lastCheck: now,
+    };
+    console.log(`PXP era: ${clampedEra} | minted: ${Number(rewardsMinted / 10n**18n)} / ${Number(PXP_REWARD_POOL / 10n**18n)} | rate: 1/${denominator}`);
+  } catch (err) {
+    console.error("PXP era check error:", err.message);
+  }
+}
+
+function getHalvedReward(action) {
+  const base = PXP_BASE_RATES[action];
+  if (!base) return 0n;
+  if (pxpRewardsCache.multiplier === 0n) return 0n; // all rewards minted
+  return base / pxpRewardsCache.denominator;
+}
+
+async function mintPXP(toAddress, action, reason) {
   if (!PXP_TOKEN || !toAddress) return null;
+  await refreshPxpEra();
+  const amount = getHalvedReward(action);
+  if (amount === 0n) {
+    console.log(`PXP reward: EXHAUSTED — no more rewards to mint (${reason})`);
+    return null;
+  }
   try {
     const hash = await pxpWalletClient.writeContract({
       address: PXP_TOKEN,
@@ -86,7 +138,7 @@ async function mintPXP(toAddress, amount, reason) {
       args: [toAddress, amount],
       feeToken: PATHUSD,
     });
-    console.log(`PXP reward: ${Number(amount / 10n**18n)} PXP → ${toAddress.slice(0,8)}... (${reason}) tx:${hash.slice(0,10)}`);
+    console.log(`PXP reward: ${Number(amount * 1000n / 10n**18n) / 1000} PXP → ${toAddress.slice(0,8)}... (${reason}, era ${pxpRewardsCache.era}) tx:${hash.slice(0,10)}`);
     return hash;
   } catch (err) {
     console.error("PXP mint error:", err.message);
@@ -859,7 +911,7 @@ app.post("/v1/images/generate", async (req, res) => {
         gallerySave({ prompt, model: usedModel, style: style || null, image_url: imgUrl, seed: usedSeed, wallet: reqWallet || null, timestamp: Date.now() }, publishToPublic);
       }
       // PXP reward for generating
-      if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "generate").catch(() => {});
+      if (reqWallet) mintPXP(reqWallet, "generate", "generate").catch(() => {});
     }
 
     trackRequest();
@@ -1050,7 +1102,7 @@ app.post("/api/demo", async (req, res) => {
 
     if (images.length > 0 && !cached) {
       // PXP reward for generating
-      if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "generate").catch(() => {});
+      if (reqWallet) mintPXP(reqWallet, "generate", "generate").catch(() => {});
     }
 
     res.json({ images, prompt, enhanced_prompt: enhanced, model: usedModel, ...(usedSeed != null ? { seed: usedSeed } : {}), ...(style ? { style } : {}), cached: !!cached });
@@ -1088,8 +1140,7 @@ app.post("/v1/gallery/publish", async (req, res) => {
     const entry = { prompt: (prompt || "").slice(0, 10000), model, style: style || null, image_url, seed: seed || null, wallet: wallet.toLowerCase(), timestamp: Date.now() };
     await redis.lpush(GALLERY_KEY, JSON.stringify(entry));
     await redis.ltrim(GALLERY_KEY, 0, MAX_GALLERY - 1);
-    // PXP reward for publishing
-    mintPXP(wallet.toLowerCase(), PXP_REWARDS.publish, "publish").catch(() => {});
+    // No PXP reward for gallery publish — on-chain payment activity only
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ detail: "Failed to publish." });
@@ -1205,7 +1256,7 @@ app.post("/v1/images/edit", async (req, res) => {
     const result = await falRes.json();
     trackRequest();
     setPaymentReceipt(res, payment);
-    if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "edit").catch(() => {});
+    if (reqWallet) mintPXP(reqWallet, "edit", "edit").catch(() => {});
     res.json({ images: result.images || [], prompt, model: editModel, timings: result.timings });
   } catch (err) {
     console.error("Edit error:", err.message);
@@ -1246,7 +1297,7 @@ app.post("/v1/images/transform", async (req, res) => {
     const result = await falRes.json();
     trackRequest();
     setPaymentReceipt(res, payment);
-    if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "transform").catch(() => {});
+    if (reqWallet) mintPXP(reqWallet, "transform", "transform").catch(() => {});
     res.json({ images: result.images || [], prompt, model: transformModel, timings: result.timings });
   } catch (err) {
     console.error("Transform error:", err.message);
@@ -1286,7 +1337,7 @@ app.post("/v1/videos/generate", async (req, res) => {
     const result = await falRes.json();
     trackRequest();
     setPaymentReceipt(res, payment);
-    if (reqWallet) mintPXP(reqWallet, PXP_REWARDS.generate, "video").catch(() => {});
+    if (reqWallet) mintPXP(reqWallet, "video", "video").catch(() => {});
     const videoUrl = result.video?.url || null;
     res.json({ video: videoUrl ? { url: videoUrl } : null, prompt, model: videoModel, timings: result.timings, seed: result.seed ?? seed ?? null });
   } catch (err) {
@@ -1490,7 +1541,7 @@ app.post("/v1/nft/mint", async (req, res) => {
       await redis.set(`pixelpay:nft:img:${imgHash}`, String(tokenId));
     }
     // PXP reward for minting NFT
-    mintPXP(wallet.toLowerCase(), PXP_REWARDS.mint_nft, "mint_nft").catch(() => {});
+    mintPXP(wallet.toLowerCase(), "mint_nft", "mint_nft").catch(() => {});
     res.json({ ok: true, nft: entry });
   } catch (err) {
     console.error("NFT mint record error:", err.message);
@@ -1684,7 +1735,7 @@ app.post("/v1/nft/buy", async (req, res) => {
     if (listing?.seller) {
       const hasBonus = await redis.get(`pixelpay:nft:first_sale:${listing.seller}`);
       if (!hasBonus) {
-        mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
+        mintPXP(listing.seller, "mint_nft", "first_sale_bonus").catch(() => {});
         await redis.set(`pixelpay:nft:first_sale:${listing.seller}`, "1");
       }
     }
@@ -1814,7 +1865,7 @@ app.post("/v1/nft/buy-pxp", async (req, res) => {
     if (listing?.seller) {
       const hasBonus = await redis.get(`pixelpay:nft:first_sale:${listing.seller}`);
       if (!hasBonus) {
-        mintPXP(listing.seller, PXP_REWARDS.first_sale, "first_sale").catch(() => {});
+        mintPXP(listing.seller, "mint_nft", "first_sale_bonus").catch(() => {});
         await redis.set(`pixelpay:nft:first_sale:${listing.seller}`, "1");
       }
     }
@@ -1893,7 +1944,8 @@ app.get("/pixelpay/nft-config", (_req, res) => {
     treasury_wallet: DERIVED_WALLET_ADDRESS,
     pxp_rate: 100, // 100 PXP = $1
     pxp_discount: 20, // 20% discount
-    pxp_rewards: { generate: 10, mint_nft: 50, first_sale: 100, publish: 5 },
+    pxp_rewards: { generate: 5, edit: 3, transform: 2, video: 10, mint_nft: 5 },
+    pxp_halving: { eras: 4, current_era: pxpRewardsCache.era, rate: `1/${pxpRewardsCache.denominator}` },
   });
 });
 
@@ -1923,11 +1975,28 @@ app.get("/v1/pxp/info", async (_req, res) => {
     const supply = await pxpPublicClient.readContract({
       address: PXP_TOKEN, abi: PXP_ABI, functionName: "totalSupply",
     });
+    await refreshPxpEra();
+    const fmtSupply = (() => { const s = supply.toString(); const w = s.length > 18 ? s.slice(0, s.length - 18) : "0"; const f = s.padStart(18, "0").slice(-18).slice(0, 2); return `${w}.${f}`; })();
     res.json({
       address: PXP_TOKEN, name: "PixelPay Token", symbol: "PXP",
       maxSupply: "21000000",
-      totalSupply: (() => { const s = supply.toString(); const w = s.length > 18 ? s.slice(0, s.length - 18) : "0"; const f = s.padStart(18, "0").slice(-18).slice(0, 2); return `${w}.${f}`; })(),
-      rewards: { generate: 10, mint_nft: 50, first_sale: 100, publish: 5 },
+      rewardPool: "17850000",
+      totalSupply: fmtSupply,
+      halving: {
+        era: pxpRewardsCache.era,
+        rate: `1/${pxpRewardsCache.denominator}`,
+        rewardsMinted: Number(pxpRewardsCache.totalMinted / 10n**18n),
+        nextHalvingAt: Number(PXP_HALVING_INTERVAL * BigInt(pxpRewardsCache.era) / 10n**18n),
+        exhausted: pxpRewardsCache.multiplier === 0n,
+      },
+      baseRates: { generate: 5, edit: 3, transform: 2, video: 10, mint_nft: 5 },
+      currentRates: {
+        generate: Number(getHalvedReward("generate") * 1000n / 10n**18n) / 1000,
+        edit: Number(getHalvedReward("edit") * 1000n / 10n**18n) / 1000,
+        transform: Number(getHalvedReward("transform") * 1000n / 10n**18n) / 1000,
+        video: Number(getHalvedReward("video") * 1000n / 10n**18n) / 1000,
+        mint_nft: Number(getHalvedReward("mint_nft") * 1000n / 10n**18n) / 1000,
+      },
     });
   } catch (err) {
     res.json({ address: PXP_TOKEN, totalSupply: "0" });
