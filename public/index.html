@@ -47,7 +47,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23fff'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='%23000'>P</text></svg>">
+  <link rel="icon" type="image/png" href="/favicon.png">
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -103,14 +103,12 @@
     }
     .logo-icon {
       width: 32px; height: 32px;
-      background: var(--white);
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 17px;
-      color: #000;
+      overflow: hidden;
+    }
+    .logo-icon img {
+      width: 100%; height: 100%;
+      object-fit: cover;
     }
     .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
     .nav-right { display: flex; align-items: center; gap: 6px; }
@@ -968,7 +966,7 @@
 <div class="container">
   <nav>
     <a href="/" class="logo">
-      <div class="logo-icon">P</div>
+      <div class="logo-icon"><img src="/favicon.png" alt="PixelPay"></div>
       <div class="logo-text">PixelPay</div>
     </a>
     <div class="nav-right">
