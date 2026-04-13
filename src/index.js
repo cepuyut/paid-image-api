@@ -306,6 +306,8 @@ function enhancePrompt(prompt, model, { style, enhance } = {}) {
 // ---------------------------------------------------------------------------
 function validateImageUrl(url) {
   if (!url) return;
+  // Allow data URLs (base64 images from client uploads)
+  if (url.startsWith("data:image/")) return;
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:") throw new Error("Only HTTPS URLs allowed");
@@ -388,7 +390,16 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
     return body;
   }
 
-  // --- Default (FLUX Schnell/Dev/Pro, Recraft, HiDream, Ideogram, Nano Banana) ---
+  // --- Nano Banana 2 / Pro with references → use /edit endpoint ---
+  if ((model === "fal-ai/nano-banana-2" || model === "fal-ai/nano-banana-pro") && refs.length > 0) {
+    const body = { prompt, image_urls: refs, num_images: count };
+    if (seed != null) body.seed = Number(seed);
+    // Flag that we need the /edit endpoint variant
+    body._useEditEndpoint = true;
+    return body;
+  }
+
+  // --- Default (FLUX Schnell/Dev/Pro, Recraft, HiDream, Ideogram, Nano Banana text-only) ---
   const body = { prompt, image_size: size, num_images: count };
   if (negative_prompt) body.negative_prompt = negative_prompt;
   if (seed != null) body.seed = Number(seed);
@@ -397,6 +408,15 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
     else body.image_urls = refs;
   }
   return body;
+}
+
+// Resolve actual fal.ai endpoint — Nano Banana with refs uses /edit variant
+function resolveFalEndpoint(model, falBody) {
+  if (falBody._useEditEndpoint) {
+    delete falBody._useEditEndpoint;
+    return `${model}/edit`;
+  }
+  return model;
 }
 
 // ---------------------------------------------------------------------------
@@ -810,8 +830,9 @@ app.post("/v1/images/generate", async (req, res) => {
           const enhanced = enhancePrompt(prompt, usedModel, { style, enhance });
           const refs = Array.isArray(image_urls) ? image_urls : (image_urls ? [image_urls] : []);
           const falBody = buildFalBody(usedModel, { prompt: enhanced, image_size: size, num_images: count, negative_prompt, seed, image_urls: refs });
+          const falEndpoint = resolveFalEndpoint(usedModel, falBody);
           try {
-            const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
+            const falRes = await fetch(`${FAL_MPP_BASE}/${falEndpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
             if (!falRes.ok) throw new Error(`fal.ai error: ${falRes.status}`);
             const result = await falRes.json();
             await redis.del(creditKey).catch(() => {});
@@ -889,7 +910,8 @@ app.post("/v1/images/generate", async (req, res) => {
       console.log(`Cache hit: ${cacheKey}`);
     } else {
       const falBody = buildFalBody(usedModel, { prompt: enhanced, image_size: size, num_images: count, negative_prompt, seed, image_urls: refs });
-      const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
+      const falEndpoint = resolveFalEndpoint(usedModel, falBody);
+      const falRes = await fetch(`${FAL_MPP_BASE}/${falEndpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(falBody),
@@ -1074,7 +1096,8 @@ app.post("/api/demo", async (req, res) => {
       console.log(`Demo cache hit: ${cacheKey}`);
     } else {
       const falBody = buildFalBody(usedModel, { prompt: enhanced, image_size: size, num_images: 1, negative_prompt, seed, image_urls: refs });
-      const falRes = await fetch(`${FAL_MPP_BASE}/${usedModel}`, {
+      const falEndpoint = resolveFalEndpoint(usedModel, falBody);
+      const falRes = await fetch(`${FAL_MPP_BASE}/${falEndpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(falBody),
