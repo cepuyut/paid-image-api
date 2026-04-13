@@ -66,6 +66,7 @@
     </a>
     <div class="nav-right">
       <div class="nav-links">
+        <a href="/studio">Studio</a>
         <a href="/gallery">Gallery</a>
         <a href="/marketplace">Marketplace</a>
         <a href="/swap">Swap</a>
@@ -81,7 +82,7 @@
     <h1>AI Images & Video.<br>Pay per pixel.</h1>
     <p class="hero-sub">13 models — image, edit, transform, video. No API keys, no signup. Pay with USDC via MPP or x402.</p>
     <div class="hero-cta" style="display:flex;gap:12px;justify-content:center;animation:fadeUp 0.7s ease-out 0.25s both">
-      <a href="#generate" class="btn btn-primary" style="padding:14px 32px;font-size:15px">Try it free</a>
+      <a href="/studio" class="btn btn-primary" style="padding:14px 32px;font-size:15px">Open Studio</a>
       <a href="#pricing" class="btn btn-secondary" style="padding:14px 32px;font-size:15px;border-radius:9999px">View pricing</a>
     </div>
   </div>
@@ -259,230 +260,11 @@
     </div>
   </div>
 
-  <!-- Generate -->
-  <div class="demo" id="generate">
-    <div class="demo-header">
-      <h2>Generate</h2>
-      <span class="hint" id="modeHint">Free demo &middot; 1 per day</span>
-    </div>
-
-    <!-- Wallet banner (shown when connected) -->
-    <div class="wallet-banner" id="walletBanner" style="display:none">
-      <div class="wb-left">
-        <span class="wallet-dot"></span>
-        <span class="addr" id="bannerAddr"></span>
-      </div>
-      <div class="wb-balance" id="bannerBalance"></div>
-    </div>
-
-    <div class="field">
-      <label>Prompt</label>
-      <input type="text" class="text-input" id="prompt" placeholder="a cat wearing sunglasses on a beach">
-    </div>
-
-    <div class="input-row">
-      <div class="field">
-        <label>Model</label>
-        <div class="dropdown" id="modelDropdown">
-          <div class="dropdown-trigger" onclick="toggleDropdown()">
-            <span class="selected-text">
-              <span id="selectedLabel">Dev</span>
-              <span class="selected-price" id="selectedPrice">$0.049</span>
-            </span>
-            <svg class="arrow" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#737373" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="dropdown-menu" id="dropdownMenu">
-            <div class="dropdown-item" data-value="auto" data-label="Auto" data-price="Smart pick" onclick="selectModel(this)">
-              <div class="item-left">
-                <span class="item-name">Auto</span>
-                <span class="item-tier">Smart pick</span>
-              </div>
-              <svg class="check-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <div class="dropdown-divider"></div>
-            <div class="dropdown-item" data-value="fal-ai/flux/schnell" data-label="Schnell" data-price="$0.029" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Schnell</span><span class="item-tier">Fast</span></div>
-              <span class="item-price">$0.029</span>
-            </div>
-<div class="dropdown-item active" data-value="fal-ai/flux/dev" data-label="Dev" data-price="$0.049" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Dev</span><span class="item-tier">Popular</span></div>
-              <span class="item-price">$0.049</span>
-            </div>
-            <div class="dropdown-item" data-value="fal-ai/recraft-v3" data-label="Recraft V3" data-price="$0.059" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Recraft V3</span><span class="item-tier">Creative</span></div>
-              <span class="item-price">$0.059</span>
-            </div>
-            <div class="dropdown-item" data-value="fal-ai/hidream-i1-full" data-label="HiDream" data-price="$0.079" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">HiDream</span><span class="item-tier">Quality</span></div>
-              <span class="item-price">$0.079</span>
-            </div>
-            <div class="dropdown-item" data-value="fal-ai/ideogram/v3" data-label="Ideogram V3" data-price="$0.079" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Ideogram V3</span><span class="item-tier">Text</span></div>
-              <span class="item-price">$0.079</span>
-            </div>
-            <div class="dropdown-item" data-value="fal-ai/gpt-image-1/text-to-image" data-label="GPT Image" data-price="$0.069" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">GPT Image</span><span class="item-tier">Creative</span></div>
-              <span class="item-price">$0.069</span>
-            </div>
-            <div class="dropdown-item" data-value="fal-ai/flux-pro/v1.1" data-label="Pro" data-price="$0.099" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Pro</span><span class="item-tier">Premium</span></div>
-              <span class="item-price">$0.099</span>
-            </div>
-            <div class="dropdown-divider"></div>
-            <div class="dropdown-item" data-value="xai/grok-imagine-image" data-label="Grok" data-price="$0.039" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Grok Imagine</span><span class="item-tier">Fast</span></div>
-              <span class="item-price">$0.039</span>
-            </div>
-            <div class="dropdown-item" data-value="fal-ai/nano-banana-2" data-label="Nano Banana 2" data-price="$0.14" data-premium="true" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Nano Banana 2</span><span class="item-tag">PREMIUM</span></div>
-              <span class="item-price">$0.14</span>
-            </div>
-            <div class="dropdown-item" data-value="fal-ai/nano-banana-pro" data-label="Nano Banana Pro" data-price="$0.19" data-premium="true" onclick="selectModel(this)">
-              <div class="item-left"><span class="item-name">Nano Banana Pro</span><span class="item-tag">PREMIUM</span></div>
-              <span class="item-price">$0.19</span>
-            </div>
-          </div>
-        </div>
-        <input type="hidden" id="model" value="fal-ai/flux/dev">
-      </div>
-    </div>
-
-    <div class="input-row">
-      <div class="field">
-        <label>Style Preset</label>
-        <div class="dropdown" id="styleDropdown">
-          <div class="dropdown-trigger" onclick="toggleStyleDropdown()">
-            <span class="selected-text">
-              <span id="selectedStyle">None</span>
-            </span>
-            <svg class="arrow" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#737373" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="dropdown-menu" id="styleMenu">
-            <div class="dropdown-item active" data-value="" data-label="None" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">None</span><span class="item-tier">No style</span></div>
-              <svg class="check-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <div class="dropdown-divider"></div>
-            <div class="dropdown-item" data-value="anime" data-label="Anime" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Anime</span><span class="item-tier">Cel shading</span></div>
-            </div>
-            <div class="dropdown-item" data-value="cinematic" data-label="Cinematic" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Cinematic</span><span class="item-tier">Film look</span></div>
-            </div>
-            <div class="dropdown-item" data-value="vintage" data-label="Vintage" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Vintage</span><span class="item-tier">Retro</span></div>
-            </div>
-            <div class="dropdown-item" data-value="noir" data-label="Noir" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Noir</span><span class="item-tier">B&W drama</span></div>
-            </div>
-            <div class="dropdown-item" data-value="cyberpunk" data-label="Cyberpunk" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Cyberpunk</span><span class="item-tier">Neon future</span></div>
-            </div>
-            <div class="dropdown-item" data-value="watercolor" data-label="Watercolor" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Watercolor</span><span class="item-tier">Painted</span></div>
-            </div>
-            <div class="dropdown-item" data-value="oil-painting" data-label="Oil Painting" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Oil Painting</span><span class="item-tier">Classical</span></div>
-            </div>
-            <div class="dropdown-item" data-value="pixel-art" data-label="Pixel Art" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Pixel Art</span><span class="item-tier">Retro game</span></div>
-            </div>
-            <div class="dropdown-item" data-value="minimalist" data-label="Minimalist" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Minimalist</span><span class="item-tier">Clean</span></div>
-            </div>
-            <div class="dropdown-item" data-value="pop-art" data-label="Pop Art" onclick="selectStyle(this)">
-              <div class="item-left"><span class="item-name">Pop Art</span><span class="item-tier">Bold colors</span></div>
-            </div>
-          </div>
-        </div>
-        <input type="hidden" id="style" value="">
-      </div>
-      <div class="field" style="flex:0 0 auto; display:flex; align-items:flex-end; padding-bottom:2px;">
-        <label class="toggle-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; margin-bottom:0;">
-          <div class="toggle-switch" id="enhanceToggle" onclick="toggleEnhance()">
-            <div class="toggle-knob"></div>
-          </div>
-          <span style="font-size:13px; font-weight:500; color:var(--text2);">Enhance</span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Advanced Settings (collapsible) -->
-    <button class="advanced-toggle" id="advancedToggle" onclick="toggleAdvanced()">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Advanced Settings
-    </button>
-    <div class="advanced-section" id="advancedSection">
-      <div class="field">
-        <label>Negative Prompt <span style="font-weight:400; color:var(--muted2)">— things to avoid</span></label>
-        <input type="text" class="text-input" id="negativePrompt" placeholder="blur, watermark, low quality, text, deformed">
-      </div>
-      <div class="input-row">
-        <div class="field">
-          <label>Seed <span style="font-weight:400; color:var(--muted2)">— leave empty for random</span></label>
-          <input type="number" class="text-input" id="seedInput" placeholder="Random" min="0" max="2147483647">
-        </div>
-        <div class="field" style="flex:0 0 auto; display:flex; align-items:flex-end; padding-bottom:2px;">
-          <button class="btn-action" onclick="document.getElementById('seedInput').value=''; " title="Clear seed">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 1011.5-2.5M13.5 2v3.5H10"/></svg>
-            Random
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Aspect Ratio -->
-    <div class="field">
-      <label>Aspect Ratio</label>
-      <div class="ratio-grid" id="ratioGrid">
-        <div class="ratio-option" data-ratio="square_hd" onclick="selectRatio(this)" title="Square HD (1:1)">
-          <div class="ratio-icon" style="width:24px;height:24px;"></div>
-          <span class="ratio-label">1:1</span>
-        </div>
-        <div class="ratio-option" data-ratio="portrait_4_3" onclick="selectRatio(this)" title="Portrait 4:3">
-          <div class="ratio-icon" style="width:20px;height:26px;"></div>
-          <span class="ratio-label">4:3 P</span>
-        </div>
-        <div class="ratio-option" data-ratio="portrait_9_16" onclick="selectRatio(this)" title="Portrait 9:16">
-          <div class="ratio-icon" style="width:16px;height:28px;"></div>
-          <span class="ratio-label">9:16</span>
-        </div>
-        <div class="ratio-option active" data-ratio="landscape_4_3" onclick="selectRatio(this)" title="Landscape 4:3">
-          <div class="ratio-icon" style="width:28px;height:21px;"></div>
-          <span class="ratio-label">4:3 L</span>
-        </div>
-        <div class="ratio-option" data-ratio="landscape_16_9" onclick="selectRatio(this)" title="Landscape 16:9">
-          <div class="ratio-icon" style="width:30px;height:17px;"></div>
-          <span class="ratio-label">16:9</span>
-        </div>
-        <div class="ratio-option" data-ratio="widescreen_21_9" onclick="selectRatio(this)" title="Widescreen 21:9">
-          <div class="ratio-icon" style="width:32px;height:14px;"></div>
-          <span class="ratio-label">21:9</span>
-        </div>
-      </div>
-      <input type="hidden" id="aspect_ratio" value="landscape_4_3">
-    </div>
-
-    <!-- Reference Image Upload -->
-    <div class="field" id="uploadField" style="display:none">
-      <label>Reference Image <span id="uploadLimit" style="font-weight:400; color:var(--muted2)"></span></label>
-      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-        <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFileSelect(event)">
-        <div class="upload-label"><strong>Click to upload</strong> or drag & drop</div>
-        <div class="upload-hint">PNG, JPG, WebP up to 10MB each</div>
-        <div class="upload-previews" id="uploadPreviews"></div>
-      </div>
-    </div>
-
-    <button class="btn-generate" id="generate" onclick="generateImage()">Generate</button>
-    <div class="progress-steps" id="progressSteps" style="display:none">
-      <span class="step-indicator" id="ps1">1. Challenge</span>
-      <span class="step-sep">&rarr;</span>
-      <span class="step-indicator" id="ps2">2. Pay USDC</span>
-      <span class="step-sep">&rarr;</span>
-      <span class="step-indicator" id="ps3">3. Generate</span>
-    </div>
-    <div class="result" id="result"></div>
+  <!-- Studio CTA -->
+  <div class="demo" id="generate" style="text-align:center;padding:48px 32px">
+    <h2 style="font-family:var(--font-heading);font-size:24px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Ready to create?</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:24px">Generate images from 10 models or create 5-second videos. Free demo available.</p>
+    <a href="/studio" class="btn btn-primary" style="padding:14px 32px;font-size:15px;display:inline-flex">Open Studio</a>
   </div>
 
   <!-- How it works -->
@@ -618,48 +400,21 @@ result = pp.generate(prompt=<span class="str">"a cat in space"</span>)</code></p
 </div>
 
 <script>
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
-// ── Config ──
+// ── Landing page JS (wallet + UI helpers) ──
 const TEMPO_CHAIN_ID = 4217;
 const TEMPO_RPC = "https://rpc.tempo.xyz";
-const USDC_TOKEN = "0x20c000000000000000000000b9537d11c60e8b50";
-let SERVER_WALLET = "0xf48c6E46358652fC77462d56d609B8bC7f4ba82e"; // fallback, overridden by /v1/config
-const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)", "function balanceOf(address) view returns (uint256)"];
-const NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)", "function approve(address to, uint256 tokenId)", "function setApprovalForAll(address operator, bool approved)", "event Minted(uint256 indexed tokenId, address indexed creator, string tokenURI)", "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"];
-let NFT_CONTRACT = "";
-let MARKET_CONTRACT = "";
-const DEMO_LIMIT = 1;
-const STORAGE_KEY = "demo_count";
-
-// ── Wallet State ──
 let walletConnected = false;
 let walletAddress = null;
-let walletSigner = null;
-let usdcBalance = null;
-
-// ── Base64url helpers ──
-function b64urlEncode(str) {
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-function b64urlDecode(str) {
-  let s = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (s.length % 4) s += '=';
-  return atob(s);
-}
-
-// ── Wallet Connect ──
 const WALLET_KEY = "pixelpay_wallet";
 
 function disconnectWallet() {
   walletConnected = false;
   walletAddress = null;
-  walletSigner = null;
-  usdcBalance = null;
   localStorage.removeItem(WALLET_KEY);
   document.getElementById("walletBtn").innerHTML = "Connect Wallet";
   document.getElementById("walletBtn").className = "btn-wallet";
-  document.getElementById("walletBanner").style.display = "none";
-  document.getElementById("modeHint").innerHTML = 'Free demo &middot; 1 per day';
+  const pxp = document.getElementById("pxpBal");
+  if (pxp) { pxp.style.display = "none"; pxp.textContent = "0 PXP"; }
 }
 
 async function connectWallet(silent) {
@@ -667,63 +422,35 @@ async function connectWallet(silent) {
     if (!silent) alert("No wallet found. Please install MetaMask or another Web3 wallet.");
     return false;
   }
-
   try {
-    // For silent reconnect, check if already authorized
     if (silent) {
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (!accounts || accounts.length === 0) return false;
     }
-
     const provider = new ethers.BrowserProvider(window.ethereum);
-
-    // Switch to Tempo network
     try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16) }]
-      });
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16) }] });
     } catch (switchErr) {
       if (switchErr.code === 4902) {
         await window.ethereum.request({
           method: "wallet_addEthereumChain",
-          params: [{
-            chainId: "0x" + TEMPO_CHAIN_ID.toString(16),
-            chainName: "Tempo",
-            rpcUrls: [TEMPO_RPC],
-            nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 },
-            blockExplorerUrls: ["https://explorer.tempo.xyz"]
-          }]
+          params: [{ chainId: "0x" + TEMPO_CHAIN_ID.toString(16), chainName: "Tempo", rpcUrls: [TEMPO_RPC], nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] }]
         });
-      } else {
-        throw switchErr;
-      }
+      } else { throw switchErr; }
     }
-
     const signer = await provider.getSigner();
     const address = await signer.getAddress();
-
     walletConnected = true;
     walletAddress = address;
-    walletSigner = signer;
     localStorage.setItem(WALLET_KEY, address);
-
-    // Update UI
     const shortAddr = address.slice(0, 6) + "..." + address.slice(-4);
     document.getElementById("walletBtn").innerHTML = '<span class="wallet-dot"></span>' + shortAddr;
     document.getElementById("walletBtn").className = "btn-wallet connected";
-    document.getElementById("modeHint").innerHTML = '<span class="wallet-mode">Wallet connected</span> &middot; Unlimited';
-
-    await refreshBalance(provider, address);
     refreshPXP(address);
-
-    document.getElementById("walletBanner").style.display = "flex";
-    document.getElementById("bannerAddr").textContent = shortAddr;
-
     return true;
   } catch (err) {
     if (!silent) {
-      console.error("Wallet connection error:", err);
+      console.error("Wallet error:", err);
       alert("Failed to connect wallet: " + (err.message || err));
     }
     localStorage.removeItem(WALLET_KEY);
@@ -732,30 +459,8 @@ async function connectWallet(silent) {
 }
 
 function handleWallet() {
-  if (walletConnected) {
-    disconnectWallet();
-  } else {
-    connectWallet(false);
-  }
-}
-
-// Auto-reconnect on page load
-if (localStorage.getItem(WALLET_KEY) && window.ethereum) {
-  connectWallet(true);
-}
-
-async function refreshBalance(provider, address) {
-  try {
-    if (!provider) provider = new ethers.BrowserProvider(window.ethereum);
-    const usdc = new ethers.Contract(USDC_TOKEN, ERC20_ABI, provider);
-    const bal = await usdc.balanceOf(address);
-    usdcBalance = bal;
-    const formatted = ethers.formatUnits(bal, 6);
-    document.getElementById("bannerBalance").textContent = "$" + parseFloat(formatted).toFixed(2) + " USDC";
-  } catch (err) {
-    document.getElementById("bannerBalance").textContent = "Balance unavailable";
-    console.error("Balance error:", err);
-  }
+  if (walletConnected) disconnectWallet();
+  else connectWallet(false);
 }
 
 async function refreshPXP(address) {
@@ -769,657 +474,15 @@ async function refreshPXP(address) {
   } catch (_) {}
 }
 
-// ── Parse WWW-Authenticate header ──
-function parseWWWAuth(header) {
-  const params = {};
-  const regex = /(\w+)="([^"]*)"/g;
-  let match;
-  while ((match = regex.exec(header)) !== null) {
-    params[match[1]] = match[2];
-  }
-  return params;
-}
+// Auto-reconnect
+if (localStorage.getItem(WALLET_KEY) && window.ethereum) connectWallet(true);
 
-// ── Loading Animation ──
-let loadingTimer = null;
-let loadingStartTime = null;
-
-function showLoading(message) {
-  const result = document.getElementById("result");
-  const pixels = Array.from({length: 64}, (_, i) =>
-    `<div class="pixel" style="animation-delay: ${(i * 0.05 % 1.5).toFixed(2)}s"></div>`
-  ).join('');
-
-  result.innerHTML = `
-    <div class="loading-container">
-      <div class="loading-visual">
-        <div class="pixel-grid">${pixels}</div>
-      </div>
-      <div class="loading-text">
-        <div>${esc(message)}</div>
-        <div style="margin-top:4px">Elapsed: <span class="timer" id="loadingTimer">0s</span></div>
-      </div>
-    </div>`;
-
-  loadingStartTime = Date.now();
-  if (loadingTimer) clearInterval(loadingTimer);
-  loadingTimer = setInterval(() => {
-    const el = document.getElementById("loadingTimer");
-    if (el) el.textContent = Math.floor((Date.now() - loadingStartTime) / 1000) + "s";
-  }, 1000);
-}
-
-function stopLoading() {
-  if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
-}
-
-// ── Download helper ──
-function downloadImage(imgEl, filename) {
-  const link = document.createElement("a");
-  // Handle both src types
-  if (imgEl.src.startsWith("data:")) {
-    link.href = imgEl.src;
-  } else {
-    // For URL images, try canvas conversion; fallback to direct link if CORS taints
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = imgEl.naturalWidth;
-      canvas.height = imgEl.naturalHeight;
-      canvas.getContext("2d").drawImage(imgEl, 0, 0);
-      link.href = canvas.toDataURL("image/png");
-    } catch {
-      link.href = imgEl.src;
-    }
-  }
-  link.download = filename || "pixelpay-image.png";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-let lastResultSeed = null;
-let lastResultImgSrc = null;
-let lastResultPrompt = null;
-let lastResultModel = null;
-let lastResultImgData = null;
-
-function renderResult(imgData, prompt, modelName, extraInfo, extraClass, seed) {
-  const result = document.getElementById("result");
-  const safePrompt = prompt.replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  const filename = "pixelpay-" + prompt.replace(/[^a-z0-9]/gi, '-').slice(0, 30) + ".png";
-  const downloadSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4M2 13h12"/></svg>';
-  const variantSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 5h2a2 2 0 012 2v2"/></svg>';
-  const upscaleSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2h4v4M6 14H2v-4M14 2L9 7M2 14l5-5"/></svg>';
-  const copySvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>';
-  const mintSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 3h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg>';
-
-  let imgSrc;
-  if (imgData.b64_json) {
-    const mime = imgData.content_type || "image/png";
-    imgSrc = `data:${mime};base64,${imgData.b64_json}`;
-  } else if (imgData.url) {
-    imgSrc = imgData.url;
-  }
-
-  lastResultSeed = seed ?? null;
-  lastResultImgSrc = imgSrc;
-  lastResultPrompt = prompt;
-  lastResultModel = modelName;
-  lastResultImgData = imgData;
-
-  // Persist result so it survives page navigation
-  try {
-    sessionStorage.setItem("pixelpay_last_result", JSON.stringify({
-      imgSrc: imgData.url || null, prompt, modelName, extraInfo, extraClass, seed
-    }));
-  } catch(_) {}
-
-  if (imgSrc) {
-    const seedHtml = seed != null ? `<span class="seed-badge" onclick="copySeed(${seed})" title="Click to copy seed">${copySvg} Seed: ${seed}</span>` : '';
-
-    result.innerHTML = `
-      <img src="${imgSrc}" alt="${safePrompt}" id="generatedImg" crossorigin="anonymous">
-      <div class="meta">
-        <span>${seedHtml}</span>
-      </div>
-      <div class="result-actions" style="margin-top:8px">
-        <button class="btn-action" onclick="downloadImage(document.getElementById('generatedImg'), '${filename}')">
-          ${downloadSvg} Download
-        </button>
-        <button class="btn-action" onclick="generateVariation()" title="Same prompt, different seed">
-          ${variantSvg} Variation
-        </button>
-        <button class="btn-action" id="upscaleBtn" onclick="upscaleImage()" title="Upscale to higher resolution">
-          ${upscaleSvg} Upscale
-        </button>
-        ${seed != null ? `<button class="btn-action" onclick="reuseSeed(${seed})" title="Use this seed for next generation">${copySvg} Reuse Seed</button>` : ''}
-        <input type="text" id="nftNameInput" placeholder="Name your NFT..." maxlength="80" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:0.85rem;width:160px;display:none">
-        <button class="btn-action" id="mintBtn" onclick="handleMintClick()" title="Mint this image as an NFT">${mintSvg} Mint NFT</button>
-        ${extraClass ? `<span class="btn-action" style="cursor:default;color:var(--green);border-color:var(--green)">${extraClass === 'paid' ? 'Paid' : 'Cached'}</span>` : ''}
-      </div>`;
-
-    // Save to history if wallet connected
-    if (walletConnected && walletAddress) {
-      fetch("/v1/history/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet: walletAddress,
-          prompt,
-          model: modelName,
-          seed: seed ?? null,
-          image_url: imgData.url || null,
-          image_b64: imgData.b64_json ? imgSrc.slice(0, 200) + "..." : null
-        })
-      }).catch(() => {});
-    }
-  }
-}
-
-// ── Advanced Settings Toggle ──
-function toggleAdvanced() {
-  const btn = document.getElementById("advancedToggle");
-  const section = document.getElementById("advancedSection");
-  btn.classList.toggle("open");
-  section.classList.toggle("open");
-}
-
-// ── Seed helpers ──
-function copySeed(seed) {
-  navigator.clipboard.writeText(String(seed));
-  const badges = document.querySelectorAll('.seed-badge');
-  badges.forEach(b => { b.style.color = 'var(--green)'; setTimeout(() => b.style.color = '', 1000); });
-}
-function reuseSeed(seed) {
-  document.getElementById("seedInput").value = seed;
-  // Open advanced if closed
-  if (!document.getElementById("advancedSection").classList.contains("open")) toggleAdvanced();
-}
-
-// ── Variation: re-generate same prompt with random seed ──
-function generateVariation() {
-  document.getElementById("seedInput").value = "";
-  generateImage();
-}
-
-// ── Upscale current result ──
-async function upscaleImage() {
-  if (!lastResultImgSrc) return;
-  const btn = document.getElementById("upscaleBtn");
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Upscaling...';
-  try {
-    const res = await fetch("/v1/images/upscale", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image_url: lastResultImgSrc })
-    });
-    if (!res.ok) throw new Error("Upscale failed");
-    const data = await res.json();
-    const img = data.image;
-    if (img) {
-      const genImg = document.getElementById("generatedImg");
-      genImg.src = img.url || `data:${img.content_type || 'image/png'};base64,${img.b64_json}`;
-      lastResultImgSrc = genImg.src;
-      btn.innerHTML = '&#10003; Upscaled';
-      btn.style.color = 'var(--green)';
-      btn.style.borderColor = 'var(--green)';
-    }
-  } catch (e) {
-    btn.innerHTML = 'Upscale failed';
-    btn.style.color = 'var(--red)';
-  }
-}
-
-// ── Load server config on startup ──
-async function loadServerConfig() {
-  try {
-    const [cfgRes, nftRes] = await Promise.all([
-      fetch("/pixelpay/config").catch(() => null),
-      fetch("/pixelpay/nft-config").catch(() => null),
-    ]);
-    if (cfgRes && cfgRes.ok) {
-      const cfg = await cfgRes.json();
-      if (cfg.wallet_address) SERVER_WALLET = cfg.wallet_address;
-    }
-    if (nftRes && nftRes.ok) {
-      const nft = await nftRes.json();
-      NFT_CONTRACT = nft.nft_contract || "";
-      MARKET_CONTRACT = nft.marketplace_contract || "";
-    }
-  } catch (_) {}
-}
-loadServerConfig();
-
-// ── Restore last result after page navigation ──
-try {
-  const saved = sessionStorage.getItem("pixelpay_last_result");
-  if (saved) {
-    const r = JSON.parse(saved);
-    if (r.imgSrc) {
-      renderResult({ url: r.imgSrc }, r.prompt, r.modelName, r.extraInfo || "", r.extraClass || "", r.seed);
-    }
-  }
-} catch(_) {}
-
-// ── Auto-fill from query params (e.g. from gallery "Use Prompt") ──
-try {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("prompt")) {
-    document.getElementById("prompt").value = params.get("prompt");
-    if (params.get("model")) document.getElementById("model").value = params.get("model");
-    if (params.get("style")) document.getElementById("style").value = params.get("style");
-  }
-} catch(_) {}
-
-// ── Mint as NFT ──
-function handleMintClick() {
-  const nameInput = document.getElementById("nftNameInput");
-  if (nameInput.style.display === "none") {
-    // First click: show name input
-    nameInput.style.display = "inline-block";
-    nameInput.focus();
-    nameInput.placeholder = "Name your NFT...";
-    document.getElementById("mintBtn").innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 3h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg> Confirm Mint';
-    return;
-  }
-  // Second click: proceed to mint
-  mintAsNFT();
-}
-
-async function mintAsNFT() {
-  if (!walletConnected || !walletSigner) {
-    alert("Connect your wallet first to mint an NFT.");
-    return;
-  }
-  if (!lastResultImgSrc) return;
-  if (!NFT_CONTRACT) {
-    alert("NFT contract not configured. Please try again later.");
-    return;
-  }
-
-  const btn = document.getElementById("mintBtn");
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Uploading to IPFS...';
-
-  try {
-    // 1. Upload image + metadata to IPFS via backend
-    // Determine if image is base64 or URL
-    const isBase64 = lastResultImgSrc.startsWith("data:");
-    const customName = document.getElementById("nftNameInput")?.value?.trim();
-    const nftName = customName || (lastResultPrompt || "PixelPay AI Art").slice(0, 80);
-    const uploadBody = {
-      metadata: {
-        name: nftName,
-        description: lastResultPrompt || "Generated with PixelPay AI",
-        attributes: [
-          { trait_type: "Model", value: lastResultModel || "unknown" },
-          { trait_type: "Seed", value: String(lastResultSeed ?? "random") },
-          { trait_type: "Generator", value: "PixelPay" }
-        ]
-      }
-    };
-    if (isBase64) {
-      // Strip data:image/...;base64, prefix
-      uploadBody.image_b64 = lastResultImgSrc.replace(/^data:[^;]+;base64,/, "");
-      uploadBody.content_type = lastResultImgSrc.match(/^data:([^;]+)/)?.[1] || "image/png";
-    } else {
-      uploadBody.image_url = lastResultImgSrc;
-    }
-    const uploadRes = await fetch("/v1/nft/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(uploadBody)
-    });
-    if (!uploadRes.ok) {
-      const err = await uploadRes.json().catch(() => ({}));
-      throw new Error(err.detail || err.error || "IPFS upload failed");
-    }
-    const { metadata_uri } = await uploadRes.json();
-
-    // 2. Call NFT contract mint function
-    btn.innerHTML = '<span class="spinner"></span>Minting on-chain...';
-    const nftContract = new ethers.Contract(NFT_CONTRACT, NFT_ABI, walletSigner);
-    const tx = await nftContract.mint(walletAddress, metadata_uri);
-    btn.innerHTML = '<span class="spinner"></span>Confirming tx...';
-    const receipt = await tx.wait();
-
-    // Extract tokenId from Minted or Transfer event
-    let tokenId = null;
-    for (const log of receipt.logs) {
-      try {
-        const parsed = nftContract.interface.parseLog({ topics: log.topics, data: log.data });
-        if (parsed && (parsed.name === "Minted" || parsed.name === "Transfer")) {
-          tokenId = (parsed.args.tokenId || parsed.args[2]).toString();
-          break;
-        }
-      } catch (_) {}
-    }
-    // Fallback: use totalSupply - 1
-    if (tokenId == null) {
-      try { const supply = await nftContract.totalSupply(); tokenId = (supply - 1n).toString(); } catch(_) {}
-    }
-
-    // 3. Record mint in backend
-    if (tokenId != null) {
-      await fetch("/v1/nft/mint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tokenId,
-          wallet: walletAddress,
-          prompt: lastResultPrompt,
-          model: lastResultModel || "unknown",
-          image_url: lastResultImgSrc.startsWith("data:") ? metadata_uri : lastResultImgSrc,
-          metadata_uri,
-          tx_hash: receipt.hash
-        })
-      }).catch(() => {});
-    }
-
-    btn.innerHTML = '&#10003; Minted!';
-    btn.style.color = 'var(--green)';
-    btn.style.borderColor = 'var(--green)';
-    btn.disabled = true; // Keep disabled permanently — image already minted
-    if (tokenId != null) {
-      btn.title = `Token #${tokenId} minted successfully`;
-    }
-  } catch (e) {
-    console.error("Mint error:", e);
-    btn.innerHTML = 'Mint failed';
-    btn.style.color = 'var(--red)';
-    btn.style.borderColor = 'var(--red)';
-    btn.disabled = false;
-    setTimeout(() => {
-      btn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 3h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></svg> Mint NFT';
-      btn.style.color = '';
-      btn.style.borderColor = '';
-    }, 3000);
-  }
-}
-
-// ── Get negative prompt and seed from UI ──
-function getAdvancedParams() {
-  const neg = document.getElementById("negativePrompt")?.value?.trim() || "";
-  const seedVal = document.getElementById("seedInput")?.value;
-  return {
-    negative_prompt: neg || undefined,
-    seed: seedVal ? Number(seedVal) : undefined,
-  };
-}
-
-// ── Paid flow: Challenge → Pay → Generate ──
-async function generatePaid() {
-  const prompt = document.getElementById("prompt").value.trim();
-  if (!prompt) return;
-
-  const model = document.getElementById("model").value;
-  const btn = document.getElementById("generate");
-  const result = document.getElementById("result");
-  const progress = document.getElementById("progressSteps");
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Processing...';
-  progress.style.display = "flex";
-
-  // Reset progress
-  ["ps1","ps2","ps3"].forEach(id => {
-    document.getElementById(id).className = "step-indicator";
-  });
-
-  try {
-    // Step 1: Get 402 challenge
-    document.getElementById("ps1").className = "step-indicator active";
-    const selStyle = document.getElementById("style").value;
-    const selRatio = document.getElementById("aspect_ratio").value;
-    const adv = getAdvancedParams();
-    const reqBody = { prompt, model, image_size: selRatio };
-    if (selStyle) reqBody.style = selStyle;
-    if (enhanceEnabled) reqBody.enhance = true;
-    if (adv.negative_prompt) reqBody.negative_prompt = adv.negative_prompt;
-    if (adv.seed != null) reqBody.seed = adv.seed;
-    if (uploadedImages.length > 0) reqBody.image_urls = uploadedImages;
-    if (walletAddress) reqBody.wallet = walletAddress;
-    const challengeRes = await fetch("/v1/images/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reqBody)
-    });
-
-    const challengeContentType = challengeRes.headers.get("content-type") || "";
-    if (!challengeContentType.includes("json")) {
-      throw new Error("Server is temporarily unavailable. Please try again in a moment.");
-    }
-    if (challengeRes.status !== 402) {
-      const errBody = await challengeRes.json().catch(() => ({}));
-      throw new Error(errBody.detail || "Expected 402 challenge, got " + challengeRes.status);
-    }
-
-    const wwwAuth = challengeRes.headers.get("WWW-Authenticate");
-    if (!wwwAuth) throw new Error("No WWW-Authenticate header in challenge");
-
-    const challenge = parseWWWAuth(wwwAuth);
-    document.getElementById("ps1").className = "step-indicator done";
-
-    // Decode request to get amount
-    const requestJson = JSON.parse(b64urlDecode(challenge.request));
-    const amount = BigInt(requestJson.amount);
-    const recipient = requestJson.recipient || SERVER_WALLET;
-    const amountUsd = (Number(amount) / 1_000_000).toFixed(2);
-
-    // Check balance
-    if (usdcBalance !== null && usdcBalance < amount) {
-      throw new Error("Insufficient USDC balance. Need $" + amountUsd + " USDC.");
-    }
-
-    // Step 2: Send USDC transfer via wallet
-    document.getElementById("ps2").className = "step-indicator active";
-    btn.innerHTML = '<span class="spinner"></span>Approve $' + amountUsd + ' USDC...';
-
-    const usdc = new ethers.Contract(USDC_TOKEN, ERC20_ABI, walletSigner);
-    const tx = await usdc.transfer(recipient, amount);
-
-    btn.innerHTML = '<span class="spinner"></span>Confirming tx...';
-    const receipt = await tx.wait();
-
-    document.getElementById("ps2").className = "step-indicator done";
-
-    // Step 3: Build credential and retry
-    document.getElementById("ps3").className = "step-indicator active";
-    btn.innerHTML = '<span class="spinner"></span>Generating...';
-    showLoading("Generating your image...");
-
-    const credential = {
-      challenge: {
-        id: challenge.id,
-        realm: challenge.realm,
-        method: challenge.method,
-        intent: challenge.intent,
-        request: challenge.request,
-        expires: challenge.expires
-      },
-      payload: {
-        hash: receipt.hash
-      }
-    };
-
-    const credentialB64 = b64urlEncode(JSON.stringify(credential));
-
-    const imageRes = await fetch("/v1/images/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Payment " + credentialB64
-      },
-      body: JSON.stringify(reqBody)
-    });
-
-    stopLoading();
-
-    if (!imageRes.ok) {
-      const errData = await imageRes.json().catch(() => ({}));
-      // If we got a retry token, auto-retry once
-      if (errData.retry_token) {
-        showLoading("Generation failed — retrying with credit...");
-        const retryRes = await fetch("/v1/images/generate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Payment " + credentialB64,
-            "X-PixelPay-Retry": errData.retry_token
-          },
-          body: JSON.stringify(reqBody)
-        });
-        stopLoading();
-        if (retryRes.ok) {
-          const retryData = await retryRes.json();
-          document.getElementById("ps3").className = "step-indicator done";
-          const retryImg = retryData.images?.[0];
-          if (retryImg) renderResult(retryImg, prompt, retryData.model, `$${amountUsd} USDC`, 'paid', retryData.seed);
-          await refreshBalance(null, walletAddress);
-          return;
-        }
-        // Retry also failed — show message with retry token for manual retry
-        const retryErr = await retryRes.json().catch(() => ({}));
-        throw new Error(`Generation failed. Retry credit saved: ${errData.retry_token}. Contact support.`);
-      }
-      throw new Error(errData.detail || "Generation failed after payment");
-    }
-
-    const data = await imageRes.json();
-    document.getElementById("ps3").className = "step-indicator done";
-
-    const img = data.images?.[0];
-    if (img) renderResult(img, prompt, data.model, `$${amountUsd} USDC`, 'paid', data.seed);
-
-    // Refresh balance
-    await refreshBalance(null, walletAddress);
-
-  } catch (err) {
-    stopLoading();
-    console.error("Paid flow error:", err);
-    let msg = err.message || "Something went wrong";
-    if (err.code === "ACTION_REJECTED" || err.code === 4001) {
-      msg = "Transaction rejected. No USDC was spent.";
-    }
-    result.innerHTML = `<div class="error">${esc(msg)}</div>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Generate";
-    setTimeout(() => { progress.style.display = "none"; }, 5000);
-  }
-}
-
-// ── Free demo flow ──
-async function generateDemo() {
-  if (getDemoCount() >= DEMO_LIMIT) {
-    document.getElementById("result").innerHTML = '<div class="error">Daily limit reached (1/day). Connect a wallet for unlimited access.</div>';
-    return;
-  }
-  const prompt = document.getElementById("prompt").value.trim();
-  if (!prompt) return;
-
-  const btn = document.getElementById("generate");
-  const result = document.getElementById("result");
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Generating...';
-  showLoading("Generating your image...");
-
-  try {
-    const model = document.getElementById("model").value;
-    const selStyle = document.getElementById("style").value;
-    const selRatio = document.getElementById("aspect_ratio").value;
-    const adv = getAdvancedParams();
-    const demoBody = { prompt, model, image_size: selRatio };
-    if (selStyle) demoBody.style = selStyle;
-    if (enhanceEnabled) demoBody.enhance = true;
-    if (adv.negative_prompt) demoBody.negative_prompt = adv.negative_prompt;
-    if (adv.seed != null) demoBody.seed = adv.seed;
-    if (uploadedImages.length > 0) demoBody.image_urls = uploadedImages;
-    if (walletAddress) demoBody.wallet = walletAddress;
-    const res = await fetch("/api/demo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(demoBody)
-    });
-
-    stopLoading();
-
-    if (!res.ok) {
-      const err = await res.json();
-      result.innerHTML = `<div class="error">${esc(err.detail || "Failed. Try again.")}</div>`;
-      return;
-    }
-
-    const data = await res.json();
-    if (!data.cached) incrementDemo();
-    const remaining = DEMO_LIMIT - getDemoCount();
-
-    const img = data.images?.[0];
-    if (img) {
-      renderResult(img, prompt, data.model, `${remaining} left today`, data.cached ? 'cached' : '', data.seed);
-    }
-  } catch (e) {
-    stopLoading();
-    result.innerHTML = '<div class="error">Network error. Try again.</div>';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Generate";
-  }
-}
-
-// ── Main generate handler — routes to paid or demo ──
-function generateImage() {
-  const modelEl = document.querySelector('.dropdown-item.active');
-  if (modelEl && modelEl.dataset.premium === 'true' && !walletConnected) {
-    document.getElementById("result").innerHTML = '<div class="error">Premium models require a wallet. Connect your wallet to use this model.</div>';
-    return;
-  }
-  if (walletConnected) {
-    generatePaid();
-  } else {
-    generateDemo();
-  }
-}
-
-// ── Demo count tracking ──
-function getDemoCount() {
-  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-  const today = new Date().toISOString().slice(0, 10);
-  return data.date === today ? data.count : 0;
-}
-function incrementDemo() {
-  const today = new Date().toISOString().slice(0, 10);
-  const count = getDemoCount() + 1;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: today, count }));
-  return count;
-}
-
-// ── Dropdown ──
-function toggleDropdown() {
-  document.getElementById("modelDropdown").classList.toggle("open");
-}
-function selectModel(el) {
-  const dropdown = document.getElementById("modelDropdown");
-  dropdown.querySelectorAll(".dropdown-item").forEach(i => i.classList.remove("active"));
-  el.classList.add("active");
-  document.getElementById("model").value = el.dataset.value;
-  document.getElementById("selectedLabel").textContent = el.dataset.label;
-  document.getElementById("selectedPrice").textContent = el.dataset.price;
-  dropdown.classList.remove("open");
-  updateUploadVisibility();
-}
-document.addEventListener("click", (e) => {
-  const dd = document.getElementById("modelDropdown");
-  if (!dd.contains(e.target)) dd.classList.remove("open");
-});
-
-// ── Expand/collapse full pricing table ──
+// ── Pricing table toggle ──
 function toggleAllModels() {
   const table = document.getElementById("fullPricingTable");
-  const btn = document.getElementById("expandPricing");
   const text = document.getElementById("expandText");
   const arrow = document.getElementById("expandArrow");
+  const btn = document.getElementById("expandPricing");
   const open = table.style.display === "none";
   table.style.display = open ? "block" : "none";
   text.textContent = open ? "Hide models" : "View all 13 models + services";
@@ -1427,6 +490,7 @@ function toggleAllModels() {
   btn.classList.toggle("open", open);
 }
 
+// ── Code tabs ──
 function showTab(lang, el) {
   const section = el ? el.closest(".code-section") : document;
   section.querySelectorAll("pre[id^='code-']").forEach(e => e.style.display = "none");
@@ -1435,144 +499,13 @@ function showTab(lang, el) {
   if (el) el.classList.add("active");
 }
 
-// ── Style Dropdown ──
-function toggleStyleDropdown() {
-  document.getElementById("styleDropdown").classList.toggle("open");
-}
-function selectStyle(el) {
-  const dropdown = document.getElementById("styleDropdown");
-  dropdown.querySelectorAll(".dropdown-item").forEach(i => i.classList.remove("active"));
-  el.classList.add("active");
-  document.getElementById("style").value = el.dataset.value;
-  document.getElementById("selectedStyle").textContent = el.dataset.label;
-  dropdown.classList.remove("open");
-}
-document.addEventListener("click", (e) => {
-  const sd = document.getElementById("styleDropdown");
-  if (!sd.contains(e.target)) sd.classList.remove("open");
-});
-
-// ── Enhance Toggle ──
-let enhanceEnabled = false;
-function toggleEnhance() {
-  enhanceEnabled = !enhanceEnabled;
-  document.getElementById("enhanceToggle").classList.toggle("active", enhanceEnabled);
-}
-
-// ── Aspect Ratio Selector ──
-function selectRatio(el) {
-  document.querySelectorAll('.ratio-option').forEach(o => o.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('aspect_ratio').value = el.dataset.ratio;
-}
-
-// ── Reference Image Upload ──
-const MODEL_MAX_IMAGES = {
-  "fal-ai/flux/schnell": 0,
-  "fal-ai/flux/dev": 1,
-  "fal-ai/flux-pro/v1.1": 0,
-  "fal-ai/recraft-v3": 1,
-  "fal-ai/hidream-i1-full": 0,
-  "fal-ai/ideogram/v3": 0,
-  "fal-ai/gpt-image-1/text-to-image": 0,
-  "xai/grok-imagine-image": 0,
-  "fal-ai/nano-banana-2": 14,
-  "fal-ai/nano-banana-pro": 14,
-};
-
-let uploadedImages = []; // array of data URLs
-
-function getMaxImages() {
-  const model = document.getElementById("model").value;
-  if (model === "auto") return 0; // auto mode = no upload
-  return MODEL_MAX_IMAGES[model] || 0;
-}
-
-function updateUploadVisibility() {
-  const max = getMaxImages();
-  const field = document.getElementById("uploadField");
-  if (max === 0) {
-    field.style.display = "none";
-    uploadedImages = [];
-    renderPreviews();
-  } else {
-    field.style.display = "block";
-    const limit = max === 1 ? "(1 image)" : `(up to ${max} images)`;
-    document.getElementById("uploadLimit").textContent = limit;
-    // Trim if switched to lower-limit model
-    if (uploadedImages.length > max) {
-      uploadedImages = uploadedImages.slice(0, max);
-      renderPreviews();
-    }
-    // Update file input multiple attribute
-    document.getElementById("fileInput").multiple = max > 1;
-  }
-}
-
-function handleFileSelect(e) {
-  addFiles(e.target.files);
-  e.target.value = ""; // reset so same file can be re-selected
-}
-
-function addFiles(files) {
-  const max = getMaxImages();
-  for (const file of files) {
-    if (uploadedImages.length >= max) break;
-    if (!file.type.startsWith("image/")) continue;
-    if (file.size > 10 * 1024 * 1024) { alert("File too large (max 10MB)"); continue; }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (uploadedImages.length < max) {
-        uploadedImages.push(e.target.result);
-        renderPreviews();
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
-function removeImage(idx) {
-  uploadedImages.splice(idx, 1);
-  renderPreviews();
-}
-
-function renderPreviews() {
-  const container = document.getElementById("uploadPreviews");
-  if (uploadedImages.length === 0) {
-    container.innerHTML = "";
-    return;
-  }
-  container.innerHTML = uploadedImages.map((src, i) =>
-    `<div class="upload-preview">
-      <img src="${src}" alt="ref ${i+1}">
-      <button class="remove-btn" onclick="event.stopPropagation(); removeImage(${i})">&times;</button>
-    </div>`
-  ).join("");
-}
-
-// Drag and drop
-const uploadArea = document.getElementById("uploadArea");
-uploadArea.addEventListener("dragover", (e) => { e.preventDefault(); uploadArea.classList.add("dragover"); });
-uploadArea.addEventListener("dragleave", () => { uploadArea.classList.remove("dragover"); });
-uploadArea.addEventListener("drop", (e) => {
-  e.preventDefault();
-  uploadArea.classList.remove("dragover");
-  if (getMaxImages() > 0) addFiles(e.dataTransfer.files);
-});
-
-// ── Listen for account/chain changes ──
+// ── Wallet change listeners ──
 if (window.ethereum) {
   window.ethereum.on("accountsChanged", (accounts) => {
-    if (accounts.length === 0) {
-      disconnectWallet();
-    } else if (walletConnected) {
-      // Account switched, reconnect
-      connectWallet(true);
-    }
+    if (accounts.length === 0) disconnectWallet();
+    else if (walletConnected) connectWallet(true);
   });
-  window.ethereum.on("chainChanged", () => {
-    if (walletConnected) window.location.reload();
-  });
+  window.ethereum.on("chainChanged", () => { if (walletConnected) window.location.reload(); });
 }
 </script>
 </body>

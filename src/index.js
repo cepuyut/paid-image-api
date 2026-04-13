@@ -2022,6 +2022,11 @@ app.get("/v1/pxp/info", async (_req, res) => {
   }
 });
 
+// Serve studio page
+app.get("/studio", (_req, res) => {
+  res.sendFile(join(ROOT, "public", "studio.html"));
+});
+
 // Serve marketplace page
 app.get("/marketplace", (_req, res) => {
   res.sendFile(join(ROOT, "public", "marketplace.html"));
