@@ -439,7 +439,7 @@ async function refreshPXP(addr) {
     if (!r.ok) return;
     const d = await r.json();
     const el = document.getElementById("pxpBal");
-    el.textContent = d.formatted + " PXP";
+    if (window.animatePxp) window.animatePxp(el, d.formatted); else el.textContent = d.formatted + " PXP";
     el.style.display = "";
   } catch(_){}
 }
@@ -455,5 +455,6 @@ async function refreshPXP(addr) {
 })();
 </script>
 <script src="/nav.js"></script>
+<script src="/animations.js"></script>
 </body>
 </html>

@@ -536,8 +536,9 @@ async function refreshPXP(address) {
     if (!res.ok) return;
     const data = await res.json();
     const el = document.getElementById("pxpBal");
-    el.textContent = data.formatted + " PXP";
     el.style.display = "";
+    if (window.animatePxp) window.animatePxp(el, data.formatted);
+    else el.textContent = data.formatted + " PXP";
   } catch (_) {}
 }
 
@@ -1516,5 +1517,6 @@ async function generateVideo() {
 }
 </script>
 <script src="/nav.js"></script>
+<script src="/animations.js"></script>
 </body>
 </html>

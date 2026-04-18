@@ -220,7 +220,7 @@ function renderGrid(items, emptyMsg) {
     return `
       <div class="gallery-card" onclick="openModal(${idx})">
         ${pubBadge}
-        <img src="${safeUrl}" alt="${safePrompt}" loading="lazy">
+        <img src="${safeUrl}" alt="${safePrompt}" loading="lazy" class="img-fade">
         <div class="card-info">
           <div class="card-prompt" title="${safePrompt}">${safePrompt}</div>
           <div class="card-meta">
@@ -428,7 +428,7 @@ async function refreshPXP(addr) {
     if (!r.ok) return;
     const d = await r.json();
     const el = document.getElementById("pxpBal");
-    el.textContent = d.formatted + " PXP";
+    if (window.animatePxp) window.animatePxp(el, d.formatted); else el.textContent = d.formatted + " PXP";
     el.style.display = "";
   } catch(_){}
 }
@@ -450,5 +450,6 @@ async function init() {
 init();
 </script>
 <script src="/nav.js"></script>
+<script src="/animations.js"></script>
 </body>
 </html>

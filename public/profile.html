@@ -183,7 +183,7 @@ async function refreshPXP(addr) {
     if (!r.ok) return;
     const d = await r.json();
     const el = document.getElementById("pxpBal");
-    el.textContent = d.formatted + " PXP";
+    if (window.animatePxp) window.animatePxp(el, d.formatted); else el.textContent = d.formatted + " PXP";
     el.style.display = "";
     document.getElementById("statPxp").textContent = d.formatted;
   } catch(_){}
@@ -253,7 +253,7 @@ function renderNFTGrid(gridId, nfts, emptyMsg) {
     const tid = sanitizeId(nft.tokenId || "0");
     const img = esc(nft.image_url || "");
     return `<div class="nft-card" data-token-id="${tid}">
-      <img src="${img}" alt="${name}" loading="lazy" onerror="this.style.background='var(--surface3)'">
+      <img src="${img}" alt="${name}" loading="lazy" class="img-fade" onerror="this.style.background='var(--surface3)'">
       <div class="info">
         <div class="name" title="${name}">#${tid} ${name}</div>
         <div class="meta">${model}</div>
@@ -327,5 +327,6 @@ async function init() {
 init();
 </script>
 <script src="/nav.js"></script>
+<script src="/animations.js"></script>
 </body>
 </html>

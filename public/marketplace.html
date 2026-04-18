@@ -388,7 +388,7 @@ function renderCard(nft, listing) {
   const tokenId = sanitizeId(nft.tokenId || "0");
 
   return `<div class="nft-card" data-token-id="${tokenId}">
-    <img src="${img}" alt="${name}" loading="lazy" onerror="this.style.background='var(--surface3)'">
+    <img src="${img}" alt="${name}" loading="lazy" class="img-fade" onerror="this.style.background='var(--surface3)'">
     <div class="nft-info">
       <div style="display:flex;justify-content:space-between;align-items:start">
         <div>
@@ -713,7 +713,7 @@ async function refreshPXP(addr) {
     if (!r.ok) return;
     const d = await r.json();
     const el = document.getElementById("pxpBal");
-    el.textContent = d.formatted + " PXP";
+    if (window.animatePxp) window.animatePxp(el, d.formatted); else el.textContent = d.formatted + " PXP";
     el.style.display = "";
   } catch(_){}
 }
@@ -738,5 +738,6 @@ async function init() {
 init();
 </script>
 <script src="/nav.js"></script>
+<script src="/animations.js"></script>
 </body>
 </html>

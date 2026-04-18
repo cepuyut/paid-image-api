@@ -112,7 +112,7 @@
     <h2 class="section-title">What you can build</h2>
     <p class="section-desc">Four services, one API. All pay-per-use with USDC on Tempo.</p>
     <div class="features-grid">
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
         </div>
@@ -120,7 +120,7 @@
         <p class="feature-desc">Text-to-image from 10 models. Auto-routing picks the best for your prompt. From $0.029/image.</p>
         <div class="feature-meta">10 models &middot; $0.029 — $0.19</div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </div>
@@ -128,7 +128,7 @@
         <p class="feature-desc">Inpaint, outpaint, remove or add objects. Upload a reference and mask to modify any image.</p>
         <div class="feature-meta">Inpaint + Outpaint &middot; $0.079</div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M18.5 13h-13"/><path d="m3.5 5.5 2 2"/><path d="m18.5 5.5-2 2"/><rect x="5" y="10" width="14" height="11" rx="2"/></svg>
         </div>
@@ -136,7 +136,7 @@
         <p class="feature-desc">Style transfer and remix. Upload an image and apply a new style prompt while keeping the structure.</p>
         <div class="feature-meta">Style remix &middot; $0.049</div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         </div>
@@ -152,14 +152,14 @@
   <p class="section-desc">From fast drafts to production quality. Batch: 10% off 3+, 20% off 4.</p>
 
   <div class="tier-cards">
-    <div class="tier-card">
+    <div class="tier-card reveal">
       <div class="tier-label">Fast</div>
       <div class="tier-model">Schnell</div>
       <div class="tier-price">$0.029</div>
       <div class="tier-unit">per image</div>
       <div class="tier-desc">Quick drafts, prototyping, instant results</div>
     </div>
-    <div class="tier-card featured">
+    <div class="tier-card featured reveal">
       <div class="tier-badge">Most Popular</div>
       <div class="tier-label">Standard</div>
       <div class="tier-model">Dev</div>
@@ -167,7 +167,7 @@
       <div class="tier-unit">per image</div>
       <div class="tier-desc">All-around quality for most use cases</div>
     </div>
-    <div class="tier-card">
+    <div class="tier-card reveal">
       <div class="tier-badge quality">Best Quality</div>
       <div class="tier-label">Premium</div>
       <div class="tier-model">Nano Banana Pro</div>
@@ -469,8 +469,9 @@ async function refreshPXP(address) {
     if (!res.ok) return;
     const data = await res.json();
     const el = document.getElementById("pxpBal");
-    el.textContent = data.formatted + " PXP";
     el.style.display = "";
+    if (window.animatePxp) window.animatePxp(el, data.formatted);
+    else el.textContent = data.formatted + " PXP";
   } catch (_) {}
 }
 
@@ -509,5 +510,6 @@ if (window.ethereum) {
 }
 </script>
 <script src="/nav.js"></script>
+<script src="/animations.js"></script>
 </body>
 </html>
