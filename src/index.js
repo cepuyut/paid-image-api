@@ -162,7 +162,7 @@ const BASE_PRICING = {
   "fal-ai/flux/dev":            { base: 49000,  tier: "dev", type: "image", maxImages: 1 },
   "fal-ai/flux-pro/v1.1":       { base: 99000,  tier: "pro", type: "image", maxImages: 0 },
   // Recraft V3 (SVG + raster)
-  "fal-ai/recraft-v3":          { base: 59000,  tier: "recraft", type: "image", maxImages: 1 },
+  "fal-ai/recraft-v3":          { base: 59000,  tier: "recraft", type: "image", maxImages: 0 },
   // HiDream (high quality)
   "fal-ai/hidream-i1-full":     { base: 79000,  tier: "hidream", type: "image", maxImages: 0 },
   // Ideogram V3 (text-in-image)
@@ -390,31 +390,38 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
     return body;
   }
 
+  // --- FLUX Dev with reference → use /image-to-image endpoint ---
+  if (model === "fal-ai/flux/dev" && refs.length > 0) {
+    const body = { prompt, image_url: refs[0], image_size: size, num_images: count, strength: 0.85 };
+    if (negative_prompt) body.negative_prompt = negative_prompt;
+    if (seed != null) body.seed = Number(seed);
+    body._endpointSuffix = "/image-to-image";
+    return body;
+  }
+
   // --- Nano Banana 2 / Pro with references → use /edit endpoint ---
   if ((model === "fal-ai/nano-banana-2" || model === "fal-ai/nano-banana-pro") && refs.length > 0) {
     const body = { prompt, image_urls: refs, num_images: count };
     if (seed != null) body.seed = Number(seed);
-    // Flag that we need the /edit endpoint variant
-    body._useEditEndpoint = true;
+    body._endpointSuffix = "/edit";
     return body;
   }
 
-  // --- Default (FLUX Schnell/Dev/Pro, Recraft, HiDream, Ideogram, Nano Banana text-only) ---
+  // --- Default (FLUX Schnell/Pro, Recraft, HiDream, Ideogram, Nano Banana text-only) ---
   const body = { prompt, image_size: size, num_images: count };
   if (negative_prompt) body.negative_prompt = negative_prompt;
   if (seed != null) body.seed = Number(seed);
-  if (refs.length > 0) {
-    if (maxRef === 1) body.image_url = refs[0];
-    else body.image_urls = refs;
-  }
+  // Note: Recraft V3 reference requires /create-style workflow — not supported via simple upload.
+  // For now, Recraft refs are dropped silently. Only FLUX Dev and Nano Banana support refs.
   return body;
 }
 
-// Resolve actual fal.ai endpoint — Nano Banana with refs uses /edit variant
+// Resolve actual fal.ai endpoint — some models need sub-endpoints for image refs
 function resolveFalEndpoint(model, falBody) {
-  if (falBody._useEditEndpoint) {
-    delete falBody._useEditEndpoint;
-    return `${model}/edit`;
+  if (falBody._endpointSuffix) {
+    const suffix = falBody._endpointSuffix;
+    delete falBody._endpointSuffix;
+    return `${model}${suffix}`;
   }
   return model;
 }
