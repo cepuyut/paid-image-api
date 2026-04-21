@@ -28,27 +28,31 @@ PixelPay accepts two payment protocols on every paid endpoint. Both use USDC sta
 - Headers: `PAYMENT-REQUIRED` → `PAYMENT-SIGNATURE` → `PAYMENT-RESPONSE`
 - Spec: x402 v2 (EIP-3009 TransferWithAuthorization)
 
-### Tiered Pricing (per image/video)
+### Tiered Pricing (per image/video) — ~18% margin over provider cost
+
+All prices are near-cost. PixelPay does not inflate prices — agents and humans pay close to what providers charge.
 
 | Model | Tier | Price (USDC) | Type |
 |---|---|---|---|
-| `fal-ai/flux/schnell` | schnell | $0.029 | image |
-| `xai/grok-imagine-image` | grok | $0.039 | image |
-| `fal-ai/flux/dev` | dev | $0.049 | image |
-| `fal-ai/flux-kontext/text-to-image` | transform | $0.049 | transform |
-| `fal-ai/recraft-v3` | recraft | $0.059 | image |
-| `fal-ai/gpt-image-1/text-to-image` | gpt-image | $0.069 | image |
-| `fal-ai/hidream-i1-full` | hidream | $0.079 | image |
-| `fal-ai/ideogram/v3` | ideogram | $0.079 | image |
-| `fal-ai/flux-pro/v1/fill` | edit | $0.079 | edit |
-| `fal-ai/flux-pro/v1.1` | pro | $0.099 | image |
-| `fal-ai/nano-banana-2` | premium | $0.14 | image |
-| `fal-ai/nano-banana-pro` | premium | $0.19 | image |
-| `fal-ai/bytedance/seedance/v1/pro/fast/text-to-video` | video | $0.35 | video |
+| `fal-ai/flux/schnell` | schnell | $0.004 | image |
+| `xai/grok-imagine-image` | grok | $0.024 | image |
+| `fal-ai/flux/dev` | dev | $0.030 | image |
+| `fal-ai/flux-kontext/text-to-image` | transform | $0.047 | transform |
+| `fal-ai/recraft-v3` | recraft | $0.047 | image |
+| `fal-ai/gpt-image-1/text-to-image` | gpt-image | $0.047 | image |
+| `fal-ai/hidream-i1-full` | hidream | $0.059 | image |
+| `fal-ai/nano-banana-2` | premium | $0.059 | image |
+| `fal-ai/flux-pro/v1/fill` | edit | $0.059 | edit |
+| `fal-ai/flux-pro/v1.1` | pro | $0.065 | image |
+| `fal-ai/ideogram/v3` | ideogram | $0.094 | image |
+| `fal-ai/nano-banana-pro` | premium | $0.118 | image |
+| `fal-ai/bytedance/seedance/v1/pro/fast/text-to-video` | video | $0.295 | video |
 
-**Premium models** require wallet payment — not available in free demo.
+**Budget pick:** `fal-ai/flux/schnell` at $0.004/image — ideal for agents doing high-volume generation.
+**Best value:** `fal-ai/flux/dev` at $0.030/image — high quality, low cost.
+**Premium multi-ref:** `fal-ai/nano-banana-2` at $0.059 with up to 14 reference images.
 
-Default model: `fal-ai/flux/schnell` ($0.029).
+Default model: `fal-ai/flux/schnell` ($0.004).
 
 ## Payment Flow
 
@@ -87,7 +91,7 @@ Generate images from text prompts. 10 image models available.
 
 ### POST /v1/images/edit
 
-Edit an image via inpainting/outpainting using FLUX Fill. $0.079 USDC.
+Edit an image via inpainting/outpainting using FLUX Fill. $0.059 USDC.
 
 **Request body** (JSON):
 - `prompt` (string, required): Edit instruction
@@ -97,7 +101,7 @@ Edit an image via inpainting/outpainting using FLUX Fill. $0.079 USDC.
 
 ### POST /v1/images/transform
 
-Transform/remix an image with style transfer using FLUX Kontext. $0.049 USDC.
+Transform/remix an image with style transfer using FLUX Kontext. $0.047 USDC.
 
 **Request body** (JSON):
 - `prompt` (string, required): Style/transform instruction
@@ -107,7 +111,7 @@ Transform/remix an image with style transfer using FLUX Kontext. $0.049 USDC.
 
 ### POST /v1/videos/generate
 
-Generate a 5-second video using Seedance Fast. $0.35 USDC.
+Generate a 5-second video using Seedance Fast. $0.295 USDC.
 
 **Request body** (JSON):
 - `prompt` (string, required): Motion/scene description

@@ -155,31 +155,32 @@ const HOST = process.env.HOST || `http://localhost:${PORT}`;
 
 // ---------------------------------------------------------------------------
 // Tiered pricing per model (base units, 6 decimals: 1 USDC = 1_000_000)
+// Margin target: ~18% over fal.ai cost. Formula: cost × 1.18, floor $0.004.
 // ---------------------------------------------------------------------------
 const BASE_PRICING = {
-  // Flux family
-  "fal-ai/flux/schnell":        { base: 29000,  tier: "schnell", type: "image", maxImages: 0 },
-  "fal-ai/flux/dev":            { base: 49000,  tier: "dev", type: "image", maxImages: 1 },
-  "fal-ai/flux-pro/v1.1":       { base: 99000,  tier: "pro", type: "image", maxImages: 0 },
-  // Recraft V3 (SVG + raster)
-  "fal-ai/recraft-v3":          { base: 59000,  tier: "recraft", type: "image", maxImages: 0 },
-  // HiDream (high quality)
-  "fal-ai/hidream-i1-full":     { base: 79000,  tier: "hidream", type: "image", maxImages: 0 },
-  // Ideogram V3 (text-in-image)
-  "fal-ai/ideogram/v3":         { base: 79000,  tier: "ideogram", type: "image", maxImages: 0 },
-  // GPT-Image-1 (OpenAI via fal.ai)
-  "fal-ai/gpt-image-1/text-to-image": { base: 69000, tier: "gpt-image", type: "image", maxImages: 0 },
-  // Grok Imagine (xAI via fal.ai)
-  "xai/grok-imagine-image":     { base: 39000,  tier: "grok", type: "image", maxImages: 0 },
-  // Premium tier (multi-reference)
-  "fal-ai/nano-banana-2":       { base: 140000, tier: "premium", type: "image", premium: true, maxImages: 14 },
-  "fal-ai/nano-banana-pro":     { base: 190000, tier: "premium", type: "image", premium: true, maxImages: 14 },
-  // Edit (inpainting/outpainting)
-  "fal-ai/flux-pro/v1/fill":    { base: 79000,  tier: "edit", type: "edit", maxImages: 1 },
-  // Transform (style transfer / remix)
-  "fal-ai/flux-kontext/text-to-image": { base: 49000, tier: "transform", type: "transform", maxImages: 1 },
-  // Video generation (Seedance 1.0 Pro Fast)
-  "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video": { base: 350000, tier: "video", type: "video", maxImages: 0 },
+  // Flux family (cost: schnell ~$0.003, dev ~$0.025, pro ~$0.055)
+  "fal-ai/flux/schnell":        { base: 4000,   tier: "schnell", type: "image", maxImages: 0 },
+  "fal-ai/flux/dev":            { base: 30000,  tier: "dev", type: "image", maxImages: 1 },
+  "fal-ai/flux-pro/v1.1":       { base: 65000,  tier: "pro", type: "image", maxImages: 0 },
+  // Recraft V3 (SVG + raster, cost ~$0.040)
+  "fal-ai/recraft-v3":          { base: 47000,  tier: "recraft", type: "image", maxImages: 0 },
+  // HiDream (cost ~$0.050)
+  "fal-ai/hidream-i1-full":     { base: 59000,  tier: "hidream", type: "image", maxImages: 0 },
+  // Ideogram V3 (text-in-image, cost ~$0.080)
+  "fal-ai/ideogram/v3":         { base: 94000,  tier: "ideogram", type: "image", maxImages: 0 },
+  // GPT-Image-1 (OpenAI via fal.ai, cost ~$0.040)
+  "fal-ai/gpt-image-1/text-to-image": { base: 47000, tier: "gpt-image", type: "image", maxImages: 0 },
+  // Grok Imagine (xAI via fal.ai, cost ~$0.020)
+  "xai/grok-imagine-image":     { base: 24000,  tier: "grok", type: "image", maxImages: 0 },
+  // Premium tier (multi-reference, cost: banana-2 ~$0.050, pro ~$0.100)
+  "fal-ai/nano-banana-2":       { base: 59000,  tier: "premium", type: "image", premium: true, maxImages: 14 },
+  "fal-ai/nano-banana-pro":     { base: 118000, tier: "premium", type: "image", premium: true, maxImages: 14 },
+  // Edit (inpainting/outpainting, cost ~$0.050)
+  "fal-ai/flux-pro/v1/fill":    { base: 59000,  tier: "edit", type: "edit", maxImages: 1 },
+  // Transform (style transfer / remix, cost ~$0.040)
+  "fal-ai/flux-kontext/text-to-image": { base: 47000, tier: "transform", type: "transform", maxImages: 1 },
+  // Video generation (Seedance 1.0 Pro Fast, cost ~$0.250 for 5s)
+  "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video": { base: 295000, tier: "video", type: "video", maxImages: 0 },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
 
@@ -634,8 +635,8 @@ app.get("/.well-known/mpp.json", (_req, res) => {
         method: "POST",
         description: "Generate an image from a text prompt (13 models)",
         payment: [
-          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.029", max: "0.190", unit: "USD" } },
-          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.029", max: "0.190", unit: "USD" } }
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.004", max: "0.118", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.004", max: "0.118", unit: "USD" } }
         ]
       },
       {
@@ -643,8 +644,8 @@ app.get("/.well-known/mpp.json", (_req, res) => {
         method: "POST",
         description: "Edit an image via inpainting/outpainting",
         payment: [
-          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.079", max: "0.079", unit: "USD" } },
-          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.079", max: "0.079", unit: "USD" } }
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.059", max: "0.059", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.059", max: "0.059", unit: "USD" } }
         ]
       },
       {
@@ -652,8 +653,8 @@ app.get("/.well-known/mpp.json", (_req, res) => {
         method: "POST",
         description: "Transform/remix an image with style transfer",
         payment: [
-          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.049", max: "0.049", unit: "USD" } },
-          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.049", max: "0.049", unit: "USD" } }
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.047", max: "0.047", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.047", max: "0.047", unit: "USD" } }
         ]
       },
       {
@@ -661,8 +662,8 @@ app.get("/.well-known/mpp.json", (_req, res) => {
         method: "POST",
         description: "Generate a 5-second video from a text prompt",
         payment: [
-          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.35", max: "0.35", unit: "USD" } },
-          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.35", max: "0.35", unit: "USD" } }
+          { protocol: "mpp", chain: "tempo", chainId: 4217, currency: "USDC", priceRange: { min: "0.295", max: "0.295", unit: "USD" } },
+          { protocol: "x402", network: "eip155:8453", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", priceRange: { min: "0.295", max: "0.295", unit: "USD" } }
         ]
       }
     ],
