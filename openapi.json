@@ -7,7 +7,12 @@
     "x-guidance": "PixelPay generates images, edits, transforms, and videos from text prompts. Send a POST to /v1/images/generate with a prompt. You will receive a 402 Payment Required with a challenge. Pay per model: Schnell $0.029, Grok $0.039, Dev $0.049, Recraft $0.059, GPT-Image $0.069, HiDream $0.079, Ideogram $0.079, Edit $0.079, Pro $0.099, Nano Banana 2 $0.14, Nano Banana Pro $0.19, Video $0.35 USDC via Tempo blockchain, then retry with the payment credential. Check GET /v1/prices for current pricing."
   },
   "x-discovery": {
-    "ownershipProofs": ["dns:pixelpayapi.com"]
+    "serviceId": "7b1a3b88-18c6-4a54-805f-3b4340c74595",
+    "ownershipProofs": [
+      "dns-txt:_mpp.pixelpayapi.com",
+      "dns-txt:_mpp-ownership.pixelpayapi.com",
+      "dns-txt:pixelpayapi.com"
+    ]
   },
   "x-service-info": {
     "categories": ["media", "compute"],

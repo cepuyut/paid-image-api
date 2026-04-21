@@ -671,7 +671,12 @@ app.get("/.well-known/mpp.json", (_req, res) => {
       llms: "https://pixelpayapi.com/llms.txt",
       prices: "https://pixelpayapi.com/v1/prices"
     },
-    ownershipProofs: ["dns:pixelpayapi.com"]
+    ownershipProofs: [
+      "dns-txt:_mpp.pixelpayapi.com",
+      "dns-txt:_mpp-ownership.pixelpayapi.com",
+      "dns-txt:pixelpayapi.com"
+    ],
+    serviceId: "7b1a3b88-18c6-4a54-805f-3b4340c74595"
   });
 });
 
