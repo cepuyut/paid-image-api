@@ -58,13 +58,18 @@
     }
   }
 
-  const themeToggle = document.createElement("button");
-  themeToggle.className = "theme-toggle";
-  themeToggle.innerHTML = MOON_SVG + "<span>Light</span>";
+  // Reuse pre-rendered toggle if present (prevents layout flash),
+  // otherwise inject one.
+  let themeToggle = navRight.querySelector(".theme-toggle");
+  if (!themeToggle) {
+    themeToggle = document.createElement("button");
+    themeToggle.className = "theme-toggle";
+    themeToggle.innerHTML = MOON_SVG + "<span>Light</span>";
+    navRight.insertBefore(themeToggle, navRight.firstChild);
+  }
   themeToggle.addEventListener("click", function () {
     setTheme(getTheme() === "dark" ? "light" : "dark");
   });
-  navRight.insertBefore(themeToggle, navRight.firstChild);
   updateToggleBtn();
 
   const hamburger = document.createElement("button");

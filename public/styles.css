@@ -249,8 +249,11 @@ body {
   transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   flex-shrink: 0;
+  min-width: 140px;
+  height: 34px;
 }
 .btn-wallet:hover { opacity: 0.85; }
 .btn-wallet.connected {
@@ -1877,6 +1880,7 @@ input, textarea, select, button,
 .theme-toggle {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -1886,10 +1890,12 @@ input, textarea, select, button,
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
   white-space: nowrap;
   flex-shrink: 0;
   line-height: 1;
+  min-width: 76px;
+  height: 28px;
 }
 .theme-toggle:hover {
   color: var(--text);

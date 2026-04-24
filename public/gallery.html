@@ -46,7 +46,7 @@
         <a href="/profile">Profile</a>
       </div>
       <span class="pxp-badge" id="pxpBal" style="display:none">0 PXP</span>
-      <button id="walletBtn" onclick="connectWallet()" class="btn-wallet">Connect</button>
+      <button class="btn-wallet" id="walletBtn" onclick="handleWallet()">Connect Wallet</button>
     </div>
   </nav>
 
@@ -125,6 +125,7 @@ function showGridLoading() {
 const TEMPO_CHAIN = { chainId: "0x1079", chainName: "Tempo", rpcUrls: ["https://rpc.tempo.xyz"], nativeCurrency: { name: "pathUSD", symbol: "pUSD", decimals: 6 }, blockExplorerUrls: ["https://explorer.tempo.xyz"] };
 let walletAddress = null, walletSigner = null, NFT_CONTRACT = "", NFT_ABI = ["function mint(address to, string uri) returns (uint256)", "function totalSupply() view returns (uint256)"];
 
+async function handleWallet() { return connectWallet(); }
 async function connectWallet() {
   if (!window.ethereum) { alert("Install MetaMask or a Web3 wallet."); return; }
   try {
