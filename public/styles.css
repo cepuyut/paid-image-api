@@ -1813,8 +1813,8 @@ select:focus-visible {
 html[data-theme="dark"] {
   --hero-img: url('/hero-night.png');
   --hero-overlay: linear-gradient(to bottom,
-    #000 0%, rgba(0,0,0,0.88) 22%,
-    rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.18) 100%);
+    rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.50) 30%,
+    rgba(0,0,0,0.28) 65%, rgba(0,0,0,0.10) 100%);
   --nav-bg: rgba(0,0,0,0.80);
   --ticker-bg: rgba(10,10,10,0.88);
   --code-bg: #070707;
@@ -1849,8 +1849,8 @@ html[data-theme="light"] {
   --shadow-gold: 0 0 20px rgba(201,122,0,0.12);
   --hero-img: url('/hero-day.png');
   --hero-overlay: linear-gradient(to bottom,
-    #f0ede8 0%, rgba(240,237,232,0.90) 24%,
-    rgba(240,237,232,0.52) 58%, rgba(240,237,232,0.10) 100%);
+    rgba(240,237,232,0.55) 0%, rgba(240,237,232,0.35) 30%,
+    rgba(240,237,232,0.18) 65%, rgba(240,237,232,0.05) 100%);
   --nav-bg: rgba(240,237,232,0.85);
   --ticker-bg: rgba(255,255,255,0.90);
   --code-bg: #ebe8e3;
@@ -2082,6 +2082,24 @@ html[data-theme="light"] .btn-secondary {
   background: rgba(0,0,0,0.08);
   color: rgba(0,0,0,0.70);
   border-color: rgba(0,0,0,0.13);
+}
+html[data-theme="light"] .btn-wallet {
+  background: #111;
+  color: #fff;
+}
+html[data-theme="light"] .btn-wallet:hover { opacity: 0.88; }
+html[data-theme="light"] .btn-wallet.connected {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-hover);
+  box-shadow: var(--shadow-sm);
+}
+html[data-theme="light"] .hero-content h1 {
+  text-shadow: 0 2px 20px rgba(255,255,255,0.7), 0 1px 2px rgba(255,255,255,0.5);
+}
+html[data-theme="light"] .hero-content .hero-sub {
+  color: #333 !important;
+  text-shadow: 0 1px 12px rgba(255,255,255,0.85);
 }
 html[data-theme="light"] .stat {
   background: var(--surface);
