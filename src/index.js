@@ -792,13 +792,33 @@ app.post("/v1/validate", (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/v1/images/generate", async (req, res) => {
+  // --- Short-circuit for retry credits (user paid earlier, previous gen failed) ---
+  // A valid retry-token proves prior payment, so we can skip the 402 challenge here.
+  const earlyRetryHeader = req.get("X-PixelPay-Retry");
+  let retryShortCircuit = null;
+  if (earlyRetryHeader && redis) {
+    const earlyKey = `pixelpay:credit:${earlyRetryHeader}`;
+    const earlyRaw = await redis.get(earlyKey).catch(() => null);
+    if (earlyRaw) {
+      try {
+        const earlyData = typeof earlyRaw === "string" ? JSON.parse(earlyRaw) : earlyRaw;
+        if (earlyData && earlyData.used !== true) {
+          retryShortCircuit = { key: earlyKey, data: earlyData };
+        }
+      } catch { /* fall through to normal flow */ }
+    }
+  }
+
   // --- Dual-protocol payment verification FIRST (before body validation) ---
   // MPPscan and agents send empty POST to probe for 402 challenge
   const probeModel = (req.body?.model && req.body.model !== "auto") ? req.body.model : "fal-ai/flux/dev";
   const probePrice = getPricing(probeModel);
   const probeDesc = `Generate an image for ${probePrice.usd} USDC (${probePrice.tier} tier)`;
-  const payment = await handlePayment(req, res, { totalPrice: probePrice.price, description: probeDesc, path: "/v1/images/generate" });
-  if (!payment.ok) return; // Response already sent by handlePayment (402 challenge or error)
+  let payment = { ok: true, payer: null };
+  if (!retryShortCircuit) {
+    payment = await handlePayment(req, res, { totalPrice: probePrice.price, description: probeDesc, path: "/v1/images/generate" });
+    if (!payment.ok) return; // Response already sent by handlePayment (402 challenge or error)
+  }
 
   const { prompt, model, image_size, num_images, image_urls, style, enhance, negative_prompt, seed, private: isPrivate, wallet: reqWallet } = req.body || {};
 
@@ -820,9 +840,16 @@ app.post("/v1/images/generate", async (req, res) => {
     : `Generate an image for ${perImage.usd} USDC (${perImage.tier} tier)`;
 
   // Security: verify payment covers actual resolved price (prevent cheap-model-pay, expensive-model-use)
-  if (Number(totalPrice) > Number(probePrice.price)) {
+  // Skip this check on retry short-circuit — the prior charge was already enforced.
+  if (!retryShortCircuit && Number(totalPrice) > Number(probePrice.price)) {
     return res.status(402).json({
       detail: `Payment insufficient. You paid for ${probePrice.tier} ($${probePrice.usd}) but requested ${perImage.tier} ($${perImage.usd}). Please retry with correct model.`,
+    });
+  }
+  // For retry, verify the stored credit amount covers the resolved price.
+  if (retryShortCircuit && Number(retryShortCircuit.data.amount) < Number(totalPrice)) {
+    return res.status(402).json({
+      detail: `Retry credit ($${(retryShortCircuit.data.amount/1_000_000).toFixed(3)}) is less than the requested price ($${(Number(totalPrice)/1_000_000).toFixed(3)}). Downgrade model or pay the difference.`,
     });
   }
 
@@ -971,26 +998,36 @@ app.post("/v1/images/generate", async (req, res) => {
       ...(cached ? { cached: true } : {}),
     });
   } catch (err) {
-    console.error("Image backend error:", err.message);
-    // Issue retry credit so user can retry without paying again
+    console.error("Image backend error:", err && err.stack ? err.stack : err);
     let retryToken = null;
-    if (redis && credential) {
+    if (retryShortCircuit && redis) {
+      // Short-circuit retry failed again — restore the original credit so user can try once more.
+      retryToken = earlyRetryHeader;
+      await redis.set(retryShortCircuit.key, JSON.stringify({ ...retryShortCircuit.data, used: false }), { ex: 3600 }).catch(() => {});
+      console.log(`Retry credit ${retryToken} re-enabled after second failure`);
+    } else if (redis) {
+      // Fresh payment, first failure → issue brand-new retry credit
       retryToken = createHmac("sha256", String(Date.now())).update(String(Math.random())).digest("hex").slice(0, 32);
       const creditData = {
         amount: Number(totalPrice),
         model: resolvedModel,
-        wallet: reqWallet || null,
+        wallet: reqWallet || (payment && payment.payer) || null,
         timestamp: Date.now(),
         used: false,
       };
       await redis.set(`pixelpay:credit:${retryToken}`, JSON.stringify(creditData), { ex: 3600 }).catch(() => {});
       console.log(`Retry credit issued: ${retryToken} for ${totalPrice} (${resolvedModel})`);
+    } else {
+      console.warn("No Redis — cannot issue retry credit; user must request manual refund.");
     }
     res.status(502).json({
       type: "https://paymentauth.org/problems/upstream-error",
       title: "Upstream Error",
       status: 502,
-      detail: "Image generation failed. You have a retry credit — use the retry_token to try again without paying.",
+      detail: retryToken
+        ? "Image generation failed. You have a retry credit — use the retry_token to try again without paying."
+        : "Image generation failed and no retry credit could be issued. Please contact support with your payment receipt for a refund.",
+      upstream_error: err && err.message ? err.message.slice(0, 300) : undefined,
       ...(retryToken ? { retry_token: retryToken } : {}),
     });
   }

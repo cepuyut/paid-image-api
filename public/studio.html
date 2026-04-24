@@ -553,6 +553,82 @@ function parseWWWAuth(header) {
   return params;
 }
 
+// ── Retry-credit persistence (so a paid-but-failed generation is never lost) ──
+const RETRY_LS_KEY = "pixelpay:retry-credits";
+function loadRetryCredits() {
+  try { return JSON.parse(localStorage.getItem(RETRY_LS_KEY) || "[]"); } catch { return []; }
+}
+function saveRetryCredit(token, amountUsd, model) {
+  const list = loadRetryCredits();
+  // Avoid duplicates
+  if (!list.find(c => c.token === token)) {
+    list.unshift({ token, amountUsd, model, issuedAt: Date.now() });
+    localStorage.setItem(RETRY_LS_KEY, JSON.stringify(list.slice(0, 20)));
+  }
+}
+function clearRetryCredit(token) {
+  const list = loadRetryCredits().filter(c => c.token !== token);
+  localStorage.setItem(RETRY_LS_KEY, JSON.stringify(list));
+}
+function renderRetryCard(token, amountUsd, model) {
+  const result = document.getElementById("result");
+  result.innerHTML = `
+    <div class="error" style="max-width:520px;margin:0 auto;text-align:left;padding:20px;border-radius:12px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--gold)">⚠ Generation failed after payment</div>
+      <div style="font-size:13px;line-height:1.55;margin-bottom:12px">Don't worry — your $${amountUsd} USDC is saved as a <b>retry credit</b>. Use the button below to try again at no extra cost (credit expires in 1 hour).</div>
+      <button class="btn btn-primary" style="padding:10px 18px;font-size:13px" onclick="useRetryCredit('${token}')">Retry for free</button>
+      <div style="font-family:monospace;font-size:10px;color:var(--muted);margin-top:12px;word-break:break-all">Credit token: ${token}</div>
+    </div>`;
+}
+function renderPaymentStuck(detail, amountUsd, receipt) {
+  const result = document.getElementById("result");
+  result.innerHTML = `
+    <div class="error" style="max-width:520px;margin:0 auto;text-align:left;padding:20px;border-radius:12px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:10px">⚠ ${esc(detail)}</div>
+      <div style="font-size:13px;line-height:1.55;margin-bottom:12px">Your payment of $${amountUsd} USDC went through but generation failed and no retry credit could be issued (service cache is offline). Please contact support with the receipt below for a refund.</div>
+      <div style="font-family:monospace;font-size:10px;color:var(--muted);word-break:break-all;background:var(--surface2);padding:8px 10px;border-radius:6px">${esc(receipt || "(no receipt header)")}</div>
+      <a href="mailto:ziyama.dev@gmail.com?subject=PixelPay%20refund%20request&body=Payment%20receipt%3A%20${encodeURIComponent(receipt)}%20(amount%20%24${amountUsd})" class="btn btn-secondary" style="padding:10px 18px;font-size:13px;margin-top:12px;display:inline-block">Email support</a>
+    </div>`;
+}
+async function useRetryCredit(token) {
+  const prompt = document.getElementById("prompt").value.trim();
+  if (!prompt) { alert("Enter a prompt first."); return; }
+  const credits = loadRetryCredits();
+  const credit = credits.find(c => c.token === token);
+  if (!credit) { alert("Credit not found. It may have already been used or expired."); return; }
+  // We don't have the original credential anymore, so send minimal body;
+  // server validates the retry credit via X-PixelPay-Retry header.
+  const reqBody = {
+    prompt,
+    model: credit.model || "auto",
+    num_images: 1,
+    enhance: document.getElementById("enhance")?.checked || false,
+  };
+  const style = document.getElementById("style")?.value;
+  if (style) reqBody.style = style;
+  showLoading("Retrying with your credit…");
+  try {
+    const res = await fetch("/v1/images/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-PixelPay-Retry": token },
+      body: JSON.stringify(reqBody),
+    });
+    stopLoading();
+    if (res.ok) {
+      const data = await res.json();
+      const img = data.images?.[0];
+      if (img) renderResult(img, prompt, data.model, `$${credit.amountUsd} USDC (credit)`, 'paid', data.seed);
+      clearRetryCredit(token);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      alert(errData.detail || "Retry failed. Your credit may still be valid — try again in a minute.");
+    }
+  } catch (e) {
+    stopLoading();
+    alert("Network error: " + e.message);
+  }
+}
+
 // ── Loading Animation ──
 let loadingTimer = null;
 let loadingStartTime = null;
@@ -1031,7 +1107,9 @@ async function generatePaid() {
       const errData = await imageRes.json().catch(() => ({}));
       // If we got a retry token, auto-retry once
       if (errData.retry_token) {
-        showLoading("Generation failed — retrying with credit...");
+        // Persist immediately so the user never loses it
+        saveRetryCredit(errData.retry_token, amountUsd, reqBody.model || "auto");
+        showLoading("Generation failed — retrying with your credit (no charge)...");
         const retryRes = await fetch("/v1/images/generate", {
           method: "POST",
           headers: {
@@ -1047,14 +1125,18 @@ async function generatePaid() {
           document.getElementById("ps3").className = "step-indicator done";
           const retryImg = retryData.images?.[0];
           if (retryImg) renderResult(retryImg, prompt, retryData.model, `$${amountUsd} USDC`, 'paid', retryData.seed);
+          clearRetryCredit(errData.retry_token);
           await refreshBalance(null, walletAddress);
           return;
         }
-        // Retry also failed — show message with retry token for manual retry
-        const retryErr = await retryRes.json().catch(() => ({}));
-        throw new Error(`Generation failed. Retry credit saved: ${errData.retry_token}. Contact support.`);
+        // Retry also failed — surface the token so user can try later
+        renderRetryCard(errData.retry_token, amountUsd, reqBody.model || "auto");
+        return;
       }
-      throw new Error(errData.detail || "Generation failed after payment");
+      // No retry token (Redis down) — surface payment receipt so user can request manual refund
+      const receiptHeader = imageRes.headers.get("Payment-Receipt") || "";
+      renderPaymentStuck(errData.detail || "Generation failed after payment", amountUsd, receiptHeader);
+      return;
     }
 
     const data = await imageRes.json();
