@@ -1,0 +1,324 @@
+
+
+/* ============================================================
+   LIGHT / DARK THEME — Phase Design Integration
+   ============================================================ */
+
+/* -- Dark theme hero vars (default) -- */
+html[data-theme="dark"] {
+  --hero-img: url('/hero-night.png');
+  --hero-overlay: linear-gradient(to bottom,
+    #000 0%, rgba(0,0,0,0.88) 22%,
+    rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.18) 100%);
+  --nav-bg: rgba(0,0,0,0.80);
+  --ticker-bg: rgba(10,10,10,0.88);
+  --code-bg: #070707;
+}
+
+/* -- Light mode overrides -- */
+html[data-theme="light"] {
+  --bg:       #f0ede8;
+  --surface:  #ffffff;
+  --surface2: #f5f2ee;
+  --surface3: #ece9e3;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.06);
+  --border-hover: rgba(0,0,0,0.16);
+  --border-subtle: rgba(0,0,0,0.04);
+  --border-card:   rgba(0,0,0,0.08);
+  --text:   #111111;
+  --text2:  #444444;
+  --muted:  #888888;
+  --muted2: #cccccc;
+  --white:  #0a0a0a;
+  --gold:      #c97a00;
+  --gold-dim:  rgba(201,122,0,0.10);
+  --gold-glow: rgba(201,122,0,0.20);
+  --green:     #009958;
+  --green-dim: rgba(0,153,88,0.10);
+  --red:       #c0392b;
+  --red-dim:   rgba(192,57,43,0.10);
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.07);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.14);
+  --shadow-gold: 0 0 20px rgba(201,122,0,0.12);
+  --hero-img: url('/hero-day.png');
+  --hero-overlay: linear-gradient(to bottom,
+    #f0ede8 0%, rgba(240,237,232,0.90) 24%,
+    rgba(240,237,232,0.52) 58%, rgba(240,237,232,0.10) 100%);
+  --nav-bg: rgba(240,237,232,0.85);
+  --ticker-bg: rgba(255,255,255,0.90);
+  --code-bg: #ebe8e3;
+}
+
+/* -- Smooth global theme transition -- */
+body, nav,
+.tier-card, .feature-card, .nft-card,
+.pricing-row, .pricing-table,
+.stat, .stats,
+.dropdown-menu, .dropdown-item,
+input, textarea, select, button,
+.hero, .hero-bg, .hero-overlay-div,
+.nav-drawer {
+  transition:
+    background-color 0.32s ease,
+    border-color 0.25s ease,
+    color 0.22s ease,
+    box-shadow 0.25s ease;
+}
+
+/* -- Theme toggle button -- */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 5px 13px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+  background: var(--surface3);
+}
+.theme-toggle svg { flex-shrink: 0; }
+
+/* -- Hero -- full-bleed background -- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  min-height: 520px;
+  text-align: left;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background-image: var(--hero-img);
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+  transition: opacity 0.4s;
+}
+.hero-overlay-div {
+  position: absolute; inset: 0;
+  background: var(--hero-overlay);
+  z-index: 1;
+  transition: background 0.4s;
+}
+.hero-inner {
+  position: relative; z-index: 2;
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 88px 32px 80px;
+  display: grid;
+  grid-template-columns: 1fr 276px;
+  gap: 40px;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-ticker { display: none !important; }
+  .hero { text-align: center; }
+  .hero-content { display: flex; flex-direction: column; align-items: center; }
+  .hero-cta-wrap { justify-content: center; }
+}
+
+/* -- Gradient text "Pay per pixel." -- */
+.hero-gradient-text {
+  background: linear-gradient(115deg, #fbbf24 0%, #f97316 60%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline;
+}
+html[data-theme="light"] .hero-gradient-text {
+  background: linear-gradient(115deg, #c97a00 0%, #e05a00 60%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* -- Hero content alignment -- */
+.hero-content .hero-badge { margin-bottom: 22px; }
+.hero-content h1 {
+  text-align: left;
+  margin-bottom: 16px;
+  animation: fadeUp 0.6s var(--ease-out) both;
+}
+.hero-content .hero-sub {
+  text-align: left;
+  margin: 0 0 32px;
+  max-width: 420px;
+  animation: fadeUp 0.6s var(--ease-out) 0.1s both;
+}
+.hero-cta-wrap {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s var(--ease-out) 0.22s both;
+}
+
+/* -- Price ticker card -- */
+.hero-ticker {
+  animation: fadeUp 0.6s var(--ease-out) 0.15s both;
+}
+.price-ticker {
+  background: var(--ticker-bg);
+  border: 1px solid var(--border-card);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-lg);
+}
+.price-ticker-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.price-ticker-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.price-ticker-live {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--green);
+  font-weight: 600;
+}
+.price-ticker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.35s;
+}
+.price-ticker-row:last-child { border-bottom: none; }
+.price-ticker-row.ticker-active { background: rgba(255,255,255,0.05); }
+html[data-theme="light"] .price-ticker-row.ticker-active { background: rgba(0,0,0,0.04); }
+.ticker-model {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 400;
+  transition: color 0.35s, font-weight 0.2s;
+}
+.price-ticker-row.ticker-active .ticker-model { color: var(--text); font-weight: 600; }
+.ticker-price {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  transition: color 0.35s;
+}
+.price-ticker-row.ticker-active .ticker-price { color: var(--gold); }
+
+/* -- Extra keyframes -- */
+@keyframes tickerSlide {
+  from { transform: translateY(5px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* -- Light mode component fixes -- */
+html[data-theme="light"] .feature-card,
+html[data-theme="light"] .tier-card,
+html[data-theme="light"] .nft-card {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+html[data-theme="light"] .feature-card:hover,
+html[data-theme="light"] .tier-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
+}
+html[data-theme="light"] .tier-card.featured {
+  border-color: rgba(0,0,0,0.3);
+  background: var(--surface2);
+}
+html[data-theme="light"] nav {
+  background: var(--nav-bg) !important;
+  border-bottom-color: var(--border);
+}
+html[data-theme="light"] .hero h1 {
+  text-shadow: 0 2px 16px rgba(255,255,255,0.6);
+}
+html[data-theme="light"] .hero-sub {
+  color: rgba(0,0,0,0.60) !important;
+  text-shadow: 0 1px 8px rgba(255,255,255,0.8);
+}
+html[data-theme="light"] .btn-primary {
+  background: #111;
+  color: #fff;
+}
+html[data-theme="light"] .btn-secondary {
+  background: rgba(0,0,0,0.08);
+  color: rgba(0,0,0,0.70);
+  border-color: rgba(0,0,0,0.13);
+}
+html[data-theme="light"] .stat {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html[data-theme="light"] .stat-value { color: var(--white); }
+html[data-theme="light"] .pricing-row { border-bottom-color: var(--border); }
+html[data-theme="light"] .model-price { color: var(--white); }
+html[data-theme="light"] code,
+html[data-theme="light"] pre,
+html[data-theme="light"] .code-block {
+  background: var(--code-bg);
+  color: #2a2a2a;
+}
+html[data-theme="light"] .nav-links a { color: rgba(0,0,0,0.48); }
+html[data-theme="light"] .nav-links a:hover,
+html[data-theme="light"] .nav-links a.active { color: #000; background: rgba(0,0,0,0.06); }
+html[data-theme="light"] .hero-badge {
+  color: var(--green);
+  border-color: rgba(0,153,88,0.25);
+  background: rgba(0,153,88,0.08);
+  backdrop-filter: blur(8px);
+}
+html[data-theme="light"] .nav-drawer {
+  background: var(--surface);
+  border-left-color: var(--border);
+}
+html[data-theme="light"] .nav-drawer-links a { color: var(--text2); }
+html[data-theme="light"] .nav-drawer-links a.active,
+html[data-theme="light"] .nav-drawer-links a:hover {
+  color: var(--white);
+  background: var(--surface2);
+}
+html[data-theme="light"] .pxp-badge {
+  background: var(--surface2);
+  border-color: var(--border);
+  color: var(--green);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body, * {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+  }
+}

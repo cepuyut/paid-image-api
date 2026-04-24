@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -78,12 +78,56 @@
   </nav>
 
   <div class="hero">
-    <div class="hero-badge"><span class="dot"></span> Live on Tempo + Base</div>
-    <h1>AI Images & Video.<br>Pay per pixel.</h1>
-    <p class="hero-sub">13 models — image, edit, transform, video. No API keys, no signup. Pay with USDC via MPP or x402.</p>
-    <div class="hero-cta" style="display:flex;gap:12px;justify-content:center;animation:fadeUp 0.7s ease-out 0.25s both">
-      <a href="/studio" class="btn btn-primary" style="padding:14px 32px;font-size:15px">Open Studio</a>
-      <a href="#pricing" class="btn btn-secondary" style="padding:14px 32px;font-size:15px;border-radius:9999px">View pricing</a>
+    <div class="hero-bg"></div>
+    <div class="hero-overlay-div"></div>
+    <div class="hero-inner">
+      <!-- Left: content -->
+      <div class="hero-content">
+        <div class="hero-badge"><span class="dot"></span> Live on Tempo + Base</div>
+        <h1>AI Images &amp; Video.<br><span class="hero-gradient-text">Pay per pixel.</span></h1>
+        <p class="hero-sub">13 models — image, edit, transform, video. No API keys, no signup. Pay with USDC via MPP or x402.</p>
+        <div class="hero-cta-wrap">
+          <a href="/studio" class="btn btn-primary" style="padding:14px 32px;font-size:15px">Open Studio</a>
+          <a href="#pricing" class="btn btn-secondary" style="padding:14px 32px;font-size:15px;border-radius:9999px">View pricing</a>
+        </div>
+      </div>
+      <!-- Right: price ticker -->
+      <div class="hero-ticker">
+        <div class="price-ticker" id="priceTicker">
+          <div class="price-ticker-header">
+            <span class="price-ticker-title">Live Pricing</span>
+            <span class="price-ticker-live"><span class="dot"></span> USDC</span>
+          </div>
+          <div class="price-ticker-row ticker-active" data-model="fal-ai/flux/schnell">
+            <span class="ticker-model">Schnell</span>
+            <span class="ticker-price">$0.004</span>
+          </div>
+          <div class="price-ticker-row" data-model="fal-ai/flux/dev">
+            <span class="ticker-model">Dev</span>
+            <span class="ticker-price">$0.030</span>
+          </div>
+          <div class="price-ticker-row" data-model="fal-ai/recraft-v3">
+            <span class="ticker-model">Recraft v3</span>
+            <span class="ticker-price">$0.047</span>
+          </div>
+          <div class="price-ticker-row" data-model="fal-ai/nano-banana-2">
+            <span class="ticker-model">Nano Banana 2</span>
+            <span class="ticker-price">$0.059</span>
+          </div>
+          <div class="price-ticker-row" data-model="fal-ai/flux-pro/v1.1">
+            <span class="ticker-model">Pro</span>
+            <span class="ticker-price">$0.065</span>
+          </div>
+          <div class="price-ticker-row" data-model="fal-ai/ideogram/v3">
+            <span class="ticker-model">Ideogram v3</span>
+            <span class="ticker-price">$0.094</span>
+          </div>
+          <div class="price-ticker-row" data-model="fal-ai/bytedance/seedance/v1/pro/fast/text-to-video">
+            <span class="ticker-model">Video</span>
+            <span class="ticker-price">$0.295</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -156,12 +156,34 @@
     elements.forEach((el) => io.observe(el));
   }
 
+  // ── 5. Price ticker cycling ──
+  // Cycles .ticker-active through .price-ticker-row items every 2.2s.
+  function wirePriceTicker() {
+    const ticker = document.getElementById("priceTicker");
+    if (!ticker) return;
+    const rows = Array.from(ticker.querySelectorAll(".price-ticker-row"));
+    if (rows.length < 2) return;
+    let activeIdx = 0;
+
+    function setActive(idx) {
+      rows.forEach(function (r) { r.classList.remove("ticker-active"); });
+      rows[idx].classList.add("ticker-active");
+      activeIdx = idx;
+    }
+
+    setInterval(function () {
+      const next = (activeIdx + 1) % rows.length;
+      setActive(next);
+    }, 2200);
+  }
+
   // ── Init ──
   function init() {
     observePxpBadge();
     wireImageFadeIn();
     observeNewImages();
     wireReveal();
+    wirePriceTicker();
   }
 
   if (document.readyState === "loading") {
