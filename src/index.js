@@ -367,7 +367,7 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
 
   // --- FLUX Fill (edit/inpainting): requires image + mask ---
   if (model === "fal-ai/flux-pro/v1/fill") {
-    const body = { prompt, image_size: size };
+    const body = { prompt, image_size: resolveImageSize(size) };
     if (refs.length > 0) body.image_url = refs[0];
     // mask_url can be passed via image_urls[1] if provided
     if (refs.length > 1) body.mask_url = refs[1];
@@ -376,7 +376,7 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
 
   // --- FLUX Kontext (transform/remix): reference image + prompt ---
   if (model === "fal-ai/flux-kontext/text-to-image") {
-    const body = { prompt, image_size: size, num_images: count };
+    const body = { prompt, image_size: resolveImageSize(size), num_images: count };
     if (refs.length > 0) body.image_url = refs[0];
     if (negative_prompt) body.negative_prompt = negative_prompt;
     if (seed != null) body.seed = Number(seed);
@@ -393,7 +393,7 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
 
   // --- FLUX Dev with reference → use /image-to-image endpoint ---
   if (model === "fal-ai/flux/dev" && refs.length > 0) {
-    const body = { prompt, image_url: refs[0], image_size: size, num_images: count, strength: 0.85 };
+    const body = { prompt, image_url: refs[0], image_size: resolveImageSize(size), num_images: count, strength: 0.85 };
     if (negative_prompt) body.negative_prompt = negative_prompt;
     if (seed != null) body.seed = Number(seed);
     body._endpointSuffix = "/image-to-image";
@@ -409,12 +409,33 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
   }
 
   // --- Default (FLUX Schnell/Pro, Recraft, HiDream, Ideogram, Nano Banana text-only) ---
-  const body = { prompt, image_size: size, num_images: count };
+  // fal.ai does NOT accept "widescreen_21_9" as an enum — convert to explicit {width,height}.
+  const sizeField = resolveImageSize(size);
+  const body = { prompt, image_size: sizeField, num_images: count };
   if (negative_prompt) body.negative_prompt = negative_prompt;
   if (seed != null) body.seed = Number(seed);
   // Note: Recraft V3 reference requires /create-style workflow — not supported via simple upload.
   // For now, Recraft refs are dropped silently. Only FLUX Dev and Nano Banana support refs.
   return body;
+}
+
+// fal.ai's accepted enums: square_hd, square, portrait_4_3, portrait_16_9,
+// landscape_4_3, landscape_16_9. Anything else must be sent as {width, height}.
+const FAL_ENUM_SIZES = new Set([
+  "square_hd", "square",
+  "portrait_4_3", "portrait_16_9",
+  "landscape_4_3", "landscape_16_9",
+]);
+function resolveImageSize(size) {
+  if (typeof size !== "string") return "landscape_4_3";
+  if (FAL_ENUM_SIZES.has(size)) return size;
+  const pixels = PIXEL_SIZE_MAP[size];
+  if (pixels) {
+    const [w, h] = pixels.split("x").map(Number);
+    if (w && h) return { width: w, height: h };
+  }
+  // Unknown alias — fall back to a safe default rather than crashing the call.
+  return "landscape_4_3";
 }
 
 // Resolve actual fal.ai endpoint — some models need sub-endpoints for image refs
