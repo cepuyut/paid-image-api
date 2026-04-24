@@ -345,20 +345,20 @@
       <div class="field">
         <label>Aspect Ratio</label>
         <div class="ratio-grid" id="videoRatioGrid">
-          <div class="ratio-option" data-ratio="square_hd" onclick="selectVideoRatio(this)">
+          <div class="ratio-option" data-ratio="1:1" onclick="selectVideoRatio(this)">
             <div class="ratio-icon" style="width:24px;height:24px;"></div>
             <span class="ratio-label">1:1</span>
           </div>
-          <div class="ratio-option active" data-ratio="landscape_16_9" onclick="selectVideoRatio(this)">
+          <div class="ratio-option active" data-ratio="16:9" onclick="selectVideoRatio(this)">
             <div class="ratio-icon" style="width:30px;height:17px;"></div>
             <span class="ratio-label">16:9</span>
           </div>
-          <div class="ratio-option" data-ratio="portrait_9_16" onclick="selectVideoRatio(this)">
+          <div class="ratio-option" data-ratio="9:16" onclick="selectVideoRatio(this)">
             <div class="ratio-icon" style="width:16px;height:28px;"></div>
             <span class="ratio-label">9:16</span>
           </div>
         </div>
-        <input type="hidden" id="video_aspect_ratio" value="landscape_16_9">
+        <input type="hidden" id="video_aspect_ratio" value="16:9">
       </div>
 
       <button class="btn-generate" id="videoGenBtn" onclick="generateVideo()">Generate Video — $0.295</button>
@@ -1564,7 +1564,8 @@ async function generateVideo() {
 
     if (!videoRes.ok) {
       const errData = await videoRes.json().catch(() => ({}));
-      throw new Error(errData.detail || "Video generation failed");
+      const upstream = errData.upstream_error ? ` — ${errData.upstream_error}` : "";
+      throw new Error((errData.detail || "Video generation failed") + upstream);
     }
 
     const data = await videoRes.json();

@@ -344,7 +344,8 @@ const ASPECT_RATIO_MAP = {
   "portrait_9_16": "9:16", "widescreen_21_9": "21:9",
 };
 
-function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, seed, image_urls }) {
+function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, seed, image_urls, aspect_ratio, resolution, duration }) {
+  const opts = { aspect_ratio, resolution, duration };
   const size = image_size || "landscape_4_3";
   const count = num_images || 1;
   const refs = Array.isArray(image_urls) ? image_urls : (image_urls ? [image_urls] : []);
@@ -385,7 +386,26 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
 
   // --- Seedance Video: image_url as starting frame, prompt for motion ---
   if (model === "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video") {
-    const body = { prompt, duration: 5 };
+    // Seedance accepts aspect_ratio as "21:9","16:9","4:3","1:1","3:4","9:16"
+    // Map any legacy image-enum aliases to the slash format it expects.
+    const ratioMap = {
+      "landscape_16_9": "16:9",
+      "landscape_4_3": "4:3",
+      "portrait_16_9": "9:16",
+      "portrait_9_16": "9:16",
+      "portrait_4_3": "3:4",
+      "square_hd": "1:1",
+      "square": "1:1",
+      "widescreen_21_9": "21:9",
+    };
+    const rawRatio = opts.aspect_ratio || size;
+    const ratio = ratioMap[rawRatio] || (typeof rawRatio === "string" && /^\d+:\d+$/.test(rawRatio) ? rawRatio : "16:9");
+    const body = {
+      prompt,
+      aspect_ratio: ratio,
+      resolution: opts.resolution || "720p",
+      duration: String(opts.duration || 5),
+    };
     if (refs.length > 0) body.image_url = refs[0];
     if (seed != null) body.seed = Number(seed);
     return body;
@@ -1416,7 +1436,7 @@ app.post("/v1/images/transform", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/v1/videos/generate", async (req, res) => {
-  const { prompt, image_url, seed, wallet: reqWallet } = req.body || {};
+  const { prompt, image_url, seed, wallet: reqWallet, aspect_ratio, resolution, duration } = req.body || {};
 
   // Payment check FIRST so MPPscan probe gets 402
   const videoModel = "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video";
@@ -1424,8 +1444,28 @@ app.post("/v1/videos/generate", async (req, res) => {
   const totalPrice = perImage.price;
   const desc = `Generate a 5s video for ${perImage.usd} USDC`;
 
-  const payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/videos/generate" });
-  if (!payment.ok) return;
+  // Retry-credit short-circuit: skip 402 if user holds a valid unused credit.
+  const earlyRetryHeader = req.get("X-PixelPay-Retry");
+  let retryShortCircuit = null;
+  if (earlyRetryHeader && redis) {
+    const earlyKey = `pixelpay:credit:${earlyRetryHeader}`;
+    const earlyRaw = await redis.get(earlyKey).catch(() => null);
+    if (earlyRaw) {
+      try {
+        const data = typeof earlyRaw === "string" ? JSON.parse(earlyRaw) : earlyRaw;
+        if (data && !data.used && data.model === videoModel) {
+          await redis.set(earlyKey, JSON.stringify({ ...data, used: true }), { ex: 3600 }).catch(() => {});
+          retryShortCircuit = { key: earlyKey, data };
+        }
+      } catch {}
+    }
+  }
+
+  let payment = { ok: true, payer: reqWallet || null };
+  if (!retryShortCircuit) {
+    payment = await handlePayment(req, res, { totalPrice, description: desc, path: "/v1/videos/generate" });
+    if (!payment.ok) return;
+  }
 
   if (!prompt || typeof prompt !== "string" || prompt.length > 10000) {
     return res.status(400).json({ detail: "A 'prompt' string is required (max 10000 chars)." });
@@ -1436,9 +1476,25 @@ app.post("/v1/videos/generate", async (req, res) => {
 
   try {
     const refs = image_url ? [image_url] : [];
-    const falBody = buildFalBody(videoModel, { prompt, image_urls: refs, seed });
-    const falRes = await fetch(`${FAL_MPP_BASE}/${videoModel}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
-    if (!falRes.ok) throw new Error(`fal.ai video error: ${falRes.status}`);
+    const falBody = buildFalBody(videoModel, { prompt, image_urls: refs, seed, aspect_ratio, resolution, duration });
+    // Try fast variant first, fall back to standard Pro path if 404/400.
+    const videoEndpoints = [
+      "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video",
+      "fal-ai/bytedance/seedance/v1/pro/text-to-video",
+      "fal-ai/bytedance/seedance/v1/lite/text-to-video",
+    ];
+    let falRes = null;
+    let lastErrText = "";
+    for (const ep of videoEndpoints) {
+      falRes = await fetch(`${FAL_MPP_BASE}/${ep}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
+      if (falRes.ok) { console.log(`Video ok via ${ep}`); break; }
+      lastErrText = await falRes.text().catch(() => "");
+      console.error(`Video endpoint ${ep} → ${falRes.status}:`, lastErrText.slice(0, 400));
+      if (falRes.status !== 404 && falRes.status !== 400) break; // only fall back on path/body errors
+    }
+    if (!falRes || !falRes.ok) {
+      throw new Error(`fal.ai video ${falRes ? falRes.status : "no-response"}: ${lastErrText.slice(0, 300)}`);
+    }
     const result = await falRes.json();
     trackRequest();
     setPaymentReceipt(res, payment);
@@ -1446,8 +1502,30 @@ app.post("/v1/videos/generate", async (req, res) => {
     const videoUrl = result.video?.url || null;
     res.json({ video: videoUrl ? { url: videoUrl } : null, prompt, model: videoModel, timings: result.timings, seed: result.seed ?? seed ?? null });
   } catch (err) {
-    console.error("Video error:", err.message);
-    res.status(502).json({ detail: "Video generation failed. Please retry." });
+    console.error("Video error:", err && err.stack ? err.stack : err);
+    let retryToken = null;
+    if (retryShortCircuit && redis) {
+      retryToken = earlyRetryHeader;
+      await redis.set(retryShortCircuit.key, JSON.stringify({ ...retryShortCircuit.data, used: false }), { ex: 3600 }).catch(() => {});
+    } else if (redis) {
+      retryToken = createHmac("sha256", String(Date.now())).update(String(Math.random())).digest("hex").slice(0, 32);
+      const creditData = {
+        amount: Number(totalPrice),
+        model: videoModel,
+        wallet: reqWallet || (payment && payment.payer) || null,
+        timestamp: Date.now(),
+        used: false,
+      };
+      await redis.set(`pixelpay:credit:${retryToken}`, JSON.stringify(creditData), { ex: 3600 }).catch(() => {});
+      console.log(`Video retry credit issued: ${retryToken}`);
+    }
+    res.status(502).json({
+      detail: retryToken
+        ? "Video generation failed. You have a retry credit — use the retry_token to try again without paying."
+        : "Video generation failed and no retry credit could be issued. Please contact support with your payment receipt for a refund.",
+      upstream_error: err && err.message ? err.message.slice(0, 300) : undefined,
+      ...(retryToken ? { retry_token: retryToken } : {}),
+    });
   }
 });
 
