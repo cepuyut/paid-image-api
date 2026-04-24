@@ -179,8 +179,8 @@ const BASE_PRICING = {
   "fal-ai/flux-pro/v1/fill":    { base: 59000,  tier: "edit", type: "edit", maxImages: 1 },
   // Transform (style transfer / remix, cost ~$0.040)
   "fal-ai/flux-kontext/text-to-image": { base: 47000, tier: "transform", type: "transform", maxImages: 1 },
-  // Video generation (Seedance 1.0 Pro Fast, cost ~$0.250 for 5s)
-  "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video": { base: 295000, tier: "video", type: "video", maxImages: 0 },
+  // Video generation (MiniMax Video-01, MPP cost ~$0.55 for 6s). Margin ~18%.
+  "fal-ai/minimax/video-01": { base: 650000, tier: "video", type: "video", maxImages: 1 },
 };
 const DEFAULT_MODEL = "fal-ai/flux/schnell";
 
@@ -384,30 +384,11 @@ function buildFalBody(model, { prompt, image_size, num_images, negative_prompt, 
     return body;
   }
 
-  // --- Seedance Video: image_url as starting frame, prompt for motion ---
-  if (model === "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video") {
-    // Seedance accepts aspect_ratio as "21:9","16:9","4:3","1:1","3:4","9:16"
-    // Map any legacy image-enum aliases to the slash format it expects.
-    const ratioMap = {
-      "landscape_16_9": "16:9",
-      "landscape_4_3": "4:3",
-      "portrait_16_9": "9:16",
-      "portrait_9_16": "9:16",
-      "portrait_4_3": "3:4",
-      "square_hd": "1:1",
-      "square": "1:1",
-      "widescreen_21_9": "21:9",
-    };
-    const rawRatio = opts.aspect_ratio || size;
-    const ratio = ratioMap[rawRatio] || (typeof rawRatio === "string" && /^\d+:\d+$/.test(rawRatio) ? rawRatio : "16:9");
-    const body = {
-      prompt,
-      aspect_ratio: ratio,
-      resolution: opts.resolution || "720p",
-      duration: String(opts.duration || 5),
-    };
-    if (refs.length > 0) body.image_url = refs[0];
-    if (seed != null) body.seed = Number(seed);
+  // --- MiniMax Video-01: text-to-video (6s fixed). Optional first_frame_image. ---
+  // Accepts: prompt, prompt_optimizer (bool). Does NOT accept aspect_ratio/duration/resolution.
+  if (model === "fal-ai/minimax/video-01") {
+    const body = { prompt, prompt_optimizer: true };
+    if (refs.length > 0) body.first_frame_image = refs[0];
     return body;
   }
 
@@ -1432,14 +1413,14 @@ app.post("/v1/images/transform", async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // Video Generate endpoint: POST /v1/videos/generate (MPP + x402)
-// Uses Seedance 1.0 Pro Fast for video generation
+// Uses MiniMax Video-01 (only video model available on MPP proxy)
 // ---------------------------------------------------------------------------
 
 app.post("/v1/videos/generate", async (req, res) => {
   const { prompt, image_url, seed, wallet: reqWallet, aspect_ratio, resolution, duration } = req.body || {};
 
   // Payment check FIRST so MPPscan probe gets 402
-  const videoModel = "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video";
+  const videoModel = "fal-ai/minimax/video-01";
   const perImage = getPricing(videoModel);
   const totalPrice = perImage.price;
   const desc = `Generate a 5s video for ${perImage.usd} USDC`;
@@ -1476,24 +1457,12 @@ app.post("/v1/videos/generate", async (req, res) => {
 
   try {
     const refs = image_url ? [image_url] : [];
-    const falBody = buildFalBody(videoModel, { prompt, image_urls: refs, seed, aspect_ratio, resolution, duration });
-    // Try fast variant first, fall back to standard Pro path if 404/400.
-    const videoEndpoints = [
-      "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video",
-      "fal-ai/bytedance/seedance/v1/pro/text-to-video",
-      "fal-ai/bytedance/seedance/v1/lite/text-to-video",
-    ];
-    let falRes = null;
-    let lastErrText = "";
-    for (const ep of videoEndpoints) {
-      falRes = await fetch(`${FAL_MPP_BASE}/${ep}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
-      if (falRes.ok) { console.log(`Video ok via ${ep}`); break; }
-      lastErrText = await falRes.text().catch(() => "");
-      console.error(`Video endpoint ${ep} → ${falRes.status}:`, lastErrText.slice(0, 400));
-      if (falRes.status !== 404 && falRes.status !== 400) break; // only fall back on path/body errors
-    }
-    if (!falRes || !falRes.ok) {
-      throw new Error(`fal.ai video ${falRes ? falRes.status : "no-response"}: ${lastErrText.slice(0, 300)}`);
+    const falBody = buildFalBody(videoModel, { prompt, image_urls: refs, seed });
+    const falRes = await fetch(`${FAL_MPP_BASE}/${videoModel}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(falBody) });
+    if (!falRes.ok) {
+      const errText = await falRes.text().catch(() => "");
+      console.error(`fal.ai video ${falRes.status}:`, errText.slice(0, 500));
+      throw new Error(`fal.ai video ${falRes.status}: ${errText.slice(0, 300)}`);
     }
     const result = await falRes.json();
     trackRequest();

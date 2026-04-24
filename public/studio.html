@@ -338,30 +338,17 @@
       <div class="field">
         <label>Duration</label>
         <div class="video-duration">
-          <button class="duration-btn active" data-dur="5" onclick="selectDuration(this)">5 seconds</button>
+          <button class="duration-btn active" data-dur="6" onclick="selectDuration(this)">6 seconds</button>
         </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Powered by MiniMax Video-01 · outputs ~720p landscape</div>
       </div>
 
-      <div class="field">
-        <label>Aspect Ratio</label>
-        <div class="ratio-grid" id="videoRatioGrid">
-          <div class="ratio-option" data-ratio="1:1" onclick="selectVideoRatio(this)">
-            <div class="ratio-icon" style="width:24px;height:24px;"></div>
-            <span class="ratio-label">1:1</span>
-          </div>
-          <div class="ratio-option active" data-ratio="16:9" onclick="selectVideoRatio(this)">
-            <div class="ratio-icon" style="width:30px;height:17px;"></div>
-            <span class="ratio-label">16:9</span>
-          </div>
-          <div class="ratio-option" data-ratio="9:16" onclick="selectVideoRatio(this)">
-            <div class="ratio-icon" style="width:16px;height:28px;"></div>
-            <span class="ratio-label">9:16</span>
-          </div>
-        </div>
+      <div class="field" style="display:none">
+        <!-- MiniMax Video-01 outputs fixed aspect; ratio selector hidden. -->
         <input type="hidden" id="video_aspect_ratio" value="16:9">
       </div>
 
-      <button class="btn-generate" id="videoGenBtn" onclick="generateVideo()">Generate Video — $0.295</button>
+      <button class="btn-generate" id="videoGenBtn" onclick="generateVideo()">Generate Video — $0.65</button>
       <div class="progress-steps" id="videoProgressSteps" style="display:none">
         <span class="step-indicator" id="vps1">1. Challenge</span>
         <span class="step-sep">&rarr;</span>
@@ -1594,7 +1581,7 @@ async function generateVideo() {
     result.innerHTML = `<div class="error">${esc(msg)}</div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = "Generate Video — $0.295";
+    btn.textContent = "Generate Video — $0.65";
     setTimeout(() => { progress.style.display = "none"; }, 5000);
   }
 }
